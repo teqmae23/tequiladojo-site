@@ -3795,16 +3795,20 @@ function calRenderGrid(y,m,schMap,rsvMap){
     if(isToday){var tb=document.createElement('span');tb.className='cal-today-badge';tb.textContent='当日';row.appendChild(tb);}
     cell.appendChild(row);
     if(sch){
+      var bt=parseInt(sch.businessType)||0;
       var tr=document.createElement('div');tr.className='cal-trow';
-      if(sch.businessType==='4'||sch.businessType==='5'||sch.businessType==='8'){
+      if(bt===4||bt===5||bt===8){
         var ic2=document.createElement('span');
         ic2.style.cssText='font-size:9px;font-weight:500;border-radius:2px;padding:0 4px;line-height:1.5;background:#444441;color:#F1EFE8';
-        ic2.textContent=sch.businessType==='4'?'定休日':sch.businessType==='8'?'臨時休業':'休業日';
+        ic2.textContent=bt===4?'定休日':bt===8?'臨時休業':'休業日';
         tr.appendChild(ic2);cell.appendChild(tr);
-      } else if(sch.openTime&&sch.closeTime){
-        var ic=document.createElement('span');ic.className='cal-ei';ic.textContent='営';
-        var tt=document.createElement('span');tt.className='cal-ttime';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
-        tr.appendChild(ic);tr.appendChild(tt);cell.appendChild(tr);
+      } else {
+        // 時間あり（定休日・休業日以外で時間がある場合のみ表示）
+        if(sch.openTime&&sch.closeTime){
+          var ic=document.createElement('span');ic.className='cal-ei';ic.textContent='営';
+          var tt=document.createElement('span');tt.className='cal-ttime';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
+          tr.appendChild(ic);tr.appendChild(tt);cell.appendChild(tr);
+        }
       }
     }
     if(rvs&&rvs.length){
@@ -3815,10 +3819,27 @@ function calRenderGrid(y,m,schMap,rsvMap){
       ribtn.onclick=(function(r2){return function(e){e.stopPropagation();calShowRsvPopup(r2,ribtn);};})(rvs);
       ricon.appendChild(ribtn);cell.appendChild(ricon);
     }
+    // 備考（黒文字）+ 右下に椅子アイコンと人数
+    var bottomRow=document.createElement('div');
+    bottomRow.style.cssText='display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto;gap:2px;';
     if(schMemo){
-      var mr=document.createElement('div');mr.style.cssText='font-size:9px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px';
-      mr.textContent=schMemo;cell.appendChild(mr);
+      var mr=document.createElement('span');mr.style.cssText='font-size:9px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1';
+      mr.textContent=schMemo;bottomRow.appendChild(mr);
+    } else {
+      bottomRow.appendChild(document.createElement('span'));
     }
+    if(sch&&sch.capacity!=null){
+      var capDiv=document.createElement('span');
+      if(sch.capacity===0||sch.capacity==='0'){
+        capDiv.style.cssText='font-size:9px;font-weight:700;color:#C44873;flex-shrink:0';
+        capDiv.textContent='🈵';
+      } else {
+        capDiv.style.cssText='font-size:9px;color:var(--ink3);flex-shrink:0';
+        capDiv.textContent='🪑'+sch.capacity;
+      }
+      bottomRow.appendChild(capDiv);
+    }
+    if(bottomRow.children.length>1||(schMemo||( sch&&sch.capacity!=null))) cell.appendChild(bottomRow);
     grid.appendChild(cell);
   }
 }
@@ -3856,12 +3877,16 @@ function calRenderList(y,m,schMap,rsvMap){
         ic2.style.cssText='font-size:12px;font-weight:500;border-radius:2px;padding:1px 7px;line-height:1.6;background:#444441;color:#F1EFE8';
         ic2.textContent=sch.businessType==='4'?'定休日':sch.businessType==='8'?'臨時休業':'休業日';
         lt.appendChild(ic2);
-      } else if(sch.openTime&&sch.closeTime){
-        var ic=document.createElement('span');ic.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';ic.textContent='営';
-        var tt=document.createElement('span');tt.className='cal-ltime-text';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
-        lt.appendChild(ic);lt.appendChild(tt);
+      } else {
+        if(sch.openTime&&sch.closeTime){
+          var ic=document.createElement('span');ic.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';ic.textContent='営';
+          var tt=document.createElement('span');tt.className='cal-ltime-text';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
+          lt.appendChild(ic);lt.appendChild(tt);
+        }
         if(sch.capacity!=null){
-          var cp=document.createElement('span');cp.style.cssText='font-size:13px;color:var(--ink3);flex-shrink:0';cp.textContent='🪑'+sch.capacity;
+          var cp=document.createElement('span');cp.style.cssText='font-size:13px;flex-shrink:0';
+          if(sch.capacity===0||sch.capacity==='0'){cp.style.color='#C44873';cp.textContent='🈵';}
+          else{cp.style.color='var(--ink3)';cp.textContent='🪑'+sch.capacity;}
           lt.appendChild(cp);
         }
       }
@@ -4027,7 +4052,7 @@ function renderSchFormList(y,m,schMap,container){
         +'<button type="button" class="sch-time-btn" onclick="calTimeStep(this,30)" data-target="close" style="padding:2px 5px;font-size:11px;cursor:pointer;border:0.5px solid var(--border);border-radius:var(--r);background:var(--cream2)">▲</button>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
-        +'🪑<input class="fi schnums" type="number" min="1" max="99" value="'+(sch&&sch.capacity!=null?sch.capacity:6)+'" style="width:44px;font-size:12px;padding:3px 4px;text-align:center">'
+        +'🪑<input class="fi schnums" type="number" min="0" max="99" value="'+(sch&&sch.capacity!=null?sch.capacity:6)+'" style="width:44px;font-size:12px;padding:3px 4px;text-align:center">'
       +'</div>'
       +'<input class="fi schmemo" placeholder="備考" value="'+(sch&&sch.memo?sch.memo:'')+'" style="flex:1;min-width:80px;font-size:12px;padding:3px 4px">'
       +'<button class="btn bp sm schsave" data-key="'+key+'" style="font-size:11px;padding:3px 8px;white-space:nowrap">保存</button>'
@@ -4098,7 +4123,7 @@ function saveSchRow(key,container,cb){
     businessType:type,
     openTime:row.querySelector('.schopen').value||null,
     closeTime:row.querySelector('.schclose').value||null,
-    capacity:capEl?parseInt(capEl.value)||6:6,
+    capacity:capEl&&capEl.value!==''?parseInt(capEl.value):null,
     memo:row.querySelector('.schmemo').value||null
   };
   db.collection('schedules').doc(key).set(data,{merge:true})
@@ -4486,8 +4511,21 @@ function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
     var trow='';
     if(sch){
       var bt=parseInt(sch.businessType)||0;
-      if(bt===4||bt===5||bt===8)trow='<div style="margin-top:2px"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
-      else if(sch.openTime&&sch.closeTime)trow='<div style="display:flex;align-items:center;gap:3px;margin-top:2px"><span class="cal-ei">営</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span></div>';
+      if(bt===4||bt===5||bt===8){
+        trow='<div style="margin-top:2px"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
+      } else if(sch.openTime&&sch.closeTime){
+        trow='<div style="display:flex;align-items:center;gap:3px;margin-top:2px"><span class="cal-ei">営</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span></div>';
+      }
+      var capStr='';
+      if(sch.capacity!=null){
+        capStr=(sch.capacity===0||sch.capacity==='0')
+          ?'<span style="font-size:9px;font-weight:700;color:#C44873">🈵</span>'
+          :'<span style="font-size:9px;color:#666">🪑'+sch.capacity+'</span>';
+      }
+      var memoStr=sch.memo?'<span style="font-size:9px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+sch.memo+'</span>':'<span style="flex:1"></span>';
+      if(sch.memo||sch.capacity!=null){
+        trow+='<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:1px">'+memoStr+capStr+'</div>';
+      }
     }
     html+='<div class="'+cls+'"><div class="cal-drow">'+dayPart+namePart+(isToday?'<span style="font-size:8px;font-weight:600;background:#185FA5;color:#fff;border-radius:2px;padding:0 3px;margin-left:auto">当日</span>':'')+'</div>'+trow+'</div>';
   }
@@ -4517,8 +4555,18 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
     var timePart='';
     if(sch){
       var bt=parseInt(sch.businessType)||0;
-      if(bt===4||bt===5||bt===8)timePart='<div class="leitime"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
-      else if(sch.openTime&&sch.closeTime)timePart='<div class="leitime"><span class="cal-ei">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>'+(sch.capacity!=null?'<span style="font-size:12px;color:#666">🪑'+sch.capacity+'</span>':'')+'</div>';
+      if(bt===4||bt===5||bt===8){
+        timePart='<div class="leitime"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
+      } else {
+        var capHtml2='';
+        if(sch.capacity!=null){
+          capHtml2=(sch.capacity===0||sch.capacity==='0')
+            ?'<span style="font-size:13px;font-weight:700;color:#C44873">🈵</span>'
+            :'<span style="font-size:12px;color:#666">🪑'+sch.capacity+'</span>';
+        }
+        var timeHtml2=sch.openTime&&sch.closeTime?'<span class="cal-ei">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>':'';
+        if(timeHtml2||capHtml2) timePart='<div class="leitime">'+timeHtml2+capHtml2+'</div>';
+      }
     }
     var names=[];
     if(isHol)names.push('<span style="font-size:11px;color:#E24B4A">'+calHolidays[key]+'</span>');
