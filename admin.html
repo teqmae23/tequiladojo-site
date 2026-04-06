@@ -3821,7 +3821,6 @@ function calRenderGrid(y,m,schMap,rsvMap){
         ic2.textContent=bt===4?'定休日':bt===8?'臨時休業':'休業日';
         tr.appendChild(ic2);cell.appendChild(tr);
       } else {
-        console.log('bt='+bt+' openTime='+sch.openTime+' closeTime='+sch.closeTime+' icon='+CAL_BT_LABEL[bt]+' hasIcon='+!!CAL_BT_ICONS[bt]);
         if(sch.openTime&&sch.closeTime){
           var ic=document.createElement('span');ic.className='cal-ei';ic.textContent='営';
           var tt=document.createElement('span');tt.className='cal-ttime';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
@@ -3895,21 +3894,21 @@ function calRenderList(y,m,schMap,rsvMap){
     head.appendChild(dwrap);
     if(sch){
       var lt=document.createElement('div');lt.className='cal-leitime';lt.style.cssText='display:flex;align-items:center;gap:5px;flex-shrink:0';
-      if(sch.businessType==='4'||sch.businessType==='5'||sch.businessType==='8'){
+      var lbt=parseInt(sch.businessType)||0;
+      if(lbt===4||lbt===5||lbt===8){
         var ic2=document.createElement('span');
         ic2.style.cssText='font-size:12px;font-weight:500;border-radius:2px;padding:1px 7px;line-height:1.6;background:#444441;color:#F1EFE8';
-        ic2.textContent=sch.businessType==='4'?'定休日':sch.businessType==='8'?'臨時休業':'休業日';
+        ic2.textContent=lbt===4?'定休日':lbt===8?'臨時休業':'休業日';
         lt.appendChild(ic2);
       } else {
-        console.log('bt='+bt+' openTime='+sch.openTime+' closeTime='+sch.closeTime+' icon='+CAL_BT_LABEL[bt]+' hasIcon='+!!CAL_BT_ICONS[bt]);
         if(sch.openTime&&sch.closeTime){
           var ic=document.createElement('span');ic.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';ic.textContent='営';
           var tt=document.createElement('span');tt.className='cal-ltime-text';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
           lt.appendChild(ic);lt.appendChild(tt);
-        } else if(CAL_BT_ICONS[bt]){
+        } else if(CAL_BT_ICONS[lbt]){
           var ic3=document.createElement('span');
           ic3.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';
-          ic3.textContent=CAL_BT_LABEL[bt];
+          ic3.textContent=CAL_BT_LABEL[lbt];
           lt.appendChild(ic3);
         }
         if(sch.capacity!=null){
