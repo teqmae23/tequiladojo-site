@@ -4389,7 +4389,7 @@ var C23_SRC='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAWCAYAAAClrE55A
         {path:calPath,content:calHtml},
         {path:listPath,content:listHtml}
       ],status).then(function(){
-        status.textContent='✅ 公開完了！ https://'+GH_OWNER+'.github.io/'+GH_REPO+'/'+calPath;
+        status.textContent='✅ 公開完了！ https://www.tequiladojo.com/'+calPath;
         status.style.color='var(--teal,#2E7D6E)';
         toast('カレンダーを公開しました（'+ym+'）');
       }).catch(function(e){
@@ -4482,7 +4482,7 @@ function genCalPublicHtml(y,m2,schMap,rsvMap,mode){
   // 月選択（公開期間内のみ）
   var opts='';
   for(var i2=-36;i2<=36;i2++){var tm2=m2+i2,ty2=y;while(tm2<0){tm2+=12;ty2--;}while(tm2>11){tm2-=12;ty2++;}var tYm2=String(ty2)+String(tm2+1).padStart(2,'0');var tVal2=ty2*12+(tm2+1);if(tVal2<fromVal||tVal2>toVal)continue;opts+='<option value="'+tYm2+'"'+(tYm2===ym?' selected':'')+'>'+ty2+'年'+(tm2+1)+'月</option>';}
-  var BASE='https://teqmae23.github.io/tequiladojo-site/calendar/';
+  var BASE='https://www.tequiladojo.com/calendar/';
   var prevBtn=hasPrev
     ?'<a href="'+BASE+prevYm+suffix+'.html" style="text-decoration:none;padding:4px 12px;border:1px solid #ddd;border-radius:6px;color:#333">&#8592;</a>'
     :'<span style="padding:4px 12px;border:1px solid #eee;border-radius:6px;color:#ccc;cursor:default">&#8592;</span>';
@@ -4500,10 +4500,7 @@ function genCalPublicHtml(y,m2,schMap,rsvMap,mode){
     +'</div></div>';
   var body=mode==='cal'?genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT):genPubList(y,m2,schMap,rsvMap,PDOWS,PBT);
   var legend='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px">'
-    +[['#E6F1FB','#B5D4F4','夜のみ'],['#C0DD97','#97C459','昼のみ'],['#EAF3DE','#C0DD97','昼夜'],
-      ['#FAEEDA','#FAC775','予約のみ'],['#D3D1C7','#B4B2A9','定休日'],['#B4B2A9','#888780','休業日'],
-      ['#FBEAF0','#F4C0D1','イベント'],['#FEF0E0','#F5C878','貸切'],['#D3D1C7','#B4B2A9','臨時休業']]
-    .map(function(x){return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#666"><div style="width:10px;height:10px;border-radius:2px;background:'+x[0]+';border:0.5px solid '+x[1]+'"></div>'+x[2]+'</div>';})
+    +CAL_BT_LABEL.map(function(lbl,i){var c=CAL_BT_COLORS[i]||CAL_BT_DEFAULT_BG[i];return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#666"><div style="width:10px;height:10px;border-radius:2px;background:'+c+';border:0.5px solid rgba(0,0,0,0.15)"></div>'+lbl+'</div>';})
     .join('')+'</div>';
   var css='<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:sans-serif;background:#f9f7f2;color:#333}'
     +'.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(56px,1fr));gap:4px}'
