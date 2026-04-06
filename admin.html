@@ -201,7 +201,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
 .cal-aname{font-size:9px;color:#993556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
 .cal-today-badge{margin-left:auto;font-size:9px;font-weight:500;background:#185FA5;color:#E6F1FB;border-radius:3px;padding:0 4px;flex-shrink:0}
 .cal-trow{display:flex;align-items:center;gap:3px;margin-bottom:2px}
-.cal-ei{font-size:9px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:0 3px;flex-shrink:0;line-height:1.5}
+.cal-ei{font-size:11px;font-weight:600;background:#444441;color:#F1EFE8;border-radius:3px;padding:1px 5px;flex-shrink:0;line-height:1.6}
 .cal-ttime{font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;font-family:monospace}
 .cal-rrow{display:flex;align-items:center;margin-bottom:2px;min-width:0}
 .cal-rico{font-size:9px;font-weight:500;background:#185FA5;color:#E6F1FB;border-radius:2px;padding:0 3px;flex-shrink:0;line-height:1.5}
@@ -3845,7 +3845,7 @@ function calRenderGrid(y,m,schMap,rsvMap){
     var bottomRow=document.createElement('div');
     bottomRow.style.cssText='display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto;gap:2px;';
     if(schMemo){
-      var mr=document.createElement('span');mr.style.cssText='font-size:9px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1';
+      var mr=document.createElement('span');mr.style.cssText='font-size:9px;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1';
       mr.textContent=schMemo;bottomRow.appendChild(mr);
     } else {
       bottomRow.appendChild(document.createElement('span'));
@@ -3853,10 +3853,10 @@ function calRenderGrid(y,m,schMap,rsvMap){
     if(sch&&sch.capacity!=null){
       var capDiv=document.createElement('span');
       if(sch.capacity===0||sch.capacity==='0'){
-        capDiv.style.cssText='font-size:9px;font-weight:700;color:#C44873;flex-shrink:0';
+        capDiv.style.cssText='font-size:13px;font-weight:700;color:#C44873;flex-shrink:0';
         capDiv.textContent='🈵';
       } else {
-        capDiv.style.cssText='font-size:9px;color:var(--ink3);flex-shrink:0';
+        capDiv.style.cssText='font-size:12px;color:var(--ink3);flex-shrink:0';
         capDiv.textContent='🪑'+sch.capacity;
       }
       bottomRow.appendChild(capDiv);
@@ -3920,7 +3920,7 @@ function calRenderList(y,m,schMap,rsvMap){
       }
       head.appendChild(lt);
       if(sch.memo){
-        var mo=document.createElement('span');mo.style.cssText='font-size:11px;color:var(--ink3);flex:1;min-width:0;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';mo.textContent=sch.memo;
+        var mo=document.createElement('span');mo.style.cssText='font-size:11px;color:#222;flex:1;min-width:0;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';mo.textContent=sch.memo;
         head.appendChild(mo);
       }
     }
@@ -4511,14 +4511,12 @@ function genCalPublicHtml(y,m2,schMap,rsvMap,mode){
     +'.cal-dow.sun{color:#E24B4A}.cal-dow.sat{color:#378ADD}'
     +'.cal-cell{min-height:90px;border:0.5px solid #ddd;border-radius:6px;padding:4px 5px;overflow:hidden;background:#fff}'
     +'.cal-cell.cal-other{opacity:0.3}.cal-cell.cal-today{border:2px solid #185FA5}'
-    +'.cbt0{background:#E6F1FB}.cbt1{background:#EAF3DE}.cbt2{background:#C0DD97}'
-    +'.cbt3{background:#FAEEDA}.cbt4{background:#D3D1C7}.cbt5{background:#B4B2A9}'
-    +'.cbt6{background:#FBEAF0}.cbt7{background:#FEF0E0}.cbt8{background:#D3D1C7}'
+    +(function(){var s='';CAL_BT_COLORS.forEach(function(c,i){s+='.cbt'+i+'{background:'+c+'}'});return s;})()
     +'.cal-day-num{font-size:20px;font-weight:500;line-height:1;flex-shrink:0}'
     +'.cal-drow{display:flex;align-items:center;gap:3px;margin-bottom:2px;min-height:26px}'
     +'.cal-hname{font-size:9px;color:#E24B4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}'
     +'.cal-aname{font-size:9px;color:#993556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}'
-    +'.cal-ei{font-size:9px;font-weight:600;background:#444;color:#fff;border-radius:2px;padding:0 3px;line-height:1.5}'
+    +'.cal-ei{font-size:11px;font-weight:600;background:#444;color:#fff;border-radius:3px;padding:1px 5px;line-height:1.6}'
     +'.cal-ttime{font-size:10px;color:#666;font-family:monospace}'
     +'.litem{border:0.5px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:6px}'
     +'.litem.ltoday{border:3px solid #185FA5}'
@@ -4572,14 +4570,16 @@ function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
         trow='<div style="margin-top:2px"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
       } else if(sch.openTime&&sch.closeTime){
         trow='<div style="display:flex;align-items:center;gap:3px;margin-top:2px"><span class="cal-ei">営</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span></div>';
+      } else if(CAL_BT_LABEL[bt]){
+        trow='<div style="margin-top:2px"><span class="cal-ei">'+CAL_BT_LABEL[bt]+'</span></div>';
       }
       var capStr='';
       if(sch.capacity!=null){
         capStr=(sch.capacity===0||sch.capacity==='0')
-          ?'<span style="font-size:9px;font-weight:700;color:#C44873">🈵</span>'
-          :'<span style="font-size:9px;color:#666">🪑'+sch.capacity+'</span>';
+          ?'<span style="font-size:13px;font-weight:700;color:#C44873">🈵</span>'
+          :'<span style="font-size:12px;color:#555">🪑'+sch.capacity+'</span>';
       }
-      var memoStr=sch.memo?'<span style="font-size:9px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+sch.memo+'</span>':'<span style="flex:1"></span>';
+      var memoStr=sch.memo?'<span style="font-size:9px;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+sch.memo+'</span>':'<span style="flex:1"></span>';
       if(sch.memo||sch.capacity!=null){
         trow+='<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:1px">'+memoStr+capStr+'</div>';
       }
@@ -4618,10 +4618,11 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
         var capHtml2='';
         if(sch.capacity!=null){
           capHtml2=(sch.capacity===0||sch.capacity==='0')
-            ?'<span style="font-size:13px;font-weight:700;color:#C44873">🈵</span>'
-            :'<span style="font-size:12px;color:#666">🪑'+sch.capacity+'</span>';
+            ?'<span style="font-size:15px;font-weight:700;color:#C44873">🈵</span>'
+            :'<span style="font-size:14px;color:#555">🪑'+sch.capacity+'</span>';
         }
-        var timeHtml2=sch.openTime&&sch.closeTime?'<span class="cal-ei">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>':'';
+        var typeIcon2=(!sch.openTime&&!sch.closeTime&&CAL_BT_LABEL[bt])?'<span class="cal-ei">'+CAL_BT_LABEL[bt]+'</span>':'';
+        var timeHtml2=sch.openTime&&sch.closeTime?'<span class="cal-ei">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>':typeIcon2;
         if(timeHtml2||capHtml2) timePart='<div class="leitime">'+timeHtml2+capHtml2+'</div>';
       }
     }
@@ -4630,7 +4631,7 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
     if(anniv)names.push('<span style="font-size:11px;color:#993556">'+anniv.nameJa+'</span>');
     var namesPart=names.length?'<div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;margin-left:4px">'+names.join('')+'</div>':'<span style="flex:1"></span>';
     var todayPart=isToday?'<span style="font-size:10px;font-weight:600;background:#185FA5;color:#fff;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0">当日</span>':'';
-    html+='<div class="'+cls+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div></div>';
+    html+='<div class="'+cls+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div>'+(sch&&sch.memo?'<div style="font-size:11px;color:#222;padding:2px 10px 4px">'+sch.memo+'</div>':'')+'</div>';
   }
   if(!hasAny)html+='<div style="font-size:13px;color:#888;padding:16px">この月の予定はありません</div>';
   html+='</div>';
