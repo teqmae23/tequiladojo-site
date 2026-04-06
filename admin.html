@@ -4379,10 +4379,16 @@ var C23_SRC='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAWCAYAAAClrE55A
   Promise.all([p1,p2]).then(function(){
     status.textContent='HTML生成中...';
     calFetchHolidays(function(){
-      var calHtml=genCalPublicHtml(y,m2,schMap,rsvMap,'cal');
-      var listHtml=genCalPublicHtml(y,m2,schMap,rsvMap,'list');
+      var calHtml,listHtml;
+      try{
+        calHtml=genCalPublicHtml(y,m2,schMap,rsvMap,'cal');
+        listHtml=genCalPublicHtml(y,m2,schMap,rsvMap,'list');
+      }catch(genErr){
+        status.textContent='❌ HTML生成エラー: '+genErr.message;
+        status.style.color='var(--red,#C44873)';return;
+      }
       if(!calHtml||calHtml.length<100){status.textContent='❌ HTML生成失敗（空）';status.style.color='var(--red,#C44873)';return;}
-      status.textContent='Netlifyにアップロード中... (cal:'+Math.round(calHtml.length/1024)+'KB, list:'+Math.round(listHtml.length/1024)+'KB)';
+      status.textContent='アップロード中... (cal:'+Math.round(calHtml.length/1024)+'KB, list:'+Math.round(listHtml.length/1024)+'KB)';
       var calPath='calendar/'+ym+'calendar.html';
       var listPath='calendar/'+ym+'listcal.html';
       deployToGitHub([

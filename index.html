@@ -352,6 +352,7 @@ function idxBuildSchedule(){
 
         if(sch){
           var bt=parseInt(sch.businessType)||0;
+          console.log('idx bt='+bt+' btype='+sch.businessType+' open='+sch.openTime);
           var IDX_BT_LABEL=['夜のみ','昼夜営業','昼のみ','予約営業のみ','定休日','休業日','イベント','貸切','臨時休業'];
           if(bt===4||bt===5||bt===8){
             var badge=document.createElement('span');
