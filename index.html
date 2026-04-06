@@ -265,17 +265,8 @@ function idxShowRsvPopup(rvs, anchor){
 }
 
 function idxMakeRsvIcon(rvs){
-  var btn=document.createElement('button');
-  var hasRsv=rvs&&rvs.length>0;
-  btn.style.cssText='border:none;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;margin-left:auto;'
-    +(hasRsv?'background:#FBEAF0;color:#C44873;':'background:#ccc;color:#fff;');
-  btn.textContent='予約';
-  if(hasRsv){
-    btn.onclick=function(e){e.stopPropagation();idxShowRsvPopup(rvs,btn);};
-  } else {
-    btn.disabled=true;btn.style.cursor='default';
-  }
-  return btn;
+  // 予約アイコン一時非表示
+  return document.createDocumentFragment();
 }
 
 function idxBuildSchedule(){
@@ -283,11 +274,8 @@ function idxBuildSchedule(){
   if(!wrap)return;
   wrap.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">読み込み中...</div>';
   // Initialize Firebase
-  if(!window._idxFbInit){
-    window._idxFbInit=true;
-    if(typeof firebase!=='undefined'&&!firebase.apps.length){
-      firebase.initializeApp(FIREBASE_CONFIG);
-    }
+  if(!firebase.apps.length){
+    firebase.initializeApp(FIREBASE_CONFIG);
   }
   var db=firebase.firestore();
   var today=new Date();
@@ -451,7 +439,6 @@ tick();
 setInterval(tick, 1000);
 </script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>window.addEventListener("DOMContentLoaded",function(){idxBuildSchedule();});</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" onload="idxBuildSchedule()"></script>
 </body>
 </html>
