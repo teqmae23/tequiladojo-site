@@ -3639,6 +3639,24 @@ var C23_ICON='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAWCAYAAAClrE55
 var CAL_DOWS=['日','月','火','水','木','金','土'];
 var CAL_BT_CLASS=['cbt0','cbt1','cbt2','cbt3','cbt4','cbt5','cbt6','cbt7','cbt8'];
 var CAL_BT_LABEL=['夜のみ','昼夜営業','昼のみ','予約営業のみ','定休日','休業日','イベント','貸切','臨時休業'];
+var CAL_BT_ICONS=['','','','','定休','休業','催','貸','休業'];
+// デフォルト背景色（CSS変数のデフォルト値と同じ）
+var CAL_BT_DEFAULT_BG=['#E6F1FB','#EAF3DE','#C0DD97','#FAEEDA','#D3D1C7','#B4B2A9','#FBEAF0','#FEF0E0','#D3D1C7'];
+// localStorageから色設定を読み込む
+function calLoadColors(){
+  try{var s=localStorage.getItem('cal_colors');if(s)return JSON.parse(s);}catch(e){}
+  return CAL_BT_DEFAULT_BG.slice();
+}
+function calSaveColors(arr){
+  try{localStorage.setItem('cal_colors',JSON.stringify(arr));}catch(e){}
+}
+var CAL_BT_COLORS=calLoadColors();
+// CSS変数に色を適用
+function calApplyColors(){
+  var root=document.documentElement;
+  CAL_BT_COLORS.forEach(function(c,i){root.style.setProperty('--cbt'+i,c);});
+}
+calApplyColors();
 var calCur={y:new Date().getFullYear(),m:new Date().getMonth()};
 var calView='cal';
 var calHolidays={};
@@ -3803,11 +3821,15 @@ function calRenderGrid(y,m,schMap,rsvMap){
         ic2.textContent=bt===4?'定休日':bt===8?'臨時休業':'休業日';
         tr.appendChild(ic2);cell.appendChild(tr);
       } else {
-        // 時間あり（定休日・休業日以外で時間がある場合のみ表示）
         if(sch.openTime&&sch.closeTime){
           var ic=document.createElement('span');ic.className='cal-ei';ic.textContent='営';
           var tt=document.createElement('span');tt.className='cal-ttime';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
           tr.appendChild(ic);tr.appendChild(tt);cell.appendChild(tr);
+        } else if(CAL_BT_ICONS[bt]){
+          // 時間なしの場合はタイプ名アイコンを表示
+          var ic3=document.createElement('span');ic3.className='cal-ei';
+          ic3.textContent=CAL_BT_ICONS[bt];
+          tr.appendChild(ic3);cell.appendChild(tr);
         }
       }
     }
@@ -3882,6 +3904,11 @@ function calRenderList(y,m,schMap,rsvMap){
           var ic=document.createElement('span');ic.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';ic.textContent='営';
           var tt=document.createElement('span');tt.className='cal-ltime-text';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
           lt.appendChild(ic);lt.appendChild(tt);
+        } else if(CAL_BT_ICONS[bt]){
+          var ic3=document.createElement('span');
+          ic3.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';
+          ic3.textContent=CAL_BT_LABEL[bt]||CAL_BT_ICONS[bt];
+          lt.appendChild(ic3);
         }
         if(sch.capacity!=null){
           var cp=document.createElement('span');cp.style.cssText='font-size:13px;flex-shrink:0';
@@ -3933,16 +3960,45 @@ function calSetView(v){
 function calRenderLegend(){
   var wrap=document.getElementById('cal-legend');
   if(!wrap) return;
-  var items=[
-    {bg:'#E6F1FB',bd:'#B5D4F4',label:'夜のみ'},{bg:'#C0DD97',bd:'#97C459',label:'昼のみ'},
-    {bg:'#EAF3DE',bd:'#C0DD97',label:'昼夜営業'},{bg:'#FAEEDA',bd:'#FAC775',label:'予約営業のみ'},
-    {bg:'#D3D1C7',bd:'#B4B2A9',label:'定休日'},{bg:'#B4B2A9',bd:'#888780',label:'休業日'},
-    {bg:'#FBEAF0',bd:'#F4C0D1',label:'イベント/記念日'},{bg:'#FEF0E0',bd:'#F5C878',label:'貸切'},
-  ];
-  wrap.innerHTML=items.map(function(it){
-    return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink3)">'
-      +'<div class="cal-legend-dot" style="background:'+it.bg+';border:0.5px solid '+it.bd+'"></div>'+it.label+'</div>';
-  }).join('');
+  wrap.innerHTML='';
+  CAL_BT_LABEL.forEach(function(label,i){
+    var col=CAL_BT_COLORS[i]||CAL_BT_DEFAULT_BG[i];
+    var item=document.createElement('div');
+    item.style.cssText='display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink3);';
+    // カラーピッカー（hidden）
+    var picker=document.createElement('input');
+    picker.type='color';picker.value=col;
+    picker.style.cssText='position:absolute;opacity:0;width:0;height:0;pointer-events:none;';
+    picker.addEventListener('input',function(){dot.style.background=picker.value;});
+    picker.addEventListener('change',(function(idx2,p){return function(){
+      CAL_BT_COLORS[idx2]=p.value;
+      calSaveColors(CAL_BT_COLORS);
+      calApplyColors();
+      calRenderMonth();
+    };})(i,picker));
+    // ドット（クリックでピッカー起動）
+    var dot=document.createElement('div');
+    dot.className='cal-legend-dot';
+    dot.style.cssText='background:'+col+';border:1px solid rgba(0,0,0,0.15);cursor:pointer;position:relative;flex-shrink:0;';
+    dot.appendChild(picker);
+    dot.addEventListener('click',function(){picker.click();});
+    item.appendChild(dot);
+    item.appendChild(document.createTextNode(label));
+    // リセットボタン
+    var rst=document.createElement('span');
+    rst.textContent='↺';rst.title='デフォルトに戻す';
+    rst.style.cssText='font-size:9px;color:var(--ink3);cursor:pointer;opacity:0.6;margin-left:2px;';
+    rst.addEventListener('click',(function(idx2){return function(e){
+      e.stopPropagation();
+      CAL_BT_COLORS[idx2]=CAL_BT_DEFAULT_BG[idx2];
+      calSaveColors(CAL_BT_COLORS);
+      calApplyColors();
+      calRenderLegend();
+      calRenderMonth();
+    };})(i));
+    item.appendChild(rst);
+    wrap.appendChild(item);
+  });
 }
 
 (function(){
