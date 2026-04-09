@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>テキーラ道場 — 来店・退店</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#18110a;--ink2:#4a3820;--ink3:#9a8470;
+  --gold:#c8921e;--gold-l:#e8b84a;--gold-d:#7a5610;
+  --teal:#1a6e58;--teal-l:#e0f0eb;
+  --red:#8c2818;--red-l:#fae8e4;
+  --cream:#faf7f1;--cream2:#f0ebe0;--cream3:#e4ddd0;--white:#fff;
+  --border:rgba(160,130,100,.18);--border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07);--shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px;--rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select{font-family:var(--sans)}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+.topbar{background:var(--ink);padding:12px 24px;display:flex;align-items:center;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:480px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:18px 24px 14px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--gold-d)}
+.mbody{padding:18px 24px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:12px 24px 18px;border-top:1px solid var(--border)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cacts{display:flex;gap:8px;justify-content:center}
+#toasts{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}.terr{background:var(--red);color:#fff}.tinf{background:var(--gold-d);color:var(--cream)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.ec{text-align:center;color:var(--ink3);padding:24px!important}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Check-in Console</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <a href="home.html" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:6px;font-size:11px;text-decoration:none">← ホーム</a>
+    <span style="font-family:var(--serif);font-size:16px;color:var(--gold-l)">🚪 来店・退店</span>
+    <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)" id="temail"></span>
+    <button id="btn-logout" style="padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:6px;background:none;color:rgba(255,255,255,.38);font-size:11px">ログアウト</button>
+  </div>
+
+  <div style="max-width:960px;margin:20px auto;padding:0 20px">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button id="btn-new-visit" class="btn bp">＋ 新規来店者</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table id="tbl-checkin">
+        <colgroup>
+          <col style="width:60px"><col><col style="width:60px"><col style="width:60px">
+          <col style="width:70px"><col style="width:60px"><col style="width:70px">
+          <col style="width:80px"><col style="width:80px">
+        </colgroup>
+        <thead><tr>
+          <th>来店</th><th>名前・会員ID</th><th>来店回数</th><th>段位</th>
+          <th>グループ</th><th>テキーラ</th><th>金額</th><th>退店</th><th>操作</th>
+        </tr></thead>
+        <tbody id="tb-checkin"><tr><td colspan="9" class="ec">読み込み中...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 人数ダイアログ -->
+<div class="cbg" id="count-bg">
+  <div class="ccard">
+    <div style="font-size:16px;font-weight:500;margin-bottom:16px">👥 来店人数</div>
+    <div class="fg">
+      <label class="fl">何名様ですか？</label>
+      <input class="fi" id="visit-count-input" type="number" min="1" max="9" value="1" style="font-size:20px;text-align:center">
+    </div>
+    <div class="cacts" style="margin-top:16px">
+      <button class="btn bg2" id="count-cancel">キャンセル</button>
+      <button class="btn bp" id="count-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- 来店登録モーダル -->
+<div class="mbg" id="m-visit">
+  <div class="modal">
+    <div class="mhead">
+      <div class="mtitle" id="mt-visit">来店登録</div>
+    </div>
+    <div class="mbody">
+      <div style="background:var(--cream2);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;font-size:13px">
+        <span id="vis-info" style="color:var(--ink2)"></span>
+      </div>
+      <div class="fg">
+        <label class="fl">会員ID（任意）</label>
+        <input class="fi" id="vis-member" placeholder="250001">
+        <div id="vis-member-status" style="font-size:11px;margin-top:4px;min-height:16px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg">
+          <label class="fl">テキーラ量（ml）</label>
+          <input class="fi" id="vis-tequila" type="number" min="0" placeholder="0">
+        </div>
+        <div class="fg">
+          <label class="fl">金額（円）</label>
+          <input class="fi" id="vis-amount" type="number" min="0" placeholder="0">
+        </div>
+      </div>
+    </div>
+    <div class="mfoot" id="visit-modal-foot">
+      <button class="btn bg2" id="btn-cancel-visit">キャンセル</button>
+      <button class="btn bp" id="btn-save-visit">登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- 退店ダイアログ -->
+<div class="cbg" id="checkout-bg">
+  <div class="ccard" style="max-width:360px">
+    <div style="font-size:16px;font-weight:500;margin-bottom:12px">🚪 退店処理</div>
+    <div id="checkout-visitor-name" style="font-size:13px;color:var(--ink2);margin-bottom:16px"></div>
+    <div class="fg">
+      <label class="fl">会計方法</label>
+      <select class="fs" id="checkout-payment">
+        <option value="0">0: 現金</option><option value="1">1: PayPay</option>
+        <option value="3">3: PayPal</option><option value="9">9: その他</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">領収書発行</label>
+      <select class="fs" id="checkout-receipt">
+        <option value="0">0: 未発行</option><option value="1">1: 発行</option>
+      </select>
+    </div>
+    <div class="cacts" style="margin-top:20px">
+      <button class="btn bg2" id="checkout-cancel">キャンセル</button>
+      <button class="btn bp" id="checkout-ok">退店実行</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+var auth=firebase.auth(), db=firebase.firestore();
+
+function g(id){return document.getElementById(id);}
+function gv(id){var el=g(id);return el?el.value.trim():"";}
+function sv(id,val){var el=g(id);if(el)el.value=(val==null?"":val);}
+function pad(n){return String(n).padStart(2,"0");}
+function toast(msg,type){
+  var el=document.createElement("div");
+  el.className="toast t"+(type||"ok");
+  el.textContent=(type==="err"?"✕ ":type==="inf"?"ℹ ":"✓ ")+msg;
+  g("toasts").appendChild(el);
+  setTimeout(function(){el.remove();},3000);
+}
+function nowStr(){var d=new Date();return pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds());}
+function todayStr6(){var d=new Date();return String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+pad(d.getDate());}
+function fmtHHMM(t){if(!t||t.length<4)return t||"—";return t.slice(0,2)+":"+t.slice(2,4);}
+
+var members=[];
+var todayVisits=[];
+var multiGroup=0, multiIndex=0, multiTotal=0;
+var checkoutTargetId=null;
+
+auth.onAuthStateChanged(function(user){
+  if(user){
+    g("login-screen").style.display="none";
+    g("app").style.display="block";
+    g("temail").textContent=user.email;
+    loadMembers(function(){loadTodayVisits();});
+  } else {
+    g("login-screen").style.display="flex";
+    g("app").style.display="none";
+  }
+});
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"),pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){g("lerr").textContent="入力してください";return;}
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){g("lbtn").textContent="ログイン";})
+    .catch(function(e){g("lerr").textContent="ログイン失敗: "+e.message;g("lbtn").textContent="ログイン";});
+});
+g("lpass").addEventListener("keydown",function(e){if(e.key==="Enter")g("lbtn").click();});
+g("btn-logout").addEventListener("click",function(){auth.signOut();});
+
+function loadMembers(cb){
+  db.collection("members").get().then(function(snap){
+    members=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    if(cb)cb();
+  });
+}
+
+function getMemberInfo(memberId){
+  if(!memberId)return{name:"（非会員）",visitCount:"—",rank:"—"};
+  var m=members.find(function(x){return x.id===memberId||x.memberId===memberId;});
+  if(!m)return{name:"ID:"+memberId,visitCount:"—",rank:"—"};
+  return{name:m.name||"（名前未設定）",visitCount:m.visitCount||0,rank:m.rank||"—"};
+}
+
+function loadTodayVisits(){
+  var today=todayStr6();
+  db.collection("visits").where("visitDate","==",today).get()
+    .then(function(snap){
+      todayVisits=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      var active=todayVisits.filter(function(r){return !r.checkoutTime;});
+      active.sort(function(a,b){return (a.visitTime||"").localeCompare(b.visitTime||"");});
+      renderCheckinList(active);
+    }).catch(function(e){toast("来店データ読込失敗: "+e.message,"err");});
+}
+
+function renderCheckinList(list){
+  var tb=g("tb-checkin");
+  if(!list.length){tb.innerHTML='<tr><td colspan="9" class="ec">現在の来店者はいません</td></tr>';return;}
+  tb.innerHTML=list.map(function(r){
+    var mi=getMemberInfo(r.memberId);
+    return '<tr>'
+      +'<td class="mono dim">'+fmtHHMM(r.visitTime)+'</td>'
+      +'<td>'+mi.name+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+(r.memberId?mi.visitCount:"—")+'</td>'
+      +'<td class="dim" style="font-size:11px">'+(r.memberId?mi.rank:"—")+'</td>'
+      +'<td class="mono dim" style="text-align:center">'+r.groupId+'-'+r.seqNo+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+(r.tequilaAmount!=null?r.tequilaAmount+"ml":"—")+'</td>'
+      +'<td class="mono" style="text-align:right">'+(r.amount?"¥"+Number(r.amount).toLocaleString():"—")+'</td>'
+      +'<td class="mono dim">'+fmtHHMM(r.checkoutTime)+'</td>'
+      +'<td><button class="btn bd sm" data-checkout="'+r.id+'">退店</button></td>'
+    +'</tr>';
+  }).join("");
+}
+
+// 新規来店
+g("btn-new-visit").addEventListener("click",function(){
+  sv("visit-count-input","1");
+  g("count-bg").classList.add("open");
+  setTimeout(function(){var inp=g("visit-count-input");if(inp)inp.focus();},100);
+});
+g("count-cancel").addEventListener("click",function(){g("count-bg").classList.remove("open");});
+g("count-ok").addEventListener("click",function(){
+  var count=parseInt(g("visit-count-input").value)||1;
+  if(count<1||count>9){toast("1〜9名で入力してください","err");return;}
+  g("count-bg").classList.remove("open");
+  getTodayMaxGroup(function(maxGroup){
+    multiGroup=maxGroup+1;
+    multiTotal=count;
+    multiIndex=1;
+    openVisitModal();
+  });
+});
+
+function getTodayMaxGroup(cb){
+  var today=todayStr6();
+  db.collection("visits").where("visitDate","==",today).get()
+    .then(function(snap){
+      var max=0;
+      snap.docs.forEach(function(d){var g2=parseInt(d.data().groupId)||0;if(g2>max)max=g2;});
+      cb(max);
+    }).catch(function(){cb(0);});
+}
+
+function openVisitModal(){
+  g("mt-visit").textContent="来店登録（"+multiIndex+"/"+multiTotal+"人目）";
+  g("vis-info").textContent="日時: "+todayStr6()+" "+fmtHHMM(nowStr().slice(0,4))+" / グループ: "+pad(multiGroup)+"-"+multiIndex;
+  sv("vis-member","");sv("vis-tequila","");sv("vis-amount","");
+  g("vis-member-status").textContent="";
+  g("m-visit").classList.add("open");
+}
+
+g("btn-cancel-visit").addEventListener("click",function(){
+  if(confirm("登録を中止しますか？")){g("m-visit").classList.remove("open");}
+});
+
+g("btn-save-visit").addEventListener("click",function(){
+  var date=todayStr6();
+  var time=nowStr().slice(0,4);
+  var group=pad(multiGroup);
+  var seq=String(multiIndex);
+  var id=date+time+group+seq;
+  var memberId=(gv("vis-member")||"").trim()||null;
+
+  if(memberId){
+    var m=getMemberInfo(memberId);
+    if(m.name==="ID:"+memberId){toast("会員ID「"+memberId+"」は登録されていません","err");return;}
+  }
+
+  db.collection("visits").doc(id).set({
+    visitId:id,visitDate:date,visitTime:time,
+    groupId:group,seqNo:seq,
+    memberId:memberId,
+    tequilaAmount:gv("vis-tequila")!==""?parseFloat(gv("vis-tequila")):null,
+    amount:gv("vis-amount")!==""?parseInt(gv("vis-amount")):null,
+    payment:"0",receiptIssued:"0",
+    checkoutTime:null
+  }).then(function(){
+    toast("来店登録しました（"+group+"-"+seq+"）");
+    if(multiIndex<multiTotal){
+      multiIndex++;
+      openVisitModal();
+    } else {
+      g("m-visit").classList.remove("open");
+      loadTodayVisits();
+    }
+  }).catch(function(e){toast("保存失敗: "+e.message,"err");});
+});
+
+// 会員IDチェック
+g("vis-member").addEventListener("input",function(){
+  var val=this.value.trim();
+  var status=g("vis-member-status");
+  if(!val){status.textContent="";return;}
+  var m=getMemberInfo(val);
+  if(m.name!=="ID:"+val&&m.name!=="（非会員）"){
+    status.textContent="✓ "+m.name+"（来店回数: "+(m.visitCount||0)+"回 / "+(m.rank||"段位なし")+"）";
+    status.style.color="var(--teal)";
+  } else {
+    status.textContent="✕ 会員ID「"+val+"」は登録されていません";
+    status.style.color="var(--red)";
+  }
+});
+
+// 退店処理
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button");if(!btn)return;
+  if(btn.dataset.checkout){
+    checkoutTargetId=btn.dataset.checkout;
+    var r=todayVisits.find(function(v){return v.id===checkoutTargetId;});
+    var mi=r?getMemberInfo(r.memberId):{name:"不明"};
+    g("checkout-visitor-name").textContent="来店者: "+mi.name+"（"+fmtHHMM((checkoutTargetId||"").slice(6,10))+" 来店）";
+    sv("checkout-payment","0");sv("checkout-receipt","0");
+    g("checkout-bg").classList.add("open");
+  }
+});
+
+g("checkout-cancel").addEventListener("click",function(){g("checkout-bg").classList.remove("open");});
+g("checkout-ok").addEventListener("click",function(){
+  if(!checkoutTargetId)return;
+  var outTime=nowStr().slice(0,4);
+  var cid=checkoutTargetId;
+  var visitRec=todayVisits.find(function(v){return v.id===cid;});
+  db.collection("visits").doc(cid).update({
+    checkoutTime:outTime,
+    payment:gv("checkout-payment")||"0",
+    receiptIssued:gv("checkout-receipt")||"0"
+  }).then(function(){
+    g("checkout-bg").classList.remove("open");
+    toast("退店処理しました（"+fmtHHMM(outTime)+"）");
+    checkoutTargetId=null;
+    if(visitRec&&visitRec.memberId){
+      var memRef=db.collection("members").doc(visitRec.memberId);
+      memRef.get().then(function(doc){
+        if(doc.exists){
+          var cur=doc.data().visitCount||0;
+          memRef.update({visitCount:cur+1});
+          var m=members.find(function(x){return x.id===visitRec.memberId;});
+          if(m)m.visitCount=cur+1;
+        }
+      });
+    }
+    loadTodayVisits();
+  }).catch(function(e){toast("退店処理失敗: "+e.message,"err");});
+});
+</script>
+</body>
+</html>

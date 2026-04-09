@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>テキーラ道場 — 予約管理</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#18110a; --ink2:#4a3820; --ink3:#9a8470;
+  --gold:#c8921e; --gold-l:#e8b84a; --gold-d:#7a5610;
+  --teal:#1a6e58; --teal-l:#e0f0eb;
+  --red:#8c2818; --red-l:#fae8e4;
+  --cream:#faf7f1; --cream2:#f0ebe0; --cream3:#e4ddd0; --white:#fff;
+  --border:rgba(160,130,100,.18); --border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07); --shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px; --rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans)}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+.topbar{background:var(--ink);display:flex;align-items:center;padding:10px 20px;position:sticky;top:0;z-index:200;gap:8px;flex-wrap:wrap}
+.tlogout{padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r);background:none;color:rgba(255,255,255,.38);font-size:11px}
+.tlogout:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+.content{padding:28px;max-width:1100px;margin:0 auto}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--gold-d)}
+.pdesc{font-size:11px;color:var(--ink3);margin-top:2px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sbox{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;flex:1;min-width:160px;background:var(--cream)}
+.sbox input{border:none;background:none;font-size:12px;color:var(--ink);width:100%}
+.sbox input:focus{outline:none}
+.fsel{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;background:var(--cream);color:var(--ink)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(200,146,30,.025)}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.acts{display:flex;gap:5px;justify-content:flex-end}
+.ec{text-align:center;color:var(--ink3);padding:32px!important}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:520px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--gold-d)}
+.mx{background:none;border:none;font-size:22px;color:var(--ink3);line-height:1;padding:0 4px}.mx:hover{color:var(--ink)}
+.mbody{padding:20px 24px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.req{color:var(--red);margin-left:2px}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,146,30,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.keybox{background:var(--ink);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--gold-l);letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.keybox .klabel{font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.keypart{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px}
+.kp-nom{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.kp-seq{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+#toasts{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}
+.terr{background:var(--red);color:#fff}
+.tinf{background:var(--gold-d);color:var(--cream)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cmsg{font-size:14px;margin-bottom:20px;color:var(--ink2);line-height:1.7}
+.cacts{display:flex;gap:8px;justify-content:center}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px}
+.stat-label{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.stat-val{font-size:24px;font-weight:500;color:var(--ink)}
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Reservation Console</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<!-- メイン画面 -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <span style="font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em">🥃 テキーラ道場</span>
+    <a href="home.html" class="btn bs sm" style="color:rgba(255,255,255,.7);text-decoration:none;border-color:rgba(255,255,255,.2)">← ホーム</a>
+    <span style="font-family:var(--serif);font-size:15px;color:var(--gold-l);opacity:.7">予約管理</span>
+    <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)" id="temail"></span>
+    <button class="tlogout" id="btn-logout">ログアウト</button>
+  </div>
+
+  <div class="content">
+    <div class="phead">
+      <div>
+        <div class="ptitle">予約管理</div>
+        <div class="pdesc">reservationId = 西暦2桁 + 通番4桁（例: 250001）</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bs" id="btn-export" style="font-size:11px">CSV ダウンロード</button>
+        <button class="btn bp" id="btn-open-rsv">＋ 予約登録</button>
+      </div>
+    </div>
+
+    <!-- 統計カード -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">総予約数</div>
+        <div class="stat-val" id="stat-count">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">総人数</div>
+        <div class="stat-val" id="stat-guests">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">本日の予約</div>
+        <div class="stat-val" id="stat-today">—</div>
+      </div>
+    </div>
+
+    <!-- 一覧テーブル -->
+    <div class="card">
+      <div class="toolbar">
+        <div class="sbox" style="max-width:200px">
+          <input type="text" id="s-rsv" placeholder="予約ID・顧客コードで検索...">
+        </div>
+        <input type="date" id="f-rsv-date" class="fsel" style="width:140px">
+        <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+          <select id="sort-key" class="fsel">
+            <option value="id">予約ID</option>
+            <option value="reservationDate">日付</option>
+            <option value="startTime">開始時間</option>
+            <option value="customerCode">顧客コード</option>
+            <option value="guests">人数</option>
+          </select>
+          <select id="sort-dir" class="fsel">
+            <option value="asc">昇順 ▲</option>
+            <option value="desc">降順 ▼</option>
+          </select>
+          <button class="btn bs" id="btn-sort">整列</button>
+        </div>
+      </div>
+      <div class="tw">
+        <table>
+          <colgroup>
+            <col style="width:90px"><col style="width:80px"><col style="width:80px">
+            <col style="width:80px"><col style="width:90px"><col style="width:50px">
+            <col style="width:200px"><col style="width:110px">
+          </colgroup>
+          <thead><tr>
+            <th>予約ID</th>
+            <th>予約日</th>
+            <th>開始時間</th>
+            <th>終了時間</th>
+            <th>顧客コード</th>
+            <th>人数</th>
+            <th>備考</th>
+            <th>✏️ レコード操作</th>
+          </tr></thead>
+          <tbody id="tb-rsv">
+            <tr><td colspan="8" class="ec">読み込み中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 予約登録・編集モーダル -->
+<div class="mbg" id="m-rsv">
+  <div class="modal">
+    <div class="mhead">
+      <div class="mtitle" id="mt-rsv">予約登録</div>
+      <button class="mx" id="mx-rsv">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="keybox" id="kb-rsv">
+        —<span class="klabel">reservationId（西暦2桁+通番4桁）</span>
+      </div>
+      <div class="frow">
+        <div class="fg">
+          <label class="fl">予約日（YYMMDD）<span class="req">*</span></label>
+          <input class="fi mono" id="rsv-date" maxlength="6" placeholder="250409">
+        </div>
+        <div class="fg">
+          <label class="fl">顧客コード（6桁）<span class="req">*</span></label>
+          <input class="fi mono" id="rsv-customer" maxlength="6" placeholder="250001">
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fg">
+          <label class="fl">開始時間（HHMMSS）<span class="req">*</span></label>
+          <input class="fi mono" id="rsv-start" maxlength="6" placeholder="183000">
+        </div>
+        <div class="fg">
+          <label class="fl">終了時間（HHMMSS）<span class="req">*</span></label>
+          <input class="fi mono" id="rsv-end" maxlength="6" placeholder="200000">
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">人数<span class="req">*</span></label>
+        <select class="fs" id="rsv-guests">
+          <option value="">—</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">備考</label>
+        <input class="fi" id="rsv-memo" placeholder="特記事項...">
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn bg2" id="btn-cancel-rsv">キャンセル</button>
+      <button class="btn bp" id="btn-save-rsv">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認 -->
+<div class="cbg" id="confirm-bg">
+  <div class="ccard">
+    <div class="cmsg" id="confirm-msg">削除しますか？</div>
+    <div class="cacts">
+      <button class="btn bg2" id="confirm-cancel">キャンセル</button>
+      <button class="btn bd" id="confirm-ok">削除する</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// Firebase初期化
+if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+var auth = firebase.auth();
+var db   = firebase.firestore();
+var col  = db.collection("reservations");
+
+// ── ユーティリティ ──────────────────────────────────────────
+function g(id)      { return document.getElementById(id); }
+function gv(id)     { var el=g(id); return el?el.value.trim():""; }
+function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
+
+function toast(msg,type) {
+  var el=document.createElement("div");
+  el.className="toast t"+(type||"ok");
+  el.textContent=(type==="err"?"✕ ":type==="inf"?"ℹ ":"✓ ")+msg;
+  g("toasts").appendChild(el);
+  setTimeout(function(){el.remove();},3000);
+}
+
+function fmtDate(d){ if(!d||d.length<6) return d||"—"; return d.slice(0,2)+"/"+d.slice(2,4)+"/"+d.slice(4,6); }
+function fmtTime(t){ if(!t||t.length<4) return t||"—"; return t.slice(0,2)+":"+t.slice(2,4)+(t.length>=6?":"+t.slice(4,6):""); }
+function todayStr6(){ var d=new Date(); return String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0"); }
+
+// ── 状態 ────────────────────────────────────────────────────
+var reservations = [];
+var editId = null;
+var rsvSeqCounter = 1;
+var sortState = { key:"id", dir:"asc" };
+var confirmCb = null;
+
+// ── 認証 ────────────────────────────────────────────────────
+auth.onAuthStateChanged(function(user){
+  if(user){
+    g("login-screen").style.display="none";
+    g("app").style.display="block";
+    g("temail").textContent=user.email;
+    loadReservations();
+  } else {
+    g("login-screen").style.display="flex";
+    g("app").style.display="none";
+  }
+});
+
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"), pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){ g("lerr").textContent="メールアドレスとパスワードを入力してください"; return; }
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ g("lbtn").textContent="ログイン"; })
+    .catch(function(e){ g("lerr").textContent="ログイン失敗: "+e.message; g("lbtn").textContent="ログイン"; });
+});
+g("lpass").addEventListener("keydown",function(e){ if(e.key==="Enter") g("lbtn").click(); });
+g("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+
+// ── データ読み込み ───────────────────────────────────────────
+function loadReservations(){
+  col.get()
+    .then(function(snap){
+      reservations = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+      reservations.sort(function(a,b){ return (a.id||"").localeCompare(b.id||""); });
+      // カウンター更新
+      var yy = String(new Date().getFullYear()).slice(2);
+      var maxSeq = reservations.reduce(function(max,r){
+        if(r.id && r.id.slice(0,2)===yy){ var s=parseInt(r.id.slice(2))||0; return s>max?s:max; }
+        return max;
+      }, 0);
+      rsvSeqCounter = maxSeq + 1;
+      renderTable();
+      updateStats();
+    })
+    .catch(function(e){ toast("読込失敗: "+e.message,"err"); });
+}
+
+// ── 統計 ─────────────────────────────────────────────────────
+function updateStats(){
+  var today = todayStr6();
+  var totalGuests = reservations.reduce(function(s,r){ return s+(parseInt(r.guests)||0); }, 0);
+  var todayCount  = reservations.filter(function(r){ return r.reservationDate===today; }).length;
+  g("stat-count").textContent  = reservations.length;
+  g("stat-guests").textContent = totalGuests;
+  g("stat-today").textContent  = todayCount;
+}
+
+// ── テーブルレンダリング ──────────────────────────────────────
+function renderTable(){
+  var list = reservations.slice();
+  var q    = gv("s-rsv").toLowerCase();
+  var dateF= gv("f-rsv-date");
+
+  list = list.filter(function(r){
+    if(q && (r.id||"").indexOf(q)<0 && (r.customerCode||"").indexOf(q)<0) return false;
+    if(dateF){
+      var yy=dateF.slice(2,4), mm=dateF.slice(5,7), dd=dateF.slice(8,10);
+      if(r.reservationDate !== yy+mm+dd) return false;
+    }
+    return true;
+  });
+
+  // ソート
+  var key=sortState.key, dir=sortState.dir;
+  list.sort(function(a,b){
+    var av=a[key]!=null?a[key]:"", bv=b[key]!=null?b[key]:"";
+    var an=parseFloat(av), bn=parseFloat(bv);
+    var cmp=(!isNaN(an)&&!isNaN(bn))?(an-bn):String(av).localeCompare(String(bv),"ja");
+    return dir==="desc"?-cmp:cmp;
+  });
+
+  var tb = g("tb-rsv");
+  if(!list.length){
+    tb.innerHTML='<tr><td colspan="8" class="ec">予約データがありません</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.map(function(r){
+    return '<tr>'
+      +'<td class="mono">'+r.id+'</td>'
+      +'<td class="mono dim">'+fmtDate(r.reservationDate)+'</td>'
+      +'<td class="mono dim">'+fmtTime(r.startTime)+'</td>'
+      +'<td class="mono dim">'+fmtTime(r.endTime)+'</td>'
+      +'<td class="mono">'+(r.customerCode||"—")+'</td>'
+      +'<td style="text-align:center">'+(r.guests||"—")+'</td>'
+      +'<td class="dim" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.memo||"—")+'</td>'
+      +'<td><div class="acts">'
+        +'<button class="btn bs sm" data-edit="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="'+r.id+'">削除</button>'
+      +'</div></td>'
+    +'</tr>';
+  }).join("");
+}
+
+// ── フィルター・ソート ────────────────────────────────────────
+g("s-rsv").addEventListener("input", renderTable);
+g("f-rsv-date").addEventListener("change", renderTable);
+g("btn-sort").addEventListener("click",function(){
+  sortState.key = gv("sort-key");
+  sortState.dir = gv("sort-dir");
+  renderTable();
+});
+
+// ── 削除確認 ─────────────────────────────────────────────────
+g("confirm-cancel").addEventListener("click",function(){ g("confirm-bg").classList.remove("open"); });
+g("confirm-ok").addEventListener("click",function(){
+  if(confirmCb) confirmCb();
+  g("confirm-bg").classList.remove("open");
+});
+
+// ── イベント委任（編集・削除ボタン） ──────────────────────────
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  if(btn.dataset.edit){ openModal(btn.dataset.edit); return; }
+  if(btn.dataset.del){
+    var delId=btn.dataset.del;
+    g("confirm-msg").textContent="予約「"+delId+"」を削除しますか？";
+    confirmCb=function(){
+      col.doc(delId).delete()
+        .then(function(){ toast("削除しました"); loadReservations(); })
+        .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
+    };
+    g("confirm-bg").classList.add("open");
+  }
+});
+
+// ── モーダル ─────────────────────────────────────────────────
+g("btn-open-rsv").addEventListener("click",function(){ openModal(null); });
+g("btn-cancel-rsv").addEventListener("click",function(){ closeModal(); });
+g("mx-rsv").addEventListener("click",function(){ closeModal(); });
+g("m-rsv").addEventListener("click",function(e){ if(e.target===this) closeModal(); });
+
+function openModal(id){
+  editId = id;
+  g("mt-rsv").textContent = id ? "予約編集" : "予約登録";
+  if(id){
+    var r = reservations.find(function(x){ return x.id===id; });
+    sv("rsv-date",     r ? r.reservationDate : "");
+    sv("rsv-start",    r ? r.startTime : "");
+    sv("rsv-end",      r ? r.endTime : "");
+    sv("rsv-customer", r ? r.customerCode : "");
+    sv("rsv-guests",   r ? String(r.guests) : "");
+    sv("rsv-memo",     r ? r.memo||"" : "");
+    g("kb-rsv").innerHTML='<span class="keypart kp-nom">'+id+'</span><span class="klabel">reservationId</span>';
+  } else {
+    ["rsv-date","rsv-start","rsv-end","rsv-customer","rsv-memo"].forEach(function(i){ sv(i,""); });
+    sv("rsv-guests","");
+    updateKeybox();
+  }
+  g("m-rsv").classList.add("open");
+}
+
+function closeModal(){
+  if(hasInput() && !confirm("入力内容を破棄しますか？")) return;
+  g("m-rsv").classList.remove("open");
+}
+
+function hasInput(){
+  return ["rsv-date","rsv-start","rsv-end","rsv-customer"].some(function(id){ return gv(id)!==""; });
+}
+
+function genRsvId(){
+  var yy = String(new Date().getFullYear()).slice(2);
+  return yy + String(rsvSeqCounter).padStart(4,"0");
+}
+
+function updateKeybox(){
+  var id = genRsvId();
+  g("kb-rsv").innerHTML='<span class="keypart kp-nom">'+id.slice(0,2)+'</span><span class="keypart kp-seq">'+id.slice(2)+'</span><span class="klabel">reservationId</span>';
+}
+
+// ── 保存 ─────────────────────────────────────────────────────
+g("btn-save-rsv").addEventListener("click",function(){
+  var date   = gv("rsv-date");
+  var start  = gv("rsv-start");
+  var end    = gv("rsv-end");
+  var cust   = gv("rsv-customer");
+  var guests = gv("rsv-guests");
+
+  if(!date||date.length!==6)         { toast("予約日（6桁）は必須です","err"); return; }
+  if(!start||start.length!==6)       { toast("開始時間（6桁）は必須です","err"); return; }
+  if(!end||end.length!==6)           { toast("終了時間（6桁）は必須です","err"); return; }
+  if(!cust||!/^\d{1,6}$/.test(cust)) { toast("顧客コード（6桁以内の数字）は必須です","err"); return; }
+  if(!guests)                         { toast("人数は必須です","err"); return; }
+  if(start>=end)                      { toast("終了時間は開始時間より後にしてください","err"); return; }
+
+  var id = editId || genRsvId();
+
+  if(!editId && reservations.some(function(r){ return r.id===id; })){
+    toast("予約ID「"+id+"」は既に存在します","err"); return;
+  }
+  if(!editId) rsvSeqCounter++;
+
+  col.doc(id).set({
+    reservationId:  id,
+    reservationDate: date,
+    startTime:      start,
+    endTime:        end,
+    customerCode:   cust.padStart(6,"0"),
+    guests:         parseInt(guests),
+    memo:           gv("rsv-memo")||null,
+    createdAt:      firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true})
+  .then(function(){
+    toast(editId ? "予約を更新しました" : "予約を登録しました（ID: "+id+"）");
+    g("m-rsv").classList.remove("open");
+    loadReservations();
+  })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ── CSV エクスポート ──────────────────────────────────────────
+g("btn-export").addEventListener("click",function(){
+  if(!reservations.length){ toast("データがありません","inf"); return; }
+  var header="予約ID,予約日,開始時間,終了時間,顧客コード,人数,備考";
+  var rows = reservations.map(function(r){
+    var memo = (r.memo||"").replace(/,/g,"、");
+    return [r.id, r.reservationDate, r.startTime, r.endTime, r.customerCode, r.guests, memo].join(",");
+  });
+  var csv = "\uFEFF"+header+"\n"+rows.join("\n");
+  var blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement("a");
+  a.href   = url;
+  a.download = "reservations_"+new Date().toISOString().slice(0,10)+".csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>

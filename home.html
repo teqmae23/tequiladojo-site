@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>テキーラ道場 — ホーム</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#18110a; --ink2:#4a3820; --ink3:#9a8470;
+  --gold:#c8921e; --gold-l:#e8b84a; --gold-d:#7a5610;
+  --teal:#1a6e58; --teal-l:#e0f0eb;
+  --red:#8c2818; --red-l:#fae8e4;
+  --cream:#faf7f1; --cream2:#f0ebe0; --cream3:#e4ddd0; --white:#fff;
+  --border:rgba(160,130,100,.18); --border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07); --shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px; --rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input{font-family:var(--sans)}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+#app{display:none}
+.topbar{background:var(--ink);padding:14px 24px;display:flex;align-items:center;gap:12px}
+.home-body{padding:40px 24px;max-width:960px;margin:0 auto}
+.home-title{font-family:var(--serif);font-size:26px;font-weight:500;color:var(--ink);margin-bottom:8px;text-align:center}
+.home-sub{font-size:12px;color:var(--ink3);text-align:center;margin-bottom:36px}
+.tile-section{margin-bottom:32px}
+.tile-section-label{font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;padding-left:4px}
+.home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}
+.home-tile{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);padding:28px 16px;text-align:center;cursor:pointer;transition:box-shadow .15s,transform .1s;display:flex;flex-direction:column;align-items:center;gap:10px;text-decoration:none;color:inherit}
+.home-tile:hover{box-shadow:0 4px 18px rgba(24,17,10,.12);transform:translateY(-2px)}
+.home-tile.disabled{opacity:.35;cursor:default;pointer-events:none}
+.tile-icon{font-size:34px;line-height:1}
+.tile-label{font-size:13px;font-weight:500;color:var(--ink);line-height:1.4}
+.tile-desc{font-size:10px;color:var(--ink3)}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Admin Console</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <span style="font-family:var(--serif);font-size:20px;color:var(--gold-l);letter-spacing:.1em">🥃 テキーラ道場</span>
+    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,.4)" id="user-email"></span>
+    <button id="btn-logout" style="padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:6px;background:none;color:rgba(255,255,255,.38);font-size:11px">ログアウト</button>
+  </div>
+
+  <div class="home-body">
+    <div class="home-title">テキーラ道場 管理システム</div>
+    <div class="home-sub" id="today-label"></div>
+
+    <div class="tile-section">
+      <div class="tile-section-label">日常業務</div>
+      <div class="home-grid">
+        <a href="openclose.html" class="home-tile">
+          <div class="tile-icon">🏮</div>
+          <div class="tile-label">開店・閉店</div>
+          <div class="tile-desc">セッション管理</div>
+        </a>
+        <a href="checkin.html" class="home-tile">
+          <div class="tile-icon">🚪</div>
+          <div class="tile-label">来店・退店</div>
+          <div class="tile-desc">来店者の登録・管理</div>
+        </a>
+        <a href="reservations.html" class="home-tile">
+          <div class="tile-icon">📅</div>
+          <div class="tile-label">予約管理</div>
+          <div class="tile-desc">予約の登録・確認</div>
+        </a>
+        <a href="#" class="home-tile disabled">
+          <div class="tile-icon">📋</div>
+          <div class="tile-label">受注登録</div>
+          <div class="tile-desc">準備中</div>
+        </a>
+        <a href="#" class="home-tile disabled">
+          <div class="tile-icon">💳</div>
+          <div class="tile-label">お会計</div>
+          <div class="tile-desc">準備中</div>
+        </a>
+      </div>
+    </div>
+
+    <div class="tile-section">
+      <div class="tile-section-label">マスタ管理・カレンダー</div>
+      <div class="home-grid">
+        <a href="master.html" class="home-tile">
+          <div class="tile-icon">⚙️</div>
+          <div class="tile-label">マスタ管理</div>
+          <div class="tile-desc">ボトル・顧客・座席など</div>
+        </a>
+        <a href="master.html#calendar" class="home-tile">
+          <div class="tile-icon">🗓</div>
+          <div class="tile-label">営業カレンダー</div>
+          <div class="tile-desc">予定・記念日・予約</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+var auth = firebase.auth();
+
+auth.onAuthStateChanged(function(user){
+  if(user){
+    document.getElementById("login-screen").style.display="none";
+    document.getElementById("app").style.display="block";
+    document.getElementById("user-email").textContent=user.email;
+  } else {
+    document.getElementById("login-screen").style.display="flex";
+    document.getElementById("app").style.display="none";
+  }
+});
+
+// 今日の日付表示
+(function(){
+  var d=new Date();
+  var wdays=["日","月","火","水","木","金","土"];
+  var el=document.getElementById("today-label");
+  if(el) el.textContent=d.getFullYear()+"年"+(d.getMonth()+1)+"月"+d.getDate()+"日（"+wdays[d.getDay()]+"）";
+})();
+
+document.getElementById("lbtn").addEventListener("click",function(){
+  var email=document.getElementById("lemail").value.trim();
+  var pass=document.getElementById("lpass").value;
+  document.getElementById("lerr").textContent="";
+  if(!email||!pass){ document.getElementById("lerr").textContent="入力してください"; return; }
+  this.textContent="ログイン中...";
+  var self=this;
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ self.textContent="ログイン"; })
+    .catch(function(e){ document.getElementById("lerr").textContent="ログイン失敗: "+e.message; self.textContent="ログイン"; });
+});
+document.getElementById("lpass").addEventListener("keydown",function(e){
+  if(e.key==="Enter") document.getElementById("lbtn").click();
+});
+document.getElementById("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+</script>
+</body>
+</html>
