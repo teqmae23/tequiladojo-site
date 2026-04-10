@@ -622,8 +622,8 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           </div>
         </div>
         <div class="tw"><table id="tbl-reservations">
-          <colgroup><col style="width:90px"><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:90px"><col style="width:50px"><col><col style="width:110px"></colgroup>
-          <thead><tr><th>予約ID</th><th>予約日</th><th>開始時間</th><th>終了時間</th><th>顧客コード</th><th>人数</th><th>備考</th><th>✏️ レコード操作</th></tr></thead>
+          <colgroup><col style="width:90px"><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:90px"><col style="width:50px"><col style="width:50px"><col><col style="width:110px"></colgroup>
+          <thead><tr><th>予約ID</th><th>予約日</th><th>開始時間</th><th>終了時間</th><th>顧客コード</th><th>人数</th><th>貸切</th><th>備考</th><th>✏️ レコード操作</th></tr></thead>
           <tbody id="tb-reservations"><tr><td colspan="8" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
@@ -643,6 +643,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       </div>
       <!-- カレンダー画面 -->
       <div id="cal-main-view">
+        <div id="cal-unpublished-warn" style="display:none;background:#fae8e4;border:1px solid rgba(140,40,24,.2);border-radius:var(--r);padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--red);font-weight:500"></div>
         <div class="phead">
           <div><div class="ptitle">営業カレンダー</div><div class="pdesc">営業予定・記念日・予約をひと目で確認</div></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1186,7 +1187,14 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <div class="fg"><label class="fl">人数<span class="req">*</span></label>
         <select class="fs" id="rsv-guests"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option></select>
       </div>
+      <div class="fg"><label class="fl">貸切区分</label>
+        <select class="fs" id="rsv-charter">
+          <option value="0">0: 通常予約</option>
+          <option value="1">1: 貸切予約</option>
+        </select>
+      </div>
       <div class="fg"><label class="fl">備考</label><input class="fi" id="rsv-memo" placeholder="特記事項..."></div>
+      <div id="rsv-hours-warn" style="display:none;font-size:12px;color:var(--red);padding:6px 10px;background:var(--red-l);border-radius:var(--r);margin-top:4px"></div>
     </div>
     <div class="mfoot"><button class="btn bg2" data-close="m-reservation">キャンセル</button><button class="btn bp" id="btn-save-reservation">保存</button></div>
   </div>
@@ -1609,7 +1617,17 @@ document.addEventListener("click",function(e){
     var col=btn.dataset.del,id=btn.dataset.delId,label=btn.dataset.delLabel;
     confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
       db.collection(col).doc(id).delete()
-        .then(function(){ toast(label+"を削除しました"); loadCol(col); })
+        .then(function(){
+          toast(label+"を削除しました");
+          if(col==="reservations"){
+            // 予約削除後: IDからYYMMDDを取得して自動出力
+            // idはreservationId(例:250001)からは日付が分からないので
+            // cacheから取得
+            var delRsv=cache.reservations.find(function(r){return r.id===id;});
+            if(delRsv&&delRsv.reservationDate) autoPublishCalForMonth(delRsv.reservationDate,"予約削除");
+          }
+          loadCol(col);
+        })
         .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
     });
   }
@@ -3892,7 +3910,13 @@ function calRenderGrid(y,m,schMap,rsvMap){
       }
     }
     if(rvs&&rvs.length){
-      var ricon=document.createElement('div');ricon.style.cssText='margin-top:auto;display:flex;justify-content:flex-end;';
+      var ricon=document.createElement('div');ricon.style.cssText='margin-top:2px;display:flex;gap:3px;align-items:center;flex-wrap:wrap;';
+      var hasCharter=rvs.some(function(r2){return r2.charterType===1||r2.charterType==="1";});
+      if(hasCharter){
+        var cico=document.createElement('span');
+        cico.style.cssText='font-size:9px;font-weight:600;background:#7a5610;color:#e8b84a;border-radius:2px;padding:0 4px;line-height:1.5;flex-shrink:0;';
+        cico.textContent='貸切';ricon.appendChild(cico);
+      }
       var ribtn=document.createElement('button');
       ribtn.style.cssText='border:none;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:600;cursor:pointer;background:#FBEAF0;color:#C44873;';
       ribtn.textContent='予約';
@@ -3960,7 +3984,7 @@ function calRenderList(y,m,schMap,rsvMap){
         lt.appendChild(ic2);
       } else {
         if(sch.openTime&&sch.closeTime){
-          var ic=document.createElement('span');ic.style.cssText='font-size:12px;font-weight:500;background:#444441;color:#F1EFE8;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';ic.textContent='営';
+          var ic=document.createElement('span');ic.style.cssText='font-size:12px;font-weight:500;background:#FEF9C3;color:#333;border:1px solid #d4b800;border-radius:2px;padding:1px 5px;line-height:1.6;flex-shrink:0';ic.textContent='営';
           var tt=document.createElement('span');tt.className='cal-ltime-text';tt.textContent=calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime);
           lt.appendChild(ic);lt.appendChild(tt);
         } else if(CAL_BT_ICONS[lbt]){
@@ -4385,6 +4409,8 @@ var C23_SRC='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAWCAYAAAClrE55A
       ],status).then(function(){
         status.textContent='✅ 公開完了！ https://www.tequiladojo.com/'+calPath;
         status.style.color='var(--teal,#2E7D6E)';
+        calSavePublishTime(String(y)+String(m2+1).padStart(2,'0'));
+        calCheckUnpublished(calGetYm());
         toast('カレンダーを公開しました（'+ym+'）');
       }).catch(function(e){
         if(e.message.indexOf('401')>=0){
@@ -4560,7 +4586,7 @@ function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
       if(bt===4||bt===5||bt===8){
         trow='<div style="margin-top:2px"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
       } else if(sch.openTime&&sch.closeTime){
-        trow='<div style="display:flex;align-items:center;gap:3px;margin-top:2px"><span class="cal-ei">営</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span></div>';
+        trow='<div style="display:flex;align-items:center;gap:3px;margin-top:2px"><span class="cal-ei" style="background:#FEF9C3;color:#333">営</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span></div>';
       } else if(CAL_BT_LABEL[bt]){
         trow='<div style="margin-top:2px"><span class="cal-ei">'+CAL_BT_LABEL[bt]+'</span></div>';
       }
@@ -4575,7 +4601,16 @@ function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
         trow+='<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:1px">'+memoStr+capStr+'</div>';
       }
     }
-    html+='<div class="'+cls+'"><div class="cal-drow">'+dayPart+namePart+(isToday?'<span style="font-size:8px;font-weight:600;background:#185FA5;color:#fff;border-radius:2px;padding:0 3px;margin-left:auto">当日</span>':'')+'</div>'+trow+'</div>';
+    var rvs2=(!isOther)?rsvMap[d]:null;
+    var rsvRow2='';
+    if(rvs2&&rvs2.length){
+      var hasC2=rvs2.some(function(r2){return r2.charterType===1||r2.charterType==="1";});
+      rsvRow2='<div style="display:flex;gap:3px;align-items:center;margin-top:2px">'
+        +(hasC2?'<span style="font-size:9px;font-weight:600;background:#7a5610;color:#e8b84a;border-radius:2px;padding:0 4px;line-height:1.5">貸切</span>':'')
+        +'<span style="font-size:9px;font-weight:600;background:#FBEAF0;color:#C44873;border-radius:2px;padding:0 4px;line-height:1.5">予約'+rvs2.length+'件</span>'
+        +'</div>';
+    }
+    html+='<div class="'+cls+'"><div class="cal-drow">'+dayPart+namePart+(isToday?'<span style="font-size:8px;font-weight:600;background:#185FA5;color:#fff;border-radius:2px;padding:0 3px;margin-left:auto">当日</span>':'')+'</div>'+trow+rsvRow2+'</div>';
   }
   html+='</div>';
   return html;
@@ -4592,8 +4627,8 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
     var isHol=!!calHolidays[key],anniv=amap[d];
     var isToday=(y===today.getFullYear()&&m2===today.getMonth()&&d===today.getDate());
     var isC23=calIsC23(m2,d);
-    var sch=schMap[d];
-    if(!sch&&!isToday&&!isHol&&!anniv&&!isC23) continue;
+    var sch=schMap[d];var rvs3=rsvMap[d];
+    if(!sch&&!isToday&&!isHol&&!anniv&&!isC23&&(!rvs3||!rvs3.length)) continue;
     hasAny=true;
     var dowCls=dow===0||isHol?'lsun':dow===6?'lsat':'';
     var cls='litem'+(isToday?' ltoday':'');
@@ -4613,7 +4648,7 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
             :'<span style="font-size:14px;color:#555">🪑'+sch.capacity+'</span>';
         }
         var typeIcon2=(!sch.openTime&&!sch.closeTime&&CAL_BT_LABEL[bt])?'<span class="cal-ei">'+CAL_BT_LABEL[bt]+'</span>':'';
-        var timeHtml2=sch.openTime&&sch.closeTime?'<span class="cal-ei">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>':typeIcon2;
+        var timeHtml2=sch.openTime&&sch.closeTime?'<span class="cal-ei" style="background:#FEF9C3;color:#333">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>':typeIcon2;
         if(timeHtml2||capHtml2) timePart='<div class="leitime">'+timeHtml2+capHtml2+'</div>';
       }
     }
@@ -4622,7 +4657,15 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
     if(anniv)names.push('<span style="font-size:11px;color:#993556">'+anniv.nameJa+'</span>');
     var namesPart=names.length?'<div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;margin-left:4px">'+names.join('')+'</div>':'<span style="flex:1"></span>';
     var todayPart=isToday?'<span style="font-size:10px;font-weight:600;background:#185FA5;color:#fff;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0">当日</span>':'';
-    html+='<div class="'+cls+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div>'+(sch&&sch.memo?'<div style="font-size:11px;color:#222;padding:2px 10px 4px">'+sch.memo+'</div>':'')+'</div>';
+    var rsvPart3='';
+    if(rvs3&&rvs3.length){
+      var hasC3=rvs3.some(function(r3){return r3.charterType===1||r3.charterType==="1";});
+      rsvPart3='<div style="padding:2px 10px 4px;display:flex;gap:4px">'
+        +(hasC3?'<span style="font-size:10px;font-weight:600;background:#7a5610;color:#e8b84a;border-radius:3px;padding:0 6px;line-height:1.6">貸切</span>':'')
+        +'<span style="font-size:10px;font-weight:600;background:#FBEAF0;color:#C44873;border-radius:3px;padding:0 6px;line-height:1.6">予約'+rvs3.length+'件</span>'
+        +'</div>';
+    }
+    html+='<div class="'+cls+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div>'+(sch&&sch.memo?'<div style="font-size:11px;color:#222;padding:2px 10px 4px">'+sch.memo+'</div>':'')+rsvPart3+'</div>';
   }
   if(!hasAny)html+='<div style="font-size:13px;color:#888;padding:16px">この月の予定はありません</div>';
   html+='</div>';
@@ -4722,6 +4765,101 @@ function calUpdateNavButtons(){
 
 calInitRange();
 
+// ════════════════════════════════════════════════════════════════
+// カレンダー更新日時・HTML出力日時の管理
+// ════════════════════════════════════════════════════════════════
+function calGetYm(){ return String(calCur.y)+String(calCur.m+1).padStart(2,'0'); }
+
+function calSaveUpdateTime(ym){
+  var now=new Date().toISOString();
+  db.collection('calMeta').doc(ym).set({updatedAt:now},{merge:true}).catch(function(){});
+  localStorage.setItem('cal_updated_'+ym,now);
+}
+
+function calSavePublishTime(ym){
+  var now=new Date().toISOString();
+  db.collection('calMeta').doc(ym).set({publishedAt:now},{merge:true}).catch(function(){});
+  localStorage.setItem('cal_published_'+ym,now);
+}
+
+function calCheckUnpublished(ym){
+  db.collection('calMeta').doc(ym).get().then(function(doc){
+    var warn=document.getElementById('cal-unpublished-warn');
+    if(!warn)return;
+    if(!doc.exists){warn.style.display='none';return;}
+    var data=doc.data();
+    var upd=data.updatedAt,pub=data.publishedAt;
+    if(upd&&(!pub||upd>pub)){
+      var updDt=new Date(upd);
+      var fmt=function(d){return d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');};
+      warn.textContent='⚠️ HTML未出力　カレンダー最終更新: '+fmt(updDt)+'　※ 「🌐 HTML公開」ボタンで出力してください';
+      warn.style.display='';
+    } else {
+      warn.style.display='none';
+    }
+  }).catch(function(){});
+}
+
+// 月移動・タブ表示時に未出力チェック
+var _origCalRenderMonth=calRenderMonth;
+calRenderMonth=function(){
+  _origCalRenderMonth();
+  calCheckUnpublished(calGetYm());
+};
+
+// 営業予定保存時に更新日時を記録
+var _origSaveSchRow=saveSchRow;
+saveSchRow=function(key,container,cb){
+  var ym=key.slice(0,6);
+  calSaveUpdateTime(ym);
+  _origSaveSchRow(key,container,cb);
+};
+
+// 予約変更後に対象月のHTMLを自動出力
+function autoPublishCalForMonth(yymmdd,statusMsg){
+  var ym4='20'+yymmdd.slice(0,2)+yymmdd.slice(2,4);
+  if(!GH_TOKEN){
+    calSaveUpdateTime(ym4);
+    calCheckUnpublished(calGetYm());
+    return;
+  }
+  var y4=parseInt(ym4.slice(0,4)),m4=parseInt(ym4.slice(4,6))-1;
+  var schMap={};var rsvMap={};
+  var p1=db.collection('schedules').get().then(function(snap){
+    snap.docs.forEach(function(doc){
+      var sid=doc.data().scheduleId||doc.id;
+      if(sid.slice(0,6)===ym4){var dy=parseInt(sid.slice(6,8));schMap[dy]=doc.data();}
+    });
+  }).catch(function(){});
+  var p2=db.collection('reservations').get().then(function(snap){
+    snap.docs.forEach(function(doc){
+      var rd=doc.data().reservationDate||'';
+      if(('20'+rd).slice(0,6)===ym4){var dy=parseInt(rd.slice(4,6));if(!rsvMap[dy])rsvMap[dy]=[];rsvMap[dy].push(doc.data());}
+    });
+  }).catch(function(){});
+  Promise.all([p1,p2]).then(function(){
+    calFetchHolidays(function(){
+      try{
+        var calHtml=genCalPublicHtml(y4,m4,schMap,rsvMap,'cal');
+        var listHtml=genCalPublicHtml(y4,m4,schMap,rsvMap,'list');
+        deployToGitHub([
+          {path:'calendar/'+ym4+'calendar.html',content:calHtml},
+          {path:'calendar/'+ym4+'listcal.html',content:listHtml}
+        ],null).then(function(){
+          calSavePublishTime(ym4);
+          toast((statusMsg||'カレンダーHTML')+'を自動出力しました（'+y4+'年'+(m4+1)+'月）');
+          calCheckUnpublished(calGetYm());
+        }).catch(function(){
+          calSaveUpdateTime(ym4);
+          calCheckUnpublished(calGetYm());
+        });
+      }catch(e){
+        calSaveUpdateTime(ym4);
+      }
+    });
+  });
+}
+
 
 // ════════════════════════════════════════════════════════════════
 // ★ 予約管理
@@ -4784,7 +4922,7 @@ function renderReservations(){
     var d=r.reservationDate||"";var fd=d.length>=6?d.slice(0,2)+"/"+d.slice(2,4)+"/"+d.slice(4,6):"—";
     var s=r.startTime||"";var fs=s.length>=4?s.slice(0,2)+":"+s.slice(2,4):"—";
     var e=r.endTime||"";var fe=e.length>=4?e.slice(0,2)+":"+e.slice(2,4):"—";
-    return '<tr><td class="mono">'+r.id+'</td><td class="mono dim">'+fd+'</td><td class="mono dim">'+fs+'</td><td class="mono dim">'+fe+'</td><td class="mono">'+(r.customerCode||"—")+'</td><td style="text-align:center">'+(r.guests||"—")+'</td><td class="dim" style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.memo||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-reservation="'+r.id+'">編集</button><button class="btn bd sm" data-del="reservations" data-del-id="'+r.id+'" data-del-label="予約">削除</button></div></td></tr>';
+    return '<tr><td class="mono">'+r.id+'</td><td class="mono dim">'+fd+'</td><td class="mono dim">'+fs+'</td><td class="mono dim">'+fe+'</td><td class="mono">'+(r.customerCode||"—")+'</td><td style="text-align:center">'+(r.guests||"—")+'</td><td style="text-align:center">'+(r.charterType===1||r.charterType==="1"?'<span class="badge bg-gold">貸切</span>':'—')+'</td><td class="dim" style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.memo||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-reservation="'+r.id+'">編集</button><button class="btn bd sm" data-del="reservations" data-del-id="'+r.id+'" data-del-label="予約">削除</button></div></td></tr>';
   }).join("");
 }
 
@@ -4820,9 +4958,10 @@ function openReservationModal(id){
     var r=cache.reservations.find(function(x){return x.id===id;});
     sv("rsv-date",r?r.reservationDate:"");sv("rsv-start",r?r.startTime:"");sv("rsv-end",r?r.endTime:"");
     sv("rsv-customer",r?r.customerCode:"");sv("rsv-guests",r?String(r.guests):"");sv("rsv-memo",r?r.memo||"":"");
+    sv("rsv-charter",r?String(r.charterType||"0"):"0");
     g("kb-reservation").innerHTML='<span class="keypart kp-nom">'+id+'</span><span class="klabel">reservationId</span>';
   } else {
-    ["rsv-date","rsv-start","rsv-end","rsv-customer","rsv-memo"].forEach(function(i){sv(i,"");});sv("rsv-guests","");
+    ["rsv-date","rsv-start","rsv-end","rsv-customer","rsv-memo"].forEach(function(i){sv(i,"");});sv("rsv-guests","");sv("rsv-charter","0");
     var nid=genRsvId();
     g("kb-reservation").innerHTML='<span class="keypart kp-nom">'+nid.slice(0,2)+'</span><span class="keypart kp-seq">'+nid.slice(2)+'</span><span class="klabel">reservationId</span>';
   }
@@ -4830,6 +4969,53 @@ function openReservationModal(id){
 }
 
 FORM_MODALS.push("m-reservation");
+
+// 営業時間チェック: scheduleから当日の営業時間を取得して検証
+function checkRsvBusinessHours(date, start, end, cb){
+  // date: YYMMDD, start/end: HHMMSS
+  var fullDate = "20" + date; // YYYYMMDD
+  db.collection("schedules").doc(fullDate).get()
+    .then(function(doc){
+      var warn = g("rsv-hours-warn");
+      if(!doc.exists || !doc.data().openTime || !doc.data().closeTime){
+        if(warn) warn.style.display = "none";
+        cb(true); return;
+      }
+      var sch = doc.data();
+      var bt = parseInt(sch.businessType)||0;
+      // 定休日・休業日・臨時休業は予約不可
+      if(bt===4||bt===5||bt===8){
+        var label = bt===4?"定休日":bt===8?"臨時休業":"休業日";
+        if(warn){ warn.textContent="この日は"+label+"のため予約できません。"; warn.style.display=""; }
+        cb(false); return;
+      }
+      var open = sch.openTime.slice(0,4); // HHMM
+      var close = sch.closeTime.slice(0,4);
+      var startHHMM = start.slice(0,4);
+      var endHHMM = end.slice(0,4);
+      if(startHHMM < open || endHHMM > close){
+        var fmtT = function(t){ return t.slice(0,2)+":"+t.slice(2,4); };
+        if(warn){ warn.textContent="営業時間外の予約です。当日の営業時間は"+fmtT(open)+"〜"+fmtT(close)+"です。"; warn.style.display=""; }
+        cb(false); return;
+      }
+      if(warn) warn.style.display = "none";
+      cb(true);
+    })
+    .catch(function(){ cb(true); }); // エラー時はスキップ
+}
+
+// 日付・時間変更時にリアルタイムチェック
+(function(){
+  function triggerCheck(){
+    var date=gv("rsv-date"), start=gv("rsv-start"), end=gv("rsv-end");
+    if(date.length===6 && start.length>=4 && end.length>=4){
+      checkRsvBusinessHours(date, start, end, function(){});
+    }
+  }
+  ["rsv-date","rsv-start","rsv-end"].forEach(function(id){
+    var el=g(id); if(el) el.addEventListener("input", triggerCheck);
+  });
+})();
 
 var _bsr2=g("btn-save-reservation");
 if(_bsr2)_bsr2.addEventListener("click",function(){
@@ -4840,21 +5026,29 @@ if(_bsr2)_bsr2.addEventListener("click",function(){
   if(!cust||!/^\d{1,6}$/.test(cust)){toast("顧客コード（6桁以内の数字）は必須です","err");return;}
   if(!guests){toast("人数は必須です","err");return;}
   if(start>=end){toast("終了時間は開始時間より後にしてください","err");return;}
-  var id=editId.reservation||genRsvId();
-  if(!editId.reservation){
-    if(cache.reservations.some(function(r){return r.id===id;})){toast("予約ID「"+id+"」は既に存在します","err");return;}
-    rsvSeqCounter++;
-  }
-  db.collection("reservations").doc(id).set({
-    reservationId:id,reservationDate:date,startTime:start,endTime:end,
-    customerCode:cust.padStart(6,"0"),guests:parseInt(guests),memo:gv("rsv-memo")||null,
-    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-  },{merge:true})
-  .then(function(){
-    toast(editId.reservation?"予約を更新しました":"予約を登録しました（ID: "+id+"）");
-    closeM("m-reservation");loadReservations();
-  })
-  .catch(function(e){toast("保存失敗: "+e.message,"err");});
+  // 営業時間チェック
+  checkRsvBusinessHours(date, start, end, function(ok){
+    if(!ok) return; // 警告表示済み
+    var id=editId.reservation||genRsvId();
+    if(!editId.reservation){
+      if(cache.reservations.some(function(r){return r.id===id;})){toast("予約ID「"+id+"」は既に存在します","err");return;}
+      rsvSeqCounter++;
+    }
+    db.collection("reservations").doc(id).set({
+      reservationId:id,reservationDate:date,startTime:start,endTime:end,
+      customerCode:cust.padStart(6,"0"),guests:parseInt(guests),
+      charterType:parseInt(gv("rsv-charter")||"0"),
+      memo:gv("rsv-memo")||null,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true})
+    .then(function(){
+      var rsvDate=date;
+      toast(editId.reservation?"予約を更新しました":"予約を登録しました（ID: "+id+"）");
+      closeM("m-reservation");loadReservations();
+      autoPublishCalForMonth(rsvDate,"予約");
+    })
+    .catch(function(e){toast("保存失敗: "+e.message,"err");});
+  });
 });
 
 </script>
