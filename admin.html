@@ -3733,6 +3733,59 @@ function calApplyColors(){
   CAL_BT_COLORS.forEach(function(c,i){root.style.setProperty('--cbt'+i,c);});
 }
 calApplyColors();
+
+function calTogglePalette(){
+  var pal=document.getElementById('cal-palette');
+  if(!pal) return;
+  if(pal.style.display==='none'||pal.style.display===''){
+    pal.style.display='block';
+    calRenderPalette();
+  } else {
+    pal.style.display='none';
+  }
+}
+
+function calRenderPalette(){
+  var pal=document.getElementById('cal-palette');
+  if(!pal) return;
+  var html2='<div style="font-size:12px;font-weight:500;margin-bottom:8px;color:var(--ink3)">営業区分ごとの背景色（変更後「適用」を押してください）</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">';
+  CAL_BT_LABEL.forEach(function(name,i){
+    var col=CAL_BT_COLORS[i]||CAL_BT_DEFAULT_BG[i];
+    html2+='<div style="display:flex;align-items:center;gap:8px">'
+      +'<input type="color" value="'+col+'" data-idx="'+i+'" id="pal-color-'+i+'" style="width:32px;height:24px;border:none;cursor:pointer;border-radius:4px;padding:0">'
+      +'<span style="font-size:12px;color:var(--ink)">'+name+'</span>'
+      +'</div>';
+  });
+  html2+='</div>';
+  html2+='<div style="margin-top:10px;display:flex;gap:8px">'
+    +'<button class="btn bp sm" onclick="calApplyPalette()">適用</button>'
+    +'<button class="btn bg2 sm" onclick="calResetPalette()">デフォルトに戻す</button>'
+    +'</div>';
+  pal.innerHTML=html2;
+}
+
+function calApplyPalette(){
+  CAL_BT_LABEL.forEach(function(_,i){
+    var el=document.getElementById('pal-color-'+i);
+    if(el) CAL_BT_COLORS[i]=el.value;
+  });
+  calSaveColors(CAL_BT_COLORS);
+  calApplyColors();
+  calRenderLegend();
+  calRenderMonth();
+  document.getElementById('cal-palette').style.display='none';
+}
+
+function calResetPalette(){
+  CAL_BT_COLORS=CAL_BT_DEFAULT_BG.slice();
+  calSaveColors(CAL_BT_COLORS);
+  calApplyColors();
+  calRenderLegend();
+  calRenderMonth();
+  calRenderPalette();
+}
+
 var calCur={y:new Date().getFullYear(),m:new Date().getMonth()};
 var calView='cal';
 var calHolidays={};
