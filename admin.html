@@ -4603,7 +4603,7 @@ function genCalPublicHtml(y,m2,schMap,rsvMap,mode){
     +'<title>テキーラ道場 営業カレンダー '+y+'年'+(m2+1)+'月</title>'
     +css+'</head><body><div style="max-width:900px;margin:0 auto;padding:16px">'
     +'<div style="text-align:center;margin-bottom:16px"><h1 style="font-size:18px;font-weight:500;color:#333">🌵 テキーラ道場 営業カレンダー</h1></div>'
-    +nav+body+legend+'</div></body></html>';
+    +nav+body+legend+'</div>'+'<script>'+'(function(){'+'var t=new Date();'+'var today=t.getFullYear()+"-"+(t.getMonth()+1).toString().padStart(2,"0")+"-"+t.getDate().toString().padStart(2,"0");'+'document.querySelectorAll("[data-date]").forEach(function(el){'+'if(el.dataset.date===today){'+'el.classList.add("cal-today");'+'var badge=el.querySelector(".today-badge");if(badge)badge.style.display="";'+'var litem=el.closest(".litem");if(litem)litem.classList.add("ltoday");'+'}else{'+'el.classList.remove("cal-today");'+'var litem2=el.closest(".litem");if(litem2)litem2.classList.remove("ltoday");'+'}'+'});'+'})();'+'</script>'+'</body></html>';
 }
 
 function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
@@ -4663,7 +4663,7 @@ function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
         +'<span style="font-size:9px;font-weight:600;background:#FBEAF0;color:#C44873;border-radius:2px;padding:0 4px;line-height:1.5">予約'+rvs2.length+'件</span>'
         +'</div>';
     }
-    html+='<div class="'+cls+'"><div class="cal-drow">'+dayPart+namePart+(isToday?'<span style="font-size:8px;font-weight:600;background:#185FA5;color:#fff;border-radius:2px;padding:0 3px;margin-left:auto">当日</span>':'')+'</div>'+trow+rsvRow2+'</div>';
+    html+='<div class="'+cls+'" data-date="'+key+'"><div class="cal-drow">'+dayPart+namePart+'<span class="today-badge" style="font-size:8px;font-weight:600;background:#185FA5;color:#fff;border-radius:2px;padding:0 3px;margin-left:auto;display:'+(isToday?'inline':'none')+';">当日</span>'+'</div>'+trow+rsvRow2+'</div>';
   }
   html+='</div>';
   return html;
@@ -4709,7 +4709,7 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
     if(isHol)names.push('<span style="font-size:11px;color:#E24B4A">'+calHolidays[key]+'</span>');
     if(anniv)names.push('<span style="font-size:11px;color:#993556">'+anniv.nameJa+'</span>');
     var namesPart=names.length?'<div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;margin-left:4px">'+names.join('')+'</div>':'<span style="flex:1"></span>';
-    var todayPart=isToday?'<span style="font-size:10px;font-weight:600;background:#185FA5;color:#fff;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0">当日</span>':'';
+    var todayPart='<span class="today-badge" style="font-size:10px;font-weight:600;background:#185FA5;color:#fff;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0;display:'+(isToday?'inline':'none')+';">当日</span>';
     var rsvPart3='';
     if(rvs3&&rvs3.length){
       var hasC3=rvs3.some(function(r3){return r3.charterType===1||r3.charterType==="1";});
@@ -4718,7 +4718,7 @@ function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
         +'<span style="font-size:10px;font-weight:600;background:#FBEAF0;color:#C44873;border-radius:3px;padding:0 6px;line-height:1.6">予約'+rvs3.length+'件</span>'
         +'</div>';
     }
-    html+='<div class="'+cls+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div>'+(sch&&sch.memo?'<div style="font-size:11px;color:#222;padding:2px 10px 4px">'+sch.memo+'</div>':'')+rsvPart3+'</div>';
+    html+='<div class="'+cls+'" data-date="'+key+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div>'+(sch&&sch.memo?'<div style="font-size:11px;color:#222;padding:2px 10px 4px">'+sch.memo+'</div>':'')+rsvPart3+'</div>';
   }
   if(!hasAny)html+='<div style="font-size:13px;color:#888;padding:16px">この月の予定はありません</div>';
   html+='</div>';
