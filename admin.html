@@ -4654,7 +4654,7 @@ function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
         trow+='<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:1px">'+memoStr+capStr+'</div>';
       }
     }
-    var rvs2=(!isOther)?rsvMap[d]:null;
+    var rvs2=(!isOther)?rsvMap[day]:null;
     var rsvRow2='';
     if(rvs2&&rvs2.length){
       var hasC2=rvs2.some(function(r2){return r2.charterType===1||r2.charterType==="1";});
