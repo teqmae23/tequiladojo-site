@@ -4603,7 +4603,7 @@ function genCalPublicHtml(y,m2,schMap,rsvMap,mode){
     +'<title>テキーラ道場 営業カレンダー '+y+'年'+(m2+1)+'月</title>'
     +css+'</head><body><div style="max-width:900px;margin:0 auto;padding:16px">'
     +'<div style="text-align:center;margin-bottom:16px"><h1 style="font-size:18px;font-weight:500;color:#333">🌵 テキーラ道場 営業カレンダー</h1></div>'
-    +nav+body+legend+'</div>'+'<script>'+'(function(){'+'var t=new Date();'+'var today=t.getFullYear()+"-"+(t.getMonth()+1).toString().padStart(2,"0")+"-"+t.getDate().toString().padStart(2,"0");'+'document.querySelectorAll("[data-date]").forEach(function(el){'+'if(el.dataset.date===today){'+'el.classList.add("cal-today");'+'var badge=el.querySelector(".today-badge");if(badge)badge.style.display="";'+'var litem=el.closest(".litem");if(litem)litem.classList.add("ltoday");'+'}else{'+'el.classList.remove("cal-today");'+'var litem2=el.closest(".litem");if(litem2)litem2.classList.remove("ltoday");'+'}'+'});'+'})();'+'</script>'+'</body></html>';
+    +nav+body+legend+'</div>'+'<script>'+'(function(){'+'var t=new Date();'+'var today=t.getFullYear()+"-"+(t.getMonth()+1).toString().padStart(2,"0")+"-"+t.getDate().toString().padStart(2,"0");'+'document.querySelectorAll("[data-date]").forEach(function(el){'+'if(el.dataset.date===today){'+'el.classList.add("cal-today");'+'var badge=el.querySelector(".today-badge");if(badge)badge.style.display="";'+'var litem=el.closest(".litem");if(litem)litem.classList.add("ltoday");'+'}else{'+'el.classList.remove("cal-today");'+'var litem2=el.closest(".litem");if(litem2)litem2.classList.remove("ltoday");'+'}'+'});'+'})();<\/script>'+'</body></html>';
 }
 
 function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
