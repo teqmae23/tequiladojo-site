@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキーラ道場 — 顧客・店舗管理</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#18110a; --ink2:#4a3820; --ink3:#9a8470;
+  --gold:#c8921e; --gold-l:#e8b84a; --gold-d:#7a5610;
+  --teal:#1a6e58; --teal-l:#e0f0eb;
+  --red:#8c2818; --red-l:#fae8e4;
+  --cream:#faf7f1; --cream2:#f0ebe0; --cream3:#e4ddd0; --white:#fff;
+  --border:rgba(160,130,100,.18); --border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07); --shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px; --rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans)}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+#app{display:none;min-height:100vh}
+.topbar{background:var(--ink);display:flex;align-items:flex-start;padding:8px 20px;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:4px}
+.tbrand{font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em;margin-right:28px;white-space:nowrap}
+.ttabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tab{padding:5px 10px;border:none;background:none;color:rgba(255,255,255,.42);font-size:11px;font-weight:500;border-radius:var(--r);white-space:nowrap}
+.tab:hover{color:rgba(255,255,255,.72);background:rgba(255,255,255,.06)}
+.tab.active{color:var(--gold-l);background:rgba(200,146,30,.16)}
+.tab .cnt{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:9px;font-family:var(--mono);background:rgba(255,255,255,.1);color:rgba(255,255,255,.45)}
+.tab.active .cnt{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.tuser{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.temail{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)}
+.tlogout{padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r);background:none;color:rgba(255,255,255,.38);font-size:11px}
+.tlogout:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+.content{padding:28px;max-width:1280px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--gold-d)}
+.pdesc{font-size:11px;color:var(--ink3);margin-top:2px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sbox{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;flex:1;min-width:160px;background:var(--cream)}
+.sbox input{border:none;background:none;font-size:12px;color:var(--ink);width:100%}
+.sbox input:focus{outline:none}
+.fsel{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;background:var(--cream);color:var(--ink)}
+.fsel:focus{outline:none;border-color:var(--gold)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(200,146,30,.025)}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.acts{display:flex;gap:5px;justify-content:flex-end}
+.ec{text-align:center;color:var(--ink3);padding:32px!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.bg-teal{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
+.bg-gray{background:var(--cream2);color:var(--ink3);border:1px solid var(--border2)}
+.bg-blue{background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-lg{max-width:780px}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--gold-d)}
+.mx{background:none;border:none;font-size:22px;color:var(--ink3);line-height:1;padding:0 4px}.mx:hover{color:var(--ink)}
+.mbody{padding:20px 24px 20px 40px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.req{color:var(--red);margin-left:2px}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,146,30,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow.c3{grid-template-columns:1fr 1fr 1fr}
+.full{grid-column:1/-1}
+.fsep{border:none;border-top:1px solid var(--border);margin:14px 0}
+.keybox{background:var(--ink);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--gold-l);letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.keybox .klabel{font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.keypart{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px}
+.kp-nom{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.date-group{display:flex;align-items:center;gap:2px}
+.date-group input{text-align:center;padding:4px;}
+.date-group .dy{width:46px}
+.date-group .dm{width:30px}
+.date-group .dd{width:30px}
+.date-sep{color:var(--ink3);font-size:13px;padding:0 1px}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}
+.terr{background:var(--red);color:#fff}
+.tinf{background:var(--gold-d);color:var(--cream)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cmsg{font-size:14px;margin-bottom:20px;color:var(--ink2);line-height:1.7}
+.cacts{display:flex;gap:8px;justify-content:center}
+</style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Customer &amp; Store Management</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<!-- メインアプリ -->
+<div id="app">
+  <div class="topbar">
+    <div class="tbrand">🥃 テキーラ道場</div>
+    <a href="admin.html" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;margin-right:8px;white-space:nowrap;text-decoration:none">← マスタ管理</a>
+    <div class="ttabs">
+      <button class="tab active" data-page="members">顧客 <span class="cnt" id="cnt-members">—</span></button>
+      <button class="tab" data-page="layouts">座席 <span class="cnt" id="cnt-layouts">—</span></button>
+    </div>
+    <div class="tuser">
+      <span class="temail" id="temail"></span>
+      <button class="tlogout" id="btn-logout">ログアウト</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- 顧客マスタ -->
+    <div class="page active" id="page-members">
+      <div class="phead">
+        <div><div class="ptitle">顧客マスタ</div><div class="pdesc">顧客番号 6桁 = 西暦下2桁 + 通番4桁</div></div>
+        <button class="btn bp" id="btn-open-member">＋ 顧客登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:260px"><input type="text" id="s-mem" placeholder="顧客名・カタカナ・ニックネームで検索..."></div>
+          <select class="fsel" id="f-mem-gender"><option value="">全性別</option><option value="男">男</option><option value="女">女</option><option value="他">他</option></select>
+          <select class="fsel" id="f-mem-pref"><option value="">全都道府県</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-members"><option value="id">顧客番号</option><option value="name">顧客名</option><option value="nameKana">カタカナ</option><option value="registeredAt">登録日</option><option value="birthday">誕生日</option><option value="prefecture">都道府県</option></select>
+            <select id="sort-dir-members"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-members">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-members">
+          <colgroup><col style="width:70px"><col><col><col style="width:60px"><col style="width:60px"><col style="width:90px"><col style="width:86px"></colgroup>
+          <thead><tr><th>顧客番号</th><th>顧客名</th><th>カタカナ</th><th>性別</th><th>都道府県</th><th>登録日</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-members"><tr><td colspan="7" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 座席レイアウトマスタ -->
+    <div class="page" id="page-layouts">
+      <div class="phead">
+        <div><div class="ptitle">座席レイアウトマスタ</div><div class="pdesc">座席ID 2桁</div></div>
+        <button class="btn bp" id="btn-open-layout">＋ レイアウト登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-layouts"><option value="id">座席ID</option><option value="name">名称</option><option value="seats">座席数</option></select>
+            <select id="sort-dir-layouts"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-layouts">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-layouts">
+          <colgroup><col style="width:60px"><col><col style="width:60px"><col style="width:80px"><col style="width:86px"></colgroup>
+          <thead><tr><th>座席ID</th><th>名称</th><th>座席数</th><th>レイアウト</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-layouts"><tr><td colspan="5" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- 顧客モーダル -->
+<div class="mbg" id="m-member">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-member">顧客登録</div><button class="mx" data-close="m-member">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-member">—<span class="klabel">顧客番号</span></div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">顧客番号（6桁）<span class="req">*</span></label><input class="fi mono" id="mem-id" placeholder="250001" maxlength="6" readonly style="background:var(--cream2)"></div>
+        <div class="fg"><label class="fl">登録日</label><div class="date-group"><input class="fi dy" id="mem-reg-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="mem-reg-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="mem-reg-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="mem-reg"></div>
+        <div class="fg"><label class="fl">性別</label><select class="fs" id="mem-gender"><option value="男">男</option><option value="女">女</option><option value="他">他</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">顧客名<span class="req">*</span></label><input class="fi" id="mem-name" placeholder="田中 太郎"></div>
+        <div class="fg"><label class="fl">顧客名（カタカナ）</label><input class="fi" id="mem-kana" placeholder="タナカ タロウ"></div>
+      </div>
+      <div class="fg"><label class="fl">ニックネーム</label><input class="fi" id="mem-nick" placeholder="タロ"></div>
+      <div class="fg"><label class="fl">誕生日</label><div class="date-group"><input class="fi dy" id="mem-birth-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="mem-birth-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="mem-birth-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="mem-birth"></div>
+      <hr class="fsep">
+      <div class="fg"><label class="fl">都道府県</label><select class="fs" id="mem-pref">
+        <option value="">選択...</option>
+        <option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option><option>秋田県</option><option>山形県</option><option>福島県</option>
+        <option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option>
+        <option>新潟県</option><option>富山県</option><option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option>
+        <option>岐阜県</option><option>静岡県</option><option>愛知県</option><option>三重県</option>
+        <option>滋賀県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option><option>奈良県</option><option>和歌山県</option>
+        <option>鳥取県</option><option>島根県</option><option>岡山県</option><option>広島県</option><option>山口県</option>
+        <option>徳島県</option><option>香川県</option><option>愛媛県</option><option>高知県</option>
+        <option>福岡県</option><option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option><option>宮崎県</option><option>鹿児島県</option><option>沖縄県</option>
+      </select></div>
+      <div class="fg"><label class="fl">住所</label><input class="fi" id="mem-addr" placeholder="渋谷区道玄坂1-1-1"></div>
+      <div class="fg"><label class="fl">電話番号</label><input class="fi" id="mem-tel" type="tel" placeholder="090-0000-0000"></div>
+      <hr class="fsep">
+      <div class="frow c3">
+        <div class="fg"><label class="fl">Twitter / X ID</label><input class="fi" id="mem-tw" placeholder="@username"></div>
+        <div class="fg"><label class="fl">Instagram ID</label><input class="fi" id="mem-ig" placeholder="@username"></div>
+        <div class="fg"><label class="fl">Facebook ID</label><input class="fi" id="mem-fb" placeholder="username"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">来店回数</label><input class="fi" id="mem-visits" type="number" min="0" value="0" style="background:var(--cream2)" readonly></div>
+        <div class="fg"><label class="fl">段位</label><select class="fs" id="mem-rank">
+          <option value="">—</option>
+          <option value="初級">初級</option><option value="中級">中級</option><option value="上級">上級</option>
+          <option value="初段">初段</option><option value="二段">二段</option><option value="三段">三段</option>
+          <option value="四段">四段</option><option value="五段">五段</option><option value="六段">六段</option>
+          <option value="七段">七段</option><option value="八段">八段</option><option value="九段">九段</option>
+        </select></div>
+      </div>
+      <div class="fg"><label class="fl">備考</label><textarea class="fi" id="mem-note" rows="3" style="resize:vertical;font-size:13px" placeholder="自由記入..."></textarea></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-member">キャンセル</button><button class="btn bp" id="btn-save-member">保存</button></div>
+  </div>
+</div>
+
+<!-- 座席レイアウトモーダル -->
+<div class="mbg" id="m-layout">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-layout">レイアウト登録</div><button class="mx" data-close="m-layout">✕</button></div>
+    <div class="mbody">
+      <div class="frow">
+        <div class="fg"><label class="fl">座席ID（2桁）<span class="req">*</span></label><input class="fi mono" id="lay-id" placeholder="01" maxlength="2"></div>
+        <div class="fg"><label class="fl">座席数<span class="req">*</span></label><input class="fi" id="lay-seats" type="number" min="1" max="99" placeholder="8"></div>
+      </div>
+      <div class="fg"><label class="fl">名称<span class="req">*</span></label><input class="fi" id="lay-name" placeholder="通常"></div>
+      <div class="fg">
+        <label class="fl">レイアウト画像</label>
+        <input type="file" id="lay-img-file" accept="image/*" style="font-size:12px;margin-bottom:6px">
+        <div id="lay-img-preview" style="margin-top:8px;text-align:center;display:none">
+          <img id="lay-img-el" style="max-width:100%;max-height:200px;border-radius:var(--r);border:1px solid var(--border)">
+          <button type="button" class="btn bd sm" id="lay-img-clear" style="margin-top:6px;font-size:11px">画像を削除</button>
+        </div>
+        <div id="lay-img-none" style="font-size:12px;color:var(--ink3);padding:8px 0">画像なし（名称を大きく表示します）</div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-layout">キャンセル</button><button class="btn bp" id="btn-save-layout">保存</button></div>
+  </div>
+</div>
+
+<!-- 削除確認 -->
+<div class="cbg" id="confirm-bg">
+  <div class="ccard">
+    <div class="cmsg" id="confirm-msg">削除しますか？</div>
+    <div class="cacts"><button class="btn bg2" id="confirm-cancel">キャンセル</button><button class="btn bd" id="confirm-ok">削除する</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// Firebase初期化
+if (!firebase.apps.length) { firebase.initializeApp(FIREBASE_CONFIG); }
+var auth = firebase.auth();
+var db   = firebase.firestore();
+
+// ── ユーティリティ ────────────────────────────────────────────────
+function g(id)      { return document.getElementById(id); }
+function gv(id)     { var el=g(id); return el?el.value.trim():""; }
+function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
+function setCnt(col,n){ var el=g("cnt-"+col); if(el) el.textContent=n; }
+
+function toast(msg,type){
+  var t=document.createElement("div");
+  t.className="toast "+(type==="err"?"terr":type==="inf"?"tinf":"tok");
+  t.textContent=msg; g("toasts").appendChild(t);
+  setTimeout(function(){ t.remove(); },3000);
+}
+
+var confirmCb=null;
+g("confirm-cancel").addEventListener("click",function(){ g("confirm-bg").classList.remove("open"); });
+g("confirm-ok").addEventListener("click",function(){ if(confirmCb) confirmCb(); g("confirm-bg").classList.remove("open"); });
+function confirmDel(msg,cb){ g("confirm-msg").textContent=msg; confirmCb=cb; g("confirm-bg").classList.add("open"); }
+function openM(id)  { g(id).classList.add("open"); }
+function closeM(id) { g(id).classList.remove("open"); }
+
+document.addEventListener("click",function(e){
+  if(e.target.dataset.close) closeM(e.target.dataset.close);
+  if(e.target.classList.contains("mbg")) closeM(e.target.id);
+});
+
+// ── キャッシュ ───────────────────────────────────────────────────
+var cache = { members:[], layouts:[] };
+var editId = { member:null, layout:null };
+
+// ── 認証 ────────────────────────────────────────────────────────
+try {
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      g("login-screen").style.display="none";
+      g("app").style.display="block";
+      g("temail").textContent=user.email;
+      loadAll();
+    } else {
+      g("login-screen").style.display="flex";
+      g("app").style.display="none";
+    }
+  });
+} catch(e) { g("lerr").textContent="Firebase接続エラー: "+e.message; }
+
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"), pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){ g("lerr").textContent="メールアドレスとパスワードを入力してください"; return; }
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ g("lbtn").textContent="ログイン"; })
+    .catch(function(e){ g("lerr").textContent="ログイン失敗: "+e.message; g("lbtn").textContent="ログイン"; });
+});
+g("lpass").addEventListener("keydown",function(e){ if(e.key==="Enter") g("lbtn").click(); });
+g("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+
+// タブナビゲーション
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    var page=this.dataset.page;
+    document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
+    g("page-"+page).classList.add("active");
+    this.classList.add("active");
+  });
+});
+
+// ── データロード ─────────────────────────────────────────────────
+function loadAll(){
+  loadMembers();
+  loadLayouts();
+}
+
+// ── ソート ───────────────────────────────────────────────────────
+var sortState = {};
+["members","layouts"].forEach(function(col){
+  var btn=g("btn-sort-"+col); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState[col]={key:gv("sort-key-"+col),dir:gv("sort-dir-"+col)};
+    render(col);
+  });
+});
+function applySortToList(list,col){
+  var st=sortState[col]; if(!st) return list;
+  var key=st.key, dir=st.dir;
+  return list.slice().sort(function(a,b){
+    var av=a[key]!=null?a[key]:"", bv=b[key]!=null?b[key]:"";
+    var an=parseFloat(av), bn=parseFloat(bv);
+    var cmp=(!isNaN(an)&&!isNaN(bn))?(an-bn):String(av).localeCompare(String(bv),"ja");
+    return dir==="desc"?-cmp:cmp;
+  });
+}
+
+// ── フィルター ───────────────────────────────────────────────────
+var PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+(function(){
+  var sel=g("f-mem-pref"); if(!sel) return;
+  sel.innerHTML='<option value="">全都道府県</option>'+PREFS.map(function(p){return '<option>'+p+'</option>';}).join("");
+})();
+
+function addFilter(ids,col){ ids.forEach(function(id){ var el=g(id); if(el){ el.addEventListener("input",function(){ render(col); }); el.addEventListener("change",function(){ render(col); }); }}); }
+addFilter(["s-mem","f-mem-gender","f-mem-pref"],"members");
+
+// ── テーブルレンダリング ─────────────────────────────────────────
+function render(col){
+  if(col==="members") renderMembers();
+  else if(col==="layouts") renderLayouts();
+}
+
+function renderMembers(){
+  var list=cache.members.slice();
+  var q=(g("s-mem")||{value:""}).value.toLowerCase(), gen=gv("f-mem-gender"), pref=gv("f-mem-pref");
+  list=list.filter(function(r){
+    if(q&&(r.name||"").toLowerCase().indexOf(q)<0&&(r.nameKana||"").toLowerCase().indexOf(q)<0&&(r.nickname||"").toLowerCase().indexOf(q)<0) return false;
+    if(gen&&r.gender!==gen) return false;
+    if(pref&&r.prefecture!==pref) return false;
+    return true;
+  });
+  list=applySortToList(list,"members");
+  var tb=g("tb-members");
+  if(!list.length){ tb.innerHTML='<tr><td colspan="7" class="ec">データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var gBadge=r.gender==="男"?'<span class="badge bg-blue">男</span>':r.gender==="女"?'<span class="badge bg-teal">女</span>':'<span class="badge bg-gray">他</span>';
+    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
+  }).join("");
+}
+
+function renderLayouts(){
+  var list=cache.layouts.slice();
+  list=applySortToList(list,"layouts");
+  var tb=g("tb-layouts");
+  if(!list.length){ tb.innerHTML='<tr><td colspan="5" class="ec">データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var imgCell=r.imageData?'<img src="'+r.imageData+'" style="max-height:40px;max-width:60px;border-radius:3px">':'<span class="dim" style="font-size:11px">なし</span>';
+    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td class="mono dim" style="text-align:right">'+(r.seats||"—")+'</td><td>'+imgCell+'</td><td><div class="acts"><button class="btn bs sm" data-edit-layout="'+r.id+'">編集</button><button class="btn bd sm" data-del="layouts" data-del-id="'+r.id+'" data-del-label="レイアウト">削除</button></div></td></tr>';
+  }).join("");
+}
+
+// ── テーブル内ボタン（イベント委任） ────────────────────────────
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  if(btn.dataset.editMember)  { openMemberModal(btn.dataset.editMember); return; }
+  if(btn.dataset.copyMember)  { copyMemberModal(btn.dataset.copyMember); return; }
+  if(btn.dataset.editLayout)  { openLayoutModal(btn.dataset.editLayout); return; }
+  if(btn.dataset.del){
+    var col=btn.dataset.del, id=btn.dataset.delId, label=btn.dataset.delLabel;
+    confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
+      db.collection(col).doc(id).delete()
+        .then(function(){ toast(label+"を削除しました"); if(col==="members") loadMembers(); else loadLayouts(); })
+        .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
+    });
+  }
+});
+
+// ── 顧客マスタ ───────────────────────────────────────────────────
+function loadMembers(cb){
+  db.collection("members").get()
+    .then(function(snap){
+      cache.members=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      setCnt("members",cache.members.length);
+      renderMembers();
+      if(cb) cb();
+    })
+    .catch(function(e){ toast("読込失敗(members): "+e.message,"err"); });
+}
+
+function todayDate(){ return new Date().toISOString().slice(0,10); }
+
+function genMemberId(){
+  var yy=new Date().getFullYear().toString().slice(2);
+  var maxSeq=0;
+  cache.members.forEach(function(m){ if(m.id&&m.id.slice(0,2)===yy){ var s=parseInt(m.id.slice(2))||0; if(s>maxSeq) maxSeq=s; } });
+  return yy+String(maxSeq+1).padStart(4,"0");
+}
+
+function setMemberFields(r){
+  sv("mem-name",   r?r.name:"");
+  sv("mem-kana",   r?r.nameKana:"");
+  sv("mem-nick",   r?r.nickname:"");
+  sv("mem-gender", r?r.gender:"男");
+  sv("mem-reg",    r?(r.registeredAt||todayDate()):todayDate());
+  sv("mem-birth",  r?r.birthday:"");
+  sv("mem-pref",   r?r.prefecture:"");
+  sv("mem-addr",   r?r.address:"");
+  sv("mem-tel",    r?r.phone:"");
+  sv("mem-tw",     r?r.twitterId:"");
+  sv("mem-ig",     r?r.instagramId:"");
+  sv("mem-fb",     r?r.facebookId:"");
+  sv("mem-visits", r?r.visitCount||0:0);
+  sv("mem-rank",   r?r.rank||"":"");
+  var noteEl=g("mem-note"); if(noteEl) noteEl.value=r?r.note||"":"";
+}
+
+g("btn-open-member").addEventListener("click",function(){ openMemberModal(null); });
+
+function openMemberModal(id){
+  editId.member=id; g("mt-member").textContent=id?"顧客編集":"顧客登録";
+  var idEl=g("mem-id");
+  if(id){
+    sv("mem-id",id); idEl.readOnly=true; idEl.style.background="var(--cream2)";
+    var r=cache.members.find(function(m){return m.id===id;}); setMemberFields(r);
+  } else {
+    var newId=genMemberId(); sv("mem-id",newId); idEl.readOnly=false; idEl.style.background=""; setMemberFields(null);
+  }
+  g("kb-member").innerHTML='<span class="keypart kp-nom">'+gv("mem-id")+'</span><span class="klabel">顧客番号</span>';
+  openM("m-member");
+}
+
+var memIdEl=g("mem-id"); if(memIdEl) memIdEl.addEventListener("input",function(){
+  var v=this.value.replace(/[^0-9]/g,"").slice(0,6); this.value=v;
+  g("kb-member").innerHTML=v?'<span class="keypart kp-nom">'+v+'</span><span class="klabel">顧客番号</span>':'—<span class="klabel">顧客番号</span>';
+});
+
+function copyMemberModal(id){
+  var r=cache.members.find(function(m){return m.id===id;});
+  editId.member=null; g("mt-member").textContent="顧客登録（コピー）";
+  var newId=genMemberId(); sv("mem-id",newId);
+  var idEl=g("mem-id"); idEl.readOnly=true; idEl.style.background="var(--cream2)";
+  setMemberFields(r); sv("mem-reg",todayDate());
+  g("kb-member").innerHTML='<span class="keypart kp-nom">'+newId+'</span><span class="klabel">顧客番号</span>';
+  openM("m-member");
+}
+
+function findNextMemberId(conflictId){
+  var prefix=conflictId.slice(0,2), base=parseInt(conflictId)||0, used={};
+  cache.members.forEach(function(m){ if(m.id&&m.id.slice(0,2)===prefix) used[parseInt(m.id)]=true; });
+  for(var n=base+1; n<=999999; n++){
+    var candidate=prefix+String(n).toString().slice(-4).padStart(4,"0");
+    if(candidate.length===6&&!used[n]) return candidate;
+  }
+  return null;
+}
+
+g("btn-save-member").addEventListener("click",function(){
+  var id=gv("mem-id"), name=gv("mem-name");
+  if(!id||id.length!==6){ toast("顧客番号が不正です","err"); return; }
+  if(!name){ toast("顧客名は必須です","err"); return; }
+  if(!editId.member && cache.members.some(function(m){return m.id===id;})){
+    var suggest=findNextMemberId(id);
+    if(suggest && confirm("顧客番号「"+id+"」は既に存在します。\n\n代わりに「"+suggest+"」を使いますか？")){
+      sv("mem-id",suggest); g("kb-member").innerHTML='<span class="keypart kp-nom">'+suggest+'</span><span class="klabel">顧客番号</span>'; id=suggest;
+    } else { return; }
+  }
+  var noteEl=g("mem-note");
+  db.collection("members").doc(id).set({
+    memberId:id, name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
+    gender:gv("mem-gender")||"男", registeredAt:gv("mem-reg")||todayDate(), birthday:gv("mem-birth")||null,
+    prefecture:gv("mem-pref")||null, address:gv("mem-addr")||null, phone:gv("mem-tel")||null,
+    twitterId:gv("mem-tw")||null, instagramId:gv("mem-ig")||null, facebookId:gv("mem-fb")||null,
+    visitCount:parseInt(gv("mem-visits"))||0, rank:gv("mem-rank")||null,
+    note:noteEl?noteEl.value||null:null
+  },{merge:true})
+  .then(function(){ toast(editId.member?"顧客を更新しました":"顧客を登録しました"); closeM("m-member"); loadMembers(); })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ── 座席レイアウトマスタ ─────────────────────────────────────────
+var DEFAULT_LAYOUTS=[
+  {id:"01",name:"通常",seats:8},{id:"02",name:"セミナー",seats:14},
+  {id:"03",name:"シアター",seats:8},{id:"04",name:"パーリー",seats:8},{id:"05",name:"スタンド",seats:20}
+];
+
+function loadLayouts(){
+  db.collection("layouts").get()
+    .then(function(snap){
+      cache.layouts=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      if(!cache.layouts.length){
+        var batch=db.batch();
+        DEFAULT_LAYOUTS.forEach(function(l){ batch.set(db.collection("layouts").doc(l.id),{layoutId:l.id,name:l.name,seats:l.seats,imageData:null}); });
+        return batch.commit().then(function(){ cache.layouts=DEFAULT_LAYOUTS.map(function(l){return Object.assign({},l);}); setCnt("layouts",cache.layouts.length); renderLayouts(); });
+      }
+      setCnt("layouts",cache.layouts.length); renderLayouts();
+    })
+    .catch(function(e){ toast("読込失敗(layouts): "+e.message,"err"); });
+}
+
+// 画像プレビュー
+var layImgData="";
+var layImgFile=g("lay-img-file");
+if(layImgFile) layImgFile.addEventListener("change",function(){
+  var file=this.files[0]; if(!file) return;
+  var reader=new FileReader(); reader.onload=function(e){
+    layImgData=e.target.result;
+    var el=g("lay-img-el"); if(el) el.src=layImgData;
+    var wrap=g("lay-img-preview"); if(wrap) wrap.style.display="block";
+    var none=g("lay-img-none"); if(none) none.style.display="none";
+  }; reader.readAsDataURL(file);
+});
+var layClearBtn=g("lay-img-clear");
+if(layClearBtn) layClearBtn.addEventListener("click",function(){
+  layImgData=""; var el=g("lay-img-el"); if(el) el.src="";
+  var wrap=g("lay-img-preview"); if(wrap) wrap.style.display="none";
+  var none=g("lay-img-none"); if(none) none.style.display="block";
+  var inp=g("lay-img-file"); if(inp) inp.value="";
+});
+
+g("btn-open-layout").addEventListener("click",function(){ openLayoutModal(null); });
+
+function openLayoutModal(id){
+  editId.layout=id; g("mt-layout").textContent=id?"レイアウト編集":"レイアウト登録";
+  var idEl=g("lay-id"); layImgData="";
+  if(id){
+    var r=cache.layouts.find(function(l){return l.id===id;});
+    sv("lay-id",id); sv("lay-name",r?r.name:""); sv("lay-seats",r?r.seats:"");
+    idEl.readOnly=true; idEl.style.background="var(--cream2)";
+    layImgData=r?r.imageData||"":"";
+    var el=g("lay-img-el"), wrap=g("lay-img-preview"), none=g("lay-img-none");
+    if(layImgData&&el){ el.src=layImgData; wrap.style.display="block"; none.style.display="none"; }
+    else { if(wrap) wrap.style.display="none"; if(none) none.style.display="block"; }
+  } else {
+    sv("lay-id",""); sv("lay-name",""); sv("lay-seats","");
+    idEl.readOnly=false; idEl.style.background="";
+    var wrap=g("lay-img-preview"), none=g("lay-img-none");
+    if(wrap) wrap.style.display="none"; if(none) none.style.display="block";
+  }
+  var inp=g("lay-img-file"); if(inp) inp.value="";
+  openM("m-layout");
+}
+
+g("btn-save-layout").addEventListener("click",function(){
+  var id=gv("lay-id"), name=gv("lay-name"), seats=parseInt(gv("lay-seats"))||0;
+  if(!id||id.length!==2){ toast("座席ID（2桁）は必須です","err"); return; }
+  if(!name){ toast("名称は必須です","err"); return; }
+  if(!seats){ toast("座席数は必須です","err"); return; }
+  db.collection("layouts").doc(id).set({layoutId:id,name:name,seats:seats,imageData:layImgData||null},{merge:true})
+    .then(function(){ toast(editId.layout?"レイアウトを更新しました":"レイアウトを登録しました"); closeM("m-layout"); loadLayouts(); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+</script>
+</body>
+</html>

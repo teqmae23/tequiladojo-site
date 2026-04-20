@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキーラ道場 — 営業・来店・予約データ</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- ★★★ ここだけ書き換えてください ★★★ -->
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#18110a; --ink2:#4a3820; --ink3:#9a8470;
+  --gold:#c8921e; --gold-l:#e8b84a; --gold-d:#7a5610;
+  --teal:#1a6e58; --teal-l:#e0f0eb;
+  --red:#8c2818; --red-l:#fae8e4;
+  --cream:#faf7f1; --cream2:#f0ebe0; --cream3:#e4ddd0; --white:#fff;
+  --border:rgba(160,130,100,.18); --border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07); --shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px; --rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans)}
+
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+
+#app{display:none;min-height:100vh}
+.topbar{background:var(--ink);display:flex;align-items:flex-start;padding:8px 20px;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:4px}
+.tbrand{font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em;margin-right:8px;white-space:nowrap}
+.ttabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tab{padding:5px 10px;border:none;background:none;color:rgba(255,255,255,.42);font-size:11px;font-weight:500;border-radius:var(--r);white-space:nowrap}
+.tab:hover{color:rgba(255,255,255,.72);background:rgba(255,255,255,.06)}
+.tab.active{color:var(--gold-l);background:rgba(200,146,30,.16)}
+.tab .cnt{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:9px;font-family:var(--mono);background:rgba(255,255,255,.1);color:rgba(255,255,255,.45)}
+.tab.active .cnt{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.tuser{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.temail{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)}
+.tlogout{padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r);background:none;color:rgba(255,255,255,.38);font-size:11px}
+.tlogout:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+
+.content{padding:28px;max-width:1280px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--gold-d)}
+.pdesc{font-size:11px;color:var(--ink3);margin-top:2px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sbox{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;flex:1;min-width:160px;background:var(--cream)}
+.sbox input{border:none;background:none;font-size:12px;color:var(--ink);width:100%}
+.sbox input:focus{outline:none}
+.fsel{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;background:var(--cream);color:var(--ink)}
+.fsel:focus{outline:none;border-color:var(--gold)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(200,146,30,.025)}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.acts{display:flex;gap:5px;justify-content:flex-end}
+.ec{text-align:center;color:var(--ink3);padding:32px!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.bg-gold{background:#fdf0d0;color:var(--gold-d);border:1px solid rgba(200,146,30,.3)}
+.bg-teal{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
+.bg-red{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}
+.bg-gray{background:var(--cream2);color:var(--ink3);border:1px solid var(--border2)}
+.bg-blue{background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4}
+.bg-yellow{background:#FAEEDA;color:#633806;border:1px solid #FAC775}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-lg{max-width:780px}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--gold-d)}
+.mx{background:none;border:none;font-size:22px;color:var(--ink3);line-height:1;padding:0 4px}.mx:hover{color:var(--ink)}
+.mbody{padding:20px 24px 20px 40px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.req{color:var(--red);margin-left:2px}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,146,30,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow.c3{grid-template-columns:1fr 1fr 1fr}
+.full{grid-column:1/-1}
+.fsep{border:none;border-top:1px solid var(--border);margin:14px 0}
+.keybox{background:var(--ink);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--gold-l);letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.keybox .klabel{font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.keypart{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px}
+.kp-nom{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.kp-seq{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+.kp-flt{background:rgba(255,255,255,.08);color:rgba(255,255,255,.6)}
+.kp-cls{background:rgba(26,110,88,.25);color:#7fe0c0}
+#toasts{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}
+.terr{background:var(--red);color:#fff}
+.tinf{background:var(--gold-d);color:var(--cream)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cmsg{font-size:14px;margin-bottom:20px;color:var(--ink2);line-height:1.7}
+.cacts{display:flex;gap:8px;justify-content:center}
+
+/* ── カレンダー ─────────────────────────────── */
+.vbtn-cal{font-size:12px;padding:4px 12px;border:0.5px solid var(--border);border-radius:var(--r);cursor:pointer;background:none;color:var(--ink3)}
+.vbtn-cal.active{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+.cal-dow{text-align:center;font-size:11px;font-weight:500;padding:4px 0;color:var(--ink3)}
+.cal-dow.sun{color:#E24B4A}.cal-dow.sat{color:#378ADD}
+.cal-cell{height:100px;border:0.5px solid var(--border);border-radius:var(--r);padding:4px 5px;cursor:pointer;overflow:hidden;background:var(--cream)}
+.cal-cell:hover{filter:brightness(0.96)}
+.cal-cell.cal-today{border:1.5px solid #185FA5}
+.cal-cell.cal-other{opacity:0.35}
+.cal-cell.cbt0{background:var(--cbt0,#E6F1FB)}.cal-cell.cbt1{background:var(--cbt1,#EAF3DE)}
+.cal-cell.cbt2{background:var(--cbt2,#C0DD97)}.cal-cell.cbt3{background:var(--cbt3,#FAEEDA)}
+.cal-cell.cbt4{background:var(--cbt4,#D3D1C7)}.cal-cell.cbt5{background:var(--cbt5,#B4B2A9)}
+.cal-cell.cbt6{background:var(--cbt6,#FBEAF0)}.cal-cell.cbt7{background:var(--cbt7,#FEF0E0)}
+.cal-cell.cbt8{background:var(--cbt8,#D3D1C7)}
+.cal-day-num{font-size:22px;font-weight:500;color:var(--ink);flex-shrink:0;line-height:1}
+.cal-cell.csun .cal-day-num,.cal-cell.chol .cal-day-num{color:#E24B4A}
+.cal-cell.csat .cal-day-num{color:#378ADD}
+.c23img{height:19.8px;width:23.1px;object-fit:fill;flex-shrink:0;display:block}
+.cal-drow{display:flex;align-items:center;gap:3px;margin-bottom:2px;min-width:0;height:26px}
+.cal-hname{font-size:9px;color:#E24B4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.cal-aname{font-size:9px;color:#993556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.cal-today-badge{margin-left:auto;font-size:9px;font-weight:500;background:#185FA5;color:#E6F1FB;border-radius:3px;padding:0 4px;flex-shrink:0}
+.cal-trow{display:flex;align-items:center;gap:3px;margin-bottom:2px}
+.cal-ei{font-size:11px;font-weight:600;background:#444441;color:#F1EFE8;border-radius:3px;padding:1px 5px;flex-shrink:0;line-height:1.6}
+.cal-ttime{font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;font-family:monospace}
+.cal-rrow{display:flex;align-items:center;margin-bottom:2px;min-width:0}
+.cal-rico{font-size:9px;font-weight:500;background:#185FA5;color:#E6F1FB;border-radius:2px;padding:0 3px;flex-shrink:0;line-height:1.5}
+.cal-rtime{font-size:9px;color:var(--ink3);white-space:nowrap;overflow:hidden;flex:1;padding:0 2px;font-family:monospace}
+.cal-rpax{font-size:9px;font-weight:500;color:var(--ink3);flex-shrink:0;font-family:monospace}
+.cal-litem{border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:0}
+.cal-litem.cal-ltoday{border:3px solid #185FA5}
+.cal-lhead{display:flex;align-items:center;gap:6px;padding:6px 10px}
+.cal-lhead.cbt0{background:var(--cbt0,#E6F1FB)}.cal-lhead.cbt1{background:var(--cbt1,#EAF3DE)}
+.cal-lhead.cbt2{background:var(--cbt2,#C0DD97)}.cal-lhead.cbt3{background:var(--cbt3,#FAEEDA)}
+.cal-lhead.cbt4{background:var(--cbt4,#D3D1C7)}.cal-lhead.cbt5{background:var(--cbt5,#B4B2A9)}
+.cal-lhead.cbt6{background:var(--cbt6,#FBEAF0)}.cal-lhead.cbt7{background:var(--cbt7,#FEF0E0)}
+.cal-lhead.cbt8{background:var(--cbt8,#D3D1C7)}
+.cal-lhead.cbt-none{background:var(--cream2)}
+.cal-ldwrap{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.cal-ldate{font-size:22px;font-weight:500;color:var(--ink);line-height:1}
+.cal-ldate.csun,.cal-ldate.chol{color:#E24B4A}
+.cal-ldate.csat{color:#378ADD}
+.cal-ldow{font-size:15px;font-weight:500;color:var(--ink);flex-shrink:0}
+.cal-ldow.csun,.cal-ldow.chol{color:#E24B4A}
+.cal-ldow.csat{color:#378ADD}
+.cal-lnames{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;margin-left:2px}
+.cal-lhname{font-size:11px;color:#E24B4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-laname{font-size:11px;color:#993556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ltoday-badge{font-size:10px;font-weight:500;background:#185FA5;color:#E6F1FB;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0}
+.cal-leitime{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.cal-ltime-text{font-size:15px;font-weight:500;color:var(--ink);font-family:monospace}
+.cal-lbody{padding:4px 10px 6px;display:flex;flex-direction:column;gap:3px;background:var(--cream)}
+.cal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+<meta name="version" content="202603260723">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Data Console</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="tbrand">🥃 テキーラ道場</div>
+    <a href="admin.html" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;margin-right:8px;white-space:nowrap;text-decoration:none">← ハブ</a>
+    <div class="ttabs">
+      <button class="tab active" data-page="sessions">営業データ <span class="cnt" id="cnt-sessions">—</span></button>
+      <button class="tab" data-page="visits">来店データ <span class="cnt" id="cnt-visits">—</span></button>
+      <button class="tab" data-page="reservations">予約 <span class="cnt" id="cnt-reservations">—</span></button>
+      <button class="tab" data-page="calendar">カレンダー</button>
+    </div>
+    <div class="tuser">
+      <span class="temail" id="temail"></span>
+      <button class="tlogout" id="btn-logout">ログアウト</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- 営業データページ -->
+    <div class="page active" id="page-sessions">
+      <div class="phead">
+        <div><div class="ptitle">営業データ</div><div class="pdesc">セッションID 7桁 = YYMMDD + 連番1</div></div>
+        <button class="btn bp" id="btn-open-session">＋ 新規追加</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:160px"><input type="text" id="s-ses" placeholder="日付で検索..."></div>
+          <select class="fsel" id="f-ses-layout"><option value="">全レイアウト</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-sessions"><option value="id">セッションID</option><option value="date">日付</option><option value="openTime">開店時間</option><option value="guestCount">来店人数</option><option value="sales">売上</option></select>
+            <select id="sort-dir-sessions"><option value="desc">降順 ▼</option><option value="asc">昇順 ▲</option></select>
+            <button class="btn bs" id="btn-sort-sessions">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-sessions">
+          <colgroup><col style="width:70px"><col style="width:70px"><col style="width:60px"><col style="width:60px"><col style="width:90px"><col style="width:60px"><col style="width:70px"><col style="width:86px"></colgroup>
+          <thead><tr><th>ID</th><th>日付</th><th>開店</th><th>閉店</th><th>レイアウト</th><th>来店数</th><th>売上</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-sessions"><tr><td colspan="8" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 来店データページ -->
+    <div class="page" id="page-visits">
+      <div class="phead">
+        <div><div class="ptitle">来店データ</div><div class="pdesc">キー: 日付6+時間4+グループ2+連番1 = 13桁</div></div>
+        <button class="btn bp" id="btn-open-visit">＋ 来店登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:160px"><input type="text" id="s-vis" placeholder="日付・会員IDで検索..."></div>
+          <input type="date" id="f-vis-date" class="fsel" style="width:140px">
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-visits"><option value="id">キー</option><option value="visitDate">日付</option><option value="visitTime">来店時間</option><option value="memberId">会員ID</option></select>
+            <select id="sort-dir-visits"><option value="desc">降順 ▼</option><option value="asc">昇順 ▲</option></select>
+            <button class="btn bs" id="btn-sort-visits">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-visits">
+          <colgroup><col style="width:100px"><col style="width:50px"><col style="width:50px"><col style="width:120px"><col style="width:50px"><col style="width:50px"><col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:50px"><col style="width:86px"></colgroup>
+          <thead><tr><th>キー</th><th>来店時間</th><th>退店時間</th><th>会員</th><th>来店回数</th><th>段位</th><th>テキーラ量</th><th>金額</th><th>会計方法</th><th>領収書</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-visits"><tr><td colspan="11" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 予約管理ページ -->
+    <div class="page" id="page-reservations">
+      <div class="phead">
+        <div><div class="ptitle">予約管理</div><div class="pdesc">reservationId = 西暦2桁 + 通番4桁（例: 250001）</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn bs" id="btn-export-reservations" style="font-size:11px">CSV ダウンロード</button>
+          <button class="btn bp" id="btn-open-reservation">＋ 予約登録</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">総予約数</div><div style="font-size:24px;font-weight:500" id="rsv-stat-count">—</div></div>
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">総人数</div><div style="font-size:24px;font-weight:500" id="rsv-stat-guests">—</div></div>
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">本日の予約</div><div style="font-size:24px;font-weight:500" id="rsv-stat-today">—</div></div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:180px"><input type="text" id="s-rsv" placeholder="予約ID・顧客コードで検索..."></div>
+          <input type="date" id="f-rsv-date" class="fsel" style="width:140px">
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-reservations" class="fsel"><option value="id">予約ID</option><option value="reservationDate">日付</option><option value="startTime">開始時間</option><option value="customerCode">顧客コード</option><option value="guests">人数</option></select>
+            <select id="sort-dir-reservations" class="fsel"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-reservations">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-reservations">
+          <colgroup><col style="width:90px"><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:90px"><col style="width:50px"><col style="width:50px"><col><col style="width:110px"></colgroup>
+          <thead><tr><th>予約ID</th><th>予約日</th><th>開始時間</th><th>終了時間</th><th>顧客コード</th><th>人数</th><th>貸切</th><th>備考</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-reservations"><tr><td colspan="8" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- カレンダーページ -->
+    <div class="page" id="page-calendar">
+      <!-- 登録フォーム画面 -->
+      <div id="cal-form-view" style="display:none">
+        <div class="phead">
+          <div><div class="ptitle">営業予定登録</div><div class="pdesc" id="cal-form-ym"></div></div>
+          <button class="btn bg2" id="cal-form-back">← カレンダーに戻る</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div id="cal-form-list" style="display:flex;flex-direction:column"></div>
+        </div>
+      </div>
+      <!-- カレンダー画面 -->
+      <div id="cal-main-view">
+        <div id="cal-unpublished-warn" style="display:none;background:#fae8e4;border:1px solid rgba(140,40,24,.2);border-radius:var(--r);padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--red);font-weight:500"></div>
+        <div class="phead">
+          <div><div class="ptitle">営業カレンダー</div><div class="pdesc">営業予定・記念日・予約をひと目で確認</div></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn bs" id="cal-add-sch">＋ 営業予定を登録</button>
+            <button class="btn bs" style="font-size:11px" onclick="calToggleRange()" id="cal-range-btn">📅 表示期間</button>
+            <button class="btn bs" style="font-size:11px" id="cal-publish">🌐 HTML公開</button>
+          </div>
+        </div>
+        <div class="card" style="padding:16px">
+          <div id="cal-range-panel" style="display:none;margin-bottom:12px;padding:10px;background:var(--cream2);border-radius:var(--r);border:0.5px solid var(--border)">
+            <span style="font-size:12px;color:var(--ink3)">表示期間：</span>
+            <select id="cal-range-from-y" style="font-size:12px;padding:2px 4px"></select>年
+            <select id="cal-range-from-m" style="font-size:12px;padding:2px 4px"></select>月〜
+            <select id="cal-range-to-y" style="font-size:12px;padding:2px 4px"></select>年
+            <select id="cal-range-to-m" style="font-size:12px;padding:2px 4px"></select>月
+            <button class="btn bp sm" style="font-size:11px" onclick="calSaveRange()">保存</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;gap:4px">
+              <button class="btn bs" id="cal-prev">&#8592;</button>
+              <span style="font-size:18px;font-weight:500;color:var(--ink)" id="cal-title"></span>
+              <button class="btn bs" id="cal-next">&#8594;</button>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="vbtn-cal active" id="cal-btn-cal" onclick="calSetView('cal')">カレンダー</button>
+              <button class="vbtn-cal" id="cal-btn-list" onclick="calSetView('list')">リスト</button>
+            </div>
+          </div>
+          <div id="cal-view-wrap">
+            <div id="cal-view-grid" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+              <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,minmax(64px,1fr));gap:4px;min-width:460px"></div>
+            </div>
+            <div id="cal-div-list" style="display:none"><div id="cal-list-wrap" style="display:flex;flex-direction:column;gap:6px"></div></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px" id="cal-legend"></div>
+          <div id="cal-publish-status" style="display:none;font-size:12px;margin-top:8px;padding:6px 10px;border-radius:6px;background:var(--cream2);word-break:break-all"></div>
+          <div style="margin-top:8px">
+            <button class="btn bs" style="font-size:11px" onclick="calTogglePalette()" id="cal-palette-btn">🎨 色を変更</button>
+            <div id="cal-palette" style="display:none;margin-top:8px;padding:12px;background:var(--cream2);border-radius:var(--r);border:0.5px solid var(--border)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .content -->
+</div><!-- #app -->
+
+
+<!-- 営業予定登録モーダル -->
+<div class="mbg" id="m-schedule">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-schedule">営業予定登録</div><button class="mx" data-close="m-schedule">✕</button></div>
+    <div class="mbody">
+      <div class="fg"><label class="fl">日付</label><input class="fi mono" id="sch-date" readonly style="background:var(--cream2)"></div>
+      <div class="fg"><label class="fl">営業タイプ<span class="req">*</span></label>
+        <select class="fs" id="sch-type" onchange="calSchTypeChange(this)">
+          <option value="0">0: 夜のみ営業</option>
+          <option value="1">1: 昼夜営業</option>
+          <option value="2">2: 昼のみ営業</option>
+          <option value="3">3: 予約営業のみ</option>
+          <option value="4">4: 定休日</option>
+          <option value="5">5: 休業日</option>
+          <option value="6">6: イベント営業</option>
+          <option value="7">7: 貸切営業</option>
+          <option value="8">8: 臨時休業</option>
+        </select>
+      </div>
+      <div id="sch-time-fields">
+        <div class="frow">
+          <div class="fg"><label class="fl">営業開始（HHMM）</label><input class="fi mono" id="sch-open" maxlength="4" placeholder="1800"></div>
+          <div class="fg"><label class="fl">営業終了（HHMM）</label><input class="fi mono" id="sch-close" maxlength="4" placeholder="2300"></div>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">メモ</label><input class="fi" id="sch-memo" placeholder="特記事項..."></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-schedule">キャンセル</button><button class="btn bp" id="btn-save-schedule">保存</button></div>
+  </div>
+</div>
+
+<!-- 営業データモーダル -->
+<div class="mbg" id="m-session">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-session">営業データ登録</div><button class="mx" data-close="m-session">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-session">—<span class="klabel">セッションID</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">日付（YYMMDD）<span class="req">*</span></label><input class="fi mono" id="ses-date" placeholder="250401" maxlength="6"></div>
+        <div class="fg"><label class="fl">連番</label><input class="fi mono" id="ses-seq" placeholder="0" maxlength="1" value="0"></div>
+        <div class="fg"><label class="fl">座席レイアウト</label><select class="fs" id="ses-layout"><option value="">選択...</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">開店時間（HHMMSS）</label><input class="fi mono" id="ses-open" placeholder="183000" maxlength="6"></div>
+        <div class="fg"><label class="fl">閉店時間（HHMMSS）</label><input class="fi mono" id="ses-close" placeholder="230000" maxlength="6"></div>
+      </div>
+      <hr class="fsep">
+      <div class="frow c3">
+        <div class="fg"><label class="fl">休憩開始1</label><input class="fi mono" id="ses-b1s" placeholder="—" maxlength="6"></div>
+        <div class="fg"><label class="fl">休憩終了1</label><input class="fi mono" id="ses-b1e" placeholder="—" maxlength="6"></div>
+      </div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">休憩開始2</label><input class="fi mono" id="ses-b2s" placeholder="—" maxlength="6"></div>
+        <div class="fg"><label class="fl">休憩終了2</label><input class="fi mono" id="ses-b2e" placeholder="—" maxlength="6"></div>
+      </div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">休憩開始3</label><input class="fi mono" id="ses-b3s" placeholder="—" maxlength="6"></div>
+        <div class="fg"><label class="fl">休憩終了3</label><input class="fi mono" id="ses-b3e" placeholder="—" maxlength="6"></div>
+      </div>
+      <hr class="fsep">
+      <div class="frow">
+        <div class="fg"><label class="fl">来店人数</label><input class="fi" id="ses-guests" type="number" min="0" placeholder="0"></div>
+        <div class="fg"><label class="fl">売上金額（円）</label><input class="fi" id="ses-sales" type="number" min="0" placeholder="0"></div>
+      </div>
+      <div class="fg"><label class="fl">メモ</label><textarea class="fi" id="ses-note" rows="2" style="resize:vertical;font-size:13px" placeholder="自由記入..."></textarea></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-session">キャンセル</button><button class="btn bp" id="btn-save-session">保存</button></div>
+  </div>
+</div>
+
+<!-- 来店データモーダル -->
+<div class="mbg" id="m-visit">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-visit">来店登録</div><button class="mx" data-close="m-visit">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-visit">—<span class="klabel">来店ID</span></div>
+      <input type="hidden" id="vis-date"><input type="hidden" id="vis-time">
+      <input type="hidden" id="vis-group"><input type="hidden" id="vis-seq">
+      <div style="display:flex;gap:20px;align-items:baseline;margin-bottom:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">日付</span><span id="vis-date-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
+        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">時間</span><span id="vis-time-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
+        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">グループ</span><span id="vis-group-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
+        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">GNo.</span><span id="vis-seq-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
+      </div>
+      <hr class="fsep">
+      <div class="fg">
+        <label class="fl">会員ID</label>
+        <input class="fi" id="vis-member" placeholder="250001">
+        <div id="vis-member-status" style="font-size:11px;margin-top:4px;min-height:16px"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">テキーラ量（ml）</label><input class="fi" id="vis-tequila" type="number" min="0" placeholder="0"></div>
+        <div class="fg"><label class="fl">金額（円）</label><input class="fi" id="vis-amount" type="number" min="0" placeholder="0"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">会計方法</label><select class="fs" id="vis-payment">
+          <option value="0">0: 現金</option><option value="1">1: PayPay</option><option value="3">3: PayPal</option><option value="9">9: その他</option>
+        </select></div>
+        <div class="fg"><label class="fl">領収書発行</label><select class="fs" id="vis-receipt">
+          <option value="0">0: 未発行</option><option value="1">1: 発行</option>
+        </select></div>
+      </div>
+      <div class="fg"><label class="fl">退店時間（HHMM）</label><input class="fi mono" id="vis-out" placeholder="2300" maxlength="4"></div>
+    </div>
+    <div class="mfoot" id="visit-modal-foot"><button class="btn bg2" id="btn-cancel-visit">キャンセル</button><button class="btn bp" id="btn-save-visit">登録</button></div>
+  </div>
+</div>
+
+<!-- 予約モーダル -->
+<div class="mbg" id="m-reservation">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-reservation">予約登録</div><button class="mx" data-close="m-reservation">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-reservation">—<span class="klabel">reservationId（西暦2桁+通番4桁）</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">予約日（YYMMDD）<span class="req">*</span></label><input class="fi mono" id="rsv-date" maxlength="6" placeholder="250409"></div>
+        <div class="fg"><label class="fl">顧客コード（6桁）<span class="req">*</span></label><input class="fi mono" id="rsv-customer" maxlength="6" placeholder="250001"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">開始時間（HHMMSS）<span class="req">*</span></label><input class="fi mono" id="rsv-start" maxlength="6" placeholder="183000"></div>
+        <div class="fg"><label class="fl">終了時間（HHMMSS）<span class="req">*</span></label><input class="fi mono" id="rsv-end" maxlength="6" placeholder="200000"></div>
+      </div>
+      <div class="fg"><label class="fl">人数<span class="req">*</span></label>
+        <select class="fs" id="rsv-guests"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option></select>
+      </div>
+      <div class="fg"><label class="fl">貸切区分</label>
+        <select class="fs" id="rsv-charter"><option value="0">0: 通常予約</option><option value="1">1: 貸切予約</option></select>
+      </div>
+      <div class="fg"><label class="fl">備考</label><input class="fi" id="rsv-memo" placeholder="特記事項..."></div>
+      <div id="rsv-hours-warn" style="display:none;font-size:12px;color:var(--red);padding:6px 10px;background:var(--red-l);border-radius:var(--r);margin-top:4px"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-reservation">キャンセル</button><button class="btn bp" id="btn-save-reservation">保存</button></div>
+  </div>
+</div>
+
+<!-- 削除確認 -->
+<div class="cbg" id="confirm-bg">
+  <div class="ccard">
+    <div class="cmsg" id="confirm-msg">削除しますか？</div>
+    <div class="cacts"><button class="btn bg2" id="confirm-cancel">キャンセル</button><button class="btn bd" id="confirm-ok">削除する</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// Firebase初期化
+if (!firebase.apps.length) { firebase.initializeApp(FIREBASE_CONFIG); }
+var auth = firebase.auth();
+var db   = firebase.firestore();
+
+// ── ユーティリティ ────────────────────────────────────────────
+function g(id)      { return document.getElementById(id); }
+function gv(id)     { var el=g(id); return el?el.value.trim():""; }
+function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
+function pad(s,n)   { return String(s||"").padStart(n,"0"); }
+
+function toast(msg,type){
+  var el=document.createElement("div");
+  el.className="toast t"+(type||"ok");
+  el.textContent=(type==="err"?"✕ ":type==="inf"?"ℹ ":"✓ ")+msg;
+  g("toasts").appendChild(el);
+  setTimeout(function(){el.remove();},3000);
+}
+function openM(id)  { g(id).classList.add("open"); }
+function closeM(id) { g(id).classList.remove("open"); }
+function setCnt(col,n){ var el=g("cnt-"+col); if(el) el.textContent=n; }
+
+var FORM_MODALS=["m-session","m-visit","m-reservation","m-schedule"];
+function isFormModal(id){ return FORM_MODALS.indexOf(id)>=0; }
+function confirmClose(id){
+  if(isFormModal(id)){ if(!confirm("登録作業を中止しますか？\n入力内容は破棄されます。")) return; }
+  g(id).classList.remove("open");
+}
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("[data-close]");
+  if(btn){ confirmClose(btn.dataset.close); return; }
+  if(e.target.classList.contains("mbg")){ var id=e.target.id; if(id) confirmClose(id); }
+});
+
+var confirmCb=null;
+g("confirm-cancel").addEventListener("click",function(){ g("confirm-bg").classList.remove("open"); });
+g("confirm-ok").addEventListener("click",function(){ if(confirmCb) confirmCb(); g("confirm-bg").classList.remove("open"); });
+function confirmDel(msg,cb){ g("confirm-msg").textContent=msg; confirmCb=cb; g("confirm-bg").classList.add("open"); }
+
+function nowStr(){
+  var d=new Date();
+  return [d.getHours(),d.getMinutes(),d.getSeconds()].map(function(n){return String(n).padStart(2,"0");}).join("");
+}
+function todayStr6(){
+  var d=new Date();
+  return String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+}
+function fmtTime(t){ if(!t||t.length<4) return t||"—"; return t.slice(0,2)+":"+t.slice(2,4)+(t.length>=6?":"+t.slice(4,6):""); }
+function fmtDate(d){ if(!d||d.length<6) return d||"—"; return d.slice(0,2)+"/"+d.slice(2,4)+"/"+d.slice(4,6); }
+function fmtHHMM(t){ if(!t||t.length<4) return t||"—"; return t.slice(0,2)+":"+t.slice(2,4); }
+
+// ── 認証 ─────────────────────────────────────────────────────
+try {
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      g("login-screen").style.display="none";
+      g("app").style.display="block";
+      g("temail").textContent=user.email;
+      loadAll();
+    } else {
+      g("login-screen").style.display="flex";
+      g("app").style.display="none";
+    }
+  });
+} catch(e){ g("lerr").textContent="Firebase接続エラー: "+e.message; }
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"), pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){ g("lerr").textContent="メールアドレスとパスワードを入力してください"; return; }
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ g("lbtn").textContent="ログイン"; })
+    .catch(function(e){ g("lerr").textContent="ログイン失敗: "+e.message; g("lbtn").textContent="ログイン"; });
+});
+g("lpass").addEventListener("keydown",function(e){ if(e.key==="Enter") g("lbtn").click(); });
+g("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+
+// ── タブナビゲーション ────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    var page=this.dataset.page;
+    document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
+    g("page-"+page).classList.add("active");
+    this.classList.add("active");
+  });
+});
+
+// ── キャッシュ・ソート ─────────────────────────────────────────
+var cache = { sessions:[], visits:[], reservations:[], members:[], layouts:[] };
+var editId = { session:null, visit:null, reservation:null };
+var sortState = {};
+
+var SORT_COLS = ["sessions","visits","reservations"];
+SORT_COLS.forEach(function(col){
+  var btn=g("btn-sort-"+col); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState[col]={key:gv("sort-key-"+col),dir:gv("sort-dir-"+col)};
+    renderCol(col);
+  });
+});
+
+function applySortToList(list,col){
+  var st=sortState[col]; if(!st) return list;
+  var key=st.key, dir=st.dir;
+  return list.slice().sort(function(a,b){
+    var av=a[key]!==undefined&&a[key]!==null?a[key]:"";
+    var bv=b[key]!==undefined&&b[key]!==null?b[key]:"";
+    var an=parseFloat(av),bn=parseFloat(bv);
+    var cmp=(!isNaN(an)&&!isNaN(bn))?(an-bn):String(av).localeCompare(String(bv),"ja");
+    return dir==="desc"?-cmp:cmp;
+  });
+}
+
+function renderCol(col){
+  if(col==="sessions") renderSessions();
+  else if(col==="visits") renderVisits();
+  else if(col==="reservations") renderReservations();
+}
+
+function addFilter(ids,col){
+  ids.forEach(function(id){
+    var el=g(id); if(!el) return;
+    el.addEventListener("input",function(){ renderCol(col); });
+    el.addEventListener("change",function(){ renderCol(col); });
+  });
+}
+
+// ── データ初期ロード ──────────────────────────────────────────
+function loadAll(){
+  loadMembers(function(){
+    loadLayouts();
+    // 初期タブ（sessions）ロード
+    loadSessions();
+  });
+}
+
+function loadMembers(cb){
+  db.collection("members").get()
+    .then(function(snap){
+      cache.members=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      if(cb) cb();
+    })
+    .catch(function(e){ toast("読込失敗(members): "+e.message,"err"); if(cb) cb(); });
+}
+
+function loadLayouts(){
+  db.collection("layouts").get()
+    .then(function(snap){
+      cache.layouts=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      updateSesLayoutFilter();
+    })
+    .catch(function(e){ console.error("layouts:",e); });
+}
+
+// ── タブ切り替え時ロード ─────────────────────────────────────
+document.querySelector('[data-page="sessions"]').addEventListener("click",function(){ loadSessions(); updateSesLayoutFilter(); });
+document.querySelector('[data-page="visits"]').addEventListener("click",function(){ loadVisits(); });
+document.querySelector('[data-page="reservations"]').addEventListener("click",function(){ loadReservations(); });
+document.querySelector('[data-page="calendar"]').addEventListener("click",function(){
+  calRenderLegend();
+  calFetchHolidays(function(){ calRenderMonth(); calUpdateNavButtons(); });
+});
+
+// 削除共通ハンドラ
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  if(btn.dataset.editSession){ openSessionModal(btn.dataset.editSession); return; }
+  if(btn.dataset.editVisit)  { openVisitModal(btn.dataset.editVisit);   return; }
+  if(btn.dataset.copyVisit)  { copyVisitModal(btn.dataset.copyVisit);   return; }
+  if(btn.dataset.editReservation){ openReservationModal(btn.dataset.editReservation); return; }
+  if(btn.dataset.del){
+    var col=btn.dataset.del,id=btn.dataset.delId,label=btn.dataset.delLabel;
+    confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
+      db.collection(col).doc(id).delete()
+        .then(function(){
+          toast(label+"を削除しました");
+          if(col==="sessions") loadSessions();
+          else if(col==="visits") loadVisits();
+          else if(col==="reservations"){ var delRsv=cache.reservations.find(function(r){return r.id===id;}); if(delRsv&&delRsv.reservationDate) autoPublishCalForMonth(delRsv.reservationDate,"予約削除"); loadReservations(); }
+        })
+        .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
+    });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 営業データ
+// ════════════════════════════════════════════════════════════════
+setCnt("sessions","—");
+
+function loadSessions(){
+  db.collection("sessions").get()
+    .then(function(snap){
+      cache.sessions=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      setCnt("sessions", cache.sessions.length);
+      renderSessions();
+      updateSesLayoutFilter();
+    })
+    .catch(function(e){ toast("読込失敗(sessions): "+e.message,"err"); });
+}
+
+function updateSesLayoutFilter(){
+  var sel=g("f-ses-layout"); if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">全レイアウト</option>'+
+    cache.layouts.map(function(l){ return '<option value="'+l.id+'">'+l.name+'</option>'; }).join("");
+  if(cur) sel.value=cur;
+  var msel=g("ses-layout"); if(!msel) return;
+  var mcur=msel.value;
+  msel.innerHTML='<option value="">選択...</option>'+
+    cache.layouts.map(function(l){ return '<option value="'+l.id+'">'+l.name+' (MAX'+l.seats+'席)</option>'; }).join("");
+  if(mcur) msel.value=mcur;
+}
+
+function renderSessions(){
+  var list=cache.sessions.slice();
+  var q=(g("s-ses")||{value:""}).value.toLowerCase();
+  var lay=gv("f-ses-layout");
+  list=list.filter(function(r){
+    if(q&&(r.date||"").indexOf(q)<0&&(r.id||"").indexOf(q)<0) return false;
+    if(lay&&r.layoutId!==lay) return false;
+    return true;
+  });
+  list=applySortToList(list,"sessions");
+  var tb=g("tb-sessions");
+  if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="ec">データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var lay2=cache.layouts.find(function(l){return l.id===r.layoutId;});
+    return '<tr>'
+      +'<td class="mono" style="font-size:11px">'+r.id+'</td>'
+      +'<td class="mono dim">'+fmtDate(r.date)+'</td>'
+      +'<td class="mono dim">'+fmtTime(r.openTime)+'</td>'
+      +'<td class="mono dim">'+fmtTime(r.closeTime)+'</td>'
+      +'<td class="dim" style="font-size:11px">'+( lay2?lay2.name:r.layoutId||"—")+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+( r.guestCount!==null&&r.guestCount!==undefined?r.guestCount:"—")+'</td>'
+      +'<td class="mono" style="text-align:right">'+( r.sales?("¥"+Number(r.sales).toLocaleString()):"—")+'</td>'
+      +'<td><div class="acts">'
+        +'<button class="btn bs sm" data-edit-session="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="sessions" data-del-id="'+r.id+'" data-del-label="営業データ">削除</button>'
+      +'</div></td></tr>';
+  }).join("");
+}
+
+addFilter(["s-ses","f-ses-layout"],"sessions");
+
+var _bolSession=g("btn-open-session"); if(_bolSession) _bolSession.addEventListener("click",function(){ openSessionModal(null); });
+
+function openSessionModal(id){
+  editId.session=id;
+  g("mt-session").textContent=id?"営業データ編集":"営業データ登録";
+  updateSesLayoutFilter();
+  if(id){
+    var r=cache.sessions.find(function(s){return s.id===id;});
+    sv("ses-date",r?r.date:""); sv("ses-seq",r?String(r.seq||0):"0");
+    sv("ses-layout",r?r.layoutId:"");
+    sv("ses-open",r?r.openTime||"":""); sv("ses-close",r?r.closeTime||"":"");
+    sv("ses-b1s",r?r.breakStart1||"":""); sv("ses-b1e",r?r.breakEnd1||"":"");
+    sv("ses-b2s",r?r.breakStart2||"":""); sv("ses-b2e",r?r.breakEnd2||"":"");
+    sv("ses-b3s",r?r.breakStart3||"":""); sv("ses-b3e",r?r.breakEnd3||"":"");
+    sv("ses-guests",r&&r.guestCount!==null?r.guestCount:"");
+    sv("ses-sales",r?r.sales||"":"");
+    var note=g("ses-note"); if(note) note.value=r?r.memo||"":"";
+  } else {
+    sv("ses-date",todayStr6());
+    var todaySessions=cache.sessions.filter(function(s){return s.date===todayStr6();});
+    sv("ses-seq",String(todaySessions.length));
+    sv("ses-layout",""); sv("ses-open",""); sv("ses-close","");
+    sv("ses-b1s",""); sv("ses-b1e",""); sv("ses-b2s",""); sv("ses-b2e","");
+    sv("ses-b3s",""); sv("ses-b3e",""); sv("ses-guests",""); sv("ses-sales","");
+    var note=g("ses-note"); if(note) note.value="";
+  }
+  var d=gv("ses-date"),sq=gv("ses-seq");
+  g("kb-session").innerHTML='<span class="keypart kp-nom">'+d+'</span><span class="keypart kp-flt">'+sq+'</span><span class="klabel">セッションID</span>';
+  ["ses-date","ses-seq"].forEach(function(fid){
+    var el=g(fid); if(!el) return;
+    el.oninput=function(){
+      var nd=gv("ses-date"),ns=gv("ses-seq");
+      g("kb-session").innerHTML='<span class="keypart kp-nom">'+nd+'</span><span class="keypart kp-flt">'+ns+'</span><span class="klabel">セッションID</span>';
+    };
+  });
+  openM("m-session");
+}
+
+var _bssBtn=g("btn-save-session"); if(_bssBtn) _bssBtn.addEventListener("click",function(){
+  var date=gv("ses-date"),seq=gv("ses-seq");
+  if(!date||date.length!==6){ toast("日付（6桁）は必須です","err"); return; }
+  var id=date+seq;
+  var keyChanged=editId.session&&id!==editId.session;
+  if(!editId.session||keyChanged){
+    if(cache.sessions.some(function(s){return s.id===id;})){ toast("キー重複: セッションID「"+id+"」は既に存在します","err"); return; }
+  }
+  var noteEl=g("ses-note");
+  var saveData={
+    sessionId:id, date:date, seq:parseInt(seq)||0,
+    layoutId:gv("ses-layout")||null,
+    openTime:gv("ses-open")||null, closeTime:gv("ses-close")||null,
+    breakStart1:gv("ses-b1s")||null, breakEnd1:gv("ses-b1e")||null,
+    breakStart2:gv("ses-b2s")||null, breakEnd2:gv("ses-b2e")||null,
+    breakStart3:gv("ses-b3s")||null, breakEnd3:gv("ses-b3e")||null,
+    guestCount:gv("ses-guests")!==""?parseInt(gv("ses-guests")):null,
+    sales:gv("ses-sales")!==""?parseInt(gv("ses-sales")):null,
+    memo:noteEl?noteEl.value||null:null
+  };
+  var doSave=function(){ return db.collection("sessions").doc(id).set(saveData,{merge:true}); };
+  var promise;
+  if(keyChanged){ promise=db.collection("sessions").doc(editId.session).delete().then(doSave); }
+  else { promise=doSave(); }
+  promise.then(function(){ toast(editId.session?"営業データを更新しました":"営業データを登録しました"); closeM("m-session"); loadSessions(); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ════════════════════════════════════════════════════════════════
+// 来店データ
+// ════════════════════════════════════════════════════════════════
+setCnt("visits","—");
+var PAY_LABEL={"0":"現金","1":"PayPay","3":"PayPal","9":"その他"};
+var multiVisitQueue=[], multiVisitIndex=0, multiVisitTotal=0;
+
+function getMemberInfo(memberId){
+  if(!memberId) return {name:"（非会員）",visitCount:"—",rank:"—"};
+  var m=null;
+  for(var i=0;i<cache.members.length;i++){
+    var mm=cache.members[i];
+    if(mm.id===memberId||mm.memberId===memberId){m=mm;break;}
+  }
+  if(!m) return {name:"ID:"+memberId,visitCount:"—",rank:"—"};
+  return {name:m.name||"（名前未設定）",visitCount:m.visitCount||0,rank:m.rank||"—"};
+}
+
+function loadVisits(){
+  var doRender=function(){
+    db.collection("visits").get()
+      .then(function(snap){
+        cache.visits=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+        setCnt("visits",cache.visits.length);
+        renderVisits();
+      })
+      .catch(function(e){ toast("読込失敗(visits): "+e.message,"err"); });
+  };
+  if(!cache.members.length){ loadMembers(doRender); } else { doRender(); }
+}
+
+function renderVisits(){
+  if(!cache.members.length){ loadMembers(function(){ renderVisits(); }); return; }
+  var list=cache.visits.slice();
+  var q=(g("s-vis")||{value:""}).value.toLowerCase();
+  var dateF=gv("f-vis-date");
+  list=list.filter(function(r){
+    if(q&&(r.id||"").indexOf(q)<0&&(r.memberId||"").toLowerCase().indexOf(q)<0) return false;
+    if(dateF){ var yy=dateF.slice(2,4),mm=dateF.slice(5,7),dd=dateF.slice(8,10); if(r.visitDate!==yy+mm+dd) return false; }
+    return true;
+  });
+  list=applySortToList(list,"visits");
+  var tb=g("tb-visits");
+  if(!list.length){ tb.innerHTML='<tr><td colspan="11" class="ec">データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var mi=getMemberInfo(r.memberId);
+    return '<tr>'
+      +'<td class="mono" style="font-size:10px">'+r.id+'</td>'
+      +'<td class="mono dim">'+fmtHHMM(r.visitTime)+'</td>'
+      +'<td class="mono dim">'+fmtHHMM(r.checkoutTime)+'</td>'
+      +'<td style="font-size:11px">'+(r.memberId?mi.name:"—")+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+(r.memberId?mi.visitCount:"—")+'</td>'
+      +'<td class="dim" style="font-size:11px">'+(r.memberId?mi.rank:"—")+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+( r.tequilaAmount!=null?r.tequilaAmount+"ml":"—")+'</td>'
+      +'<td class="mono" style="text-align:right">'+( r.amount?("¥"+Number(r.amount).toLocaleString()):"—")+'</td>'
+      +'<td class="dim" style="font-size:11px">'+( PAY_LABEL[r.payment]||"—")+'</td>'
+      +'<td class="dim" style="font-size:11px">'+( r.receiptIssued==="1"?"発行":"未")+'</td>'
+      +'<td><div class="acts">'
+        +'<button class="btn bs sm" data-edit-visit="'+r.id+'">編集</button>'
+        +'<button class="btn bs sm" data-copy-visit="'+r.id+'">コピー</button>'
+        +'<button class="btn bd sm" data-del="visits" data-del-id="'+r.id+'" data-del-label="来店データ">削除</button>'
+      +'</div></td></tr>';
+  }).join("");
+}
+
+addFilter(["s-vis","f-vis-date"],"visits");
+
+var _bovBtn=g("btn-open-visit"); if(_bovBtn) _bovBtn.addEventListener("click",function(){ openVisitModal(null); });
+
+function makeVisitId(date,time,group,seq){ return date+time+group+seq; }
+
+function setVisitFields(r){
+  sv("vis-member",r?r.memberId||"":"");
+  sv("vis-tequila",r&&r.tequilaAmount!==null&&r.tequilaAmount!==undefined?r.tequilaAmount:"");
+  sv("vis-amount",r?r.amount||"":"");
+  sv("vis-payment",r?r.payment||"0":"0");
+  sv("vis-receipt",r?r.receiptIssued||"0":"0");
+  sv("vis-out",r?r.checkoutTime||"":"");
+}
+
+function updateVisitKeyBox(){
+  var id=makeVisitId(gv("vis-date"),gv("vis-time"),gv("vis-group"),gv("vis-seq"));
+  g("kb-visit").innerHTML='<span class="keypart kp-nom">'+id+'</span><span class="klabel">来店ID</span>';
+  updateVisDateTimeDisp();
+}
+["vis-date","vis-time","vis-group","vis-seq"].forEach(function(fid){
+  var el=g(fid); if(el) el.oninput=updateVisitKeyBox;
+});
+
+function formatVisDate(yymmdd){
+  if(!yymmdd||yymmdd.length<6) return "";
+  var yy="20"+yymmdd.slice(0,2),mm=yymmdd.slice(2,4),dd=yymmdd.slice(4,6);
+  try{ var d=new Date(parseInt(yy),parseInt(mm)-1,parseInt(dd)); var wdays=["日","月","火","水","木","金","土"]; return yy+"年"+mm+"月"+dd+"日（"+wdays[d.getDay()]+"）"; }catch(e){ return yymmdd; }
+}
+function updateVisDateTimeDisp(){
+  var date=gv("vis-date"),time=gv("vis-time"),group=gv("vis-group"),seq=gv("vis-seq");
+  var dd=g("vis-date-disp"); if(dd) dd.textContent=formatVisDate(date);
+  var td=g("vis-time-disp"); if(td) td.textContent=fmtHHMM(time);
+  var gd=g("vis-group-disp"); if(gd) gd.textContent=group||"";
+  var sd=g("vis-seq-disp"); if(sd) sd.textContent=seq||"";
+}
+
+function openVisitModal(id){
+  editId.visit=id;
+  multiVisitQueue=[]; multiVisitIndex=0; multiVisitTotal=0;
+  g("mt-visit").textContent=id?"来店編集":"来店登録";
+  var foot=g("visit-modal-foot");
+  if(foot) foot.innerHTML='<button class="btn bg2" id="btn-cancel-visit">キャンセル</button><button class="btn bp" id="btn-save-visit">登録</button>';
+  bindVisitModalButtons();
+  var keyEls=["vis-date","vis-time","vis-group","vis-seq"];
+  if(id){
+    var r=cache.visits.find(function(v){return v.id===id;});
+    sv("vis-date",id.slice(0,6)); sv("vis-time",id.slice(6,10));
+    sv("vis-group",id.slice(10,12)); sv("vis-seq",id.slice(12,13));
+    setVisitFields(r);
+  } else {
+    sv("vis-date",todayStr6()); sv("vis-time",nowStr().slice(0,4));
+    sv("vis-group","01"); sv("vis-seq","1");
+    setVisitFields(null);
+  }
+  keyEls.forEach(function(f){ var el=g(f); if(el){ el.readOnly=true; el.style.background="var(--cream2)"; }});
+  updateVisitKeyBox();
+  openM("m-visit");
+}
+
+function copyVisitModal(id){
+  var r=cache.visits.find(function(v){return v.id===id;});
+  openVisitModal(null);
+  if(r) setVisitFields(r);
+}
+
+function bindVisitModalButtons(){
+  setTimeout(function(){
+    var cancelBtn=g("btn-cancel-visit");
+    if(cancelBtn) cancelBtn.onclick=function(){ closeM("m-visit"); };
+    var saveBtn=g("btn-save-visit");
+    if(saveBtn) saveBtn.onclick=function(){
+      doSaveVisit(function(){ closeM("m-visit"); loadVisits(); });
+    };
+  },50);
+}
+
+function doSaveVisit(onSuccess){
+  var date=gv("vis-date"),time=gv("vis-time"),group=gv("vis-group"),seq=gv("vis-seq");
+  if(date.length!==6||time.length!==4||group.length!==2||seq.length!==1){
+    toast("日付6桁・時間4桁・グループ2桁・連番1桁は必須です","err"); return;
+  }
+  var inputMemberId=(gv("vis-member")||"").trim();
+  if(inputMemberId){
+    var chkM=null;
+    for(var ci=0;ci<cache.members.length;ci++){
+      if(cache.members[ci].id===inputMemberId||cache.members[ci].memberId===inputMemberId){chkM=cache.members[ci];break;}
+    }
+    if(!chkM){ toast("会員ID「"+inputMemberId+"」は登録されていません","err"); return; }
+  }
+  var id=makeVisitId(date,time,group,seq);
+  if(!editId.visit&&cache.visits.some(function(v){return v.id===id;})){ toast("キー重複: 来店ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("visits").doc(id).set({
+    visitId:id, visitDate:date, visitTime:time,
+    groupId:group, seqNo:seq,
+    memberId:gv("vis-member")||null,
+    tequilaAmount:gv("vis-tequila")!==""?parseFloat(gv("vis-tequila")):null,
+    amount:gv("vis-amount")!==""?parseInt(gv("vis-amount")):null,
+    payment:gv("vis-payment")||"0",
+    receiptIssued:gv("vis-receipt")||"0",
+    checkoutTime:gv("vis-out")||null
+  },{merge:true})
+  .then(function(){ toast(editId.visit?"来店データを更新しました":"来店登録しました"); if(onSuccess) onSuccess(); })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+}
+
+// 会員IDリアルタイムチェック
+var visMemberEl=g("vis-member");
+if(visMemberEl) visMemberEl.addEventListener("input",function(){
+  var val=this.value.trim(), status=g("vis-member-status");
+  if(!val){ status.textContent=""; return; }
+  var m=getMemberInfo(val);
+  if(m&&m.name&&m.name!=="ID:"+val&&m.name!=="（非会員）"){
+    status.textContent="✓ "+m.name+"（来店回数: "+(m.visitCount||0)+"回 / "+(m.rank||"段位なし")+"）";
+    status.style.color="var(--teal)";
+  } else {
+    status.textContent="✕ 会員ID「"+val+"」は登録されていません";
+    status.style.color="var(--red)";
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 予約管理
+// ════════════════════════════════════════════════════════════════
+setCnt("reservations","—");
+editId.reservation=null;
+var rsvSeqCounter=1;
+
+function loadReservations(){
+  db.collection("reservations").get()
+    .then(function(snap){
+      cache.reservations=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      cache.reservations.sort(function(a,b){ return (a.id||"").localeCompare(b.id||""); });
+      var yy=String(new Date().getFullYear()).slice(2);
+      var maxSeq=cache.reservations.reduce(function(max,r){
+        if(r.id&&r.id.slice(0,2)===yy){ var s=parseInt(r.id.slice(2))||0; return s>max?s:max; } return max;
+      },0);
+      rsvSeqCounter=maxSeq+1;
+      setCnt("reservations",cache.reservations.length);
+      renderReservations();
+      rsvUpdateStats();
+    })
+    .catch(function(e){ toast("読込失敗(reservations): "+e.message,"err"); });
+}
+
+function genRsvId(){
+  var yy=String(new Date().getFullYear()).slice(2);
+  return yy+String(rsvSeqCounter).padStart(4,"0");
+}
+
+function rsvUpdateStats(){
+  var today=todayStr6();
+  var totalGuests=cache.reservations.reduce(function(s,r){return s+(parseInt(r.guests)||0);},0);
+  var todayCount=cache.reservations.filter(function(r){return r.reservationDate===today;}).length;
+  var sc=g("rsv-stat-count"),sg=g("rsv-stat-guests"),st=g("rsv-stat-today");
+  if(sc) sc.textContent=cache.reservations.length;
+  if(sg) sg.textContent=totalGuests;
+  if(st) st.textContent=todayCount;
+}
+
+function renderReservations(){
+  var list=cache.reservations.slice();
+  var q=(g("s-rsv")||{value:""}).value.toLowerCase();
+  var dateF=gv("f-rsv-date");
+  list=list.filter(function(r){
+    if(q&&(r.id||"").indexOf(q)<0&&(r.customerCode||"").indexOf(q)<0) return false;
+    if(dateF){ var yy=dateF.slice(2,4),mm=dateF.slice(5,7),dd=dateF.slice(8,10); if(r.reservationDate!==yy+mm+dd) return false; }
+    return true;
+  });
+  list=applySortToList(list,"reservations");
+  var tb=g("tb-reservations"); if(!tb) return;
+  if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="ec">予約データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var d=r.reservationDate||""; var fd=d.length>=6?d.slice(0,2)+"/"+d.slice(2,4)+"/"+d.slice(4,6):"—";
+    var s=r.startTime||""; var fs=s.length>=4?s.slice(0,2)+":"+s.slice(2,4):"—";
+    var e=r.endTime||""; var fe=e.length>=4?e.slice(0,2)+":"+e.slice(2,4):"—";
+    return '<tr><td class="mono">'+r.id+'</td><td class="mono dim">'+fd+'</td><td class="mono dim">'+fs+'</td><td class="mono dim">'+fe+'</td><td class="mono">'+(r.customerCode||"—")+'</td><td style="text-align:center">'+(r.guests||"—")+'</td><td style="text-align:center">'+(r.charterType===1||r.charterType==="1"?'<span class="badge bg-gold">貸切</span>':'—')+'</td><td class="dim" style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.memo||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-reservation="'+r.id+'">編集</button><button class="btn bd sm" data-del="reservations" data-del-id="'+r.id+'" data-del-label="予約">削除</button></div></td></tr>';
+  }).join("");
+}
+
+(function(){
+  var sr=g("s-rsv"); if(sr){sr.addEventListener("input",renderReservations);sr.addEventListener("change",renderReservations);}
+  var dr=g("f-rsv-date"); if(dr){dr.addEventListener("input",renderReservations);dr.addEventListener("change",renderReservations);}
+  var ob=g("btn-open-reservation"); if(ob) ob.addEventListener("click",function(){ openReservationModal(null); });
+  var ex=g("btn-export-reservations");
+  if(ex) ex.addEventListener("click",function(){
+    if(!cache.reservations.length){ toast("データがありません","inf"); return; }
+    var csv="\uFEFF予約ID,予約日,開始時間,終了時間,顧客コード,人数,備考\n"+
+      cache.reservations.map(function(r){return [r.id,r.reservationDate,r.startTime,r.endTime,r.customerCode,r.guests,(r.memo||"").replace(/,/g,"、")].join(",");}).join("\n");
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url; a.download="reservations_"+new Date().toISOString().slice(0,10)+".csv"; a.click(); URL.revokeObjectURL(url);
+  });
+})();
+
+function openReservationModal(id){
+  editId.reservation=id;
+  g("mt-reservation").textContent=id?"予約編集":"予約登録";
+  if(id){
+    var r=cache.reservations.find(function(x){return x.id===id;});
+    sv("rsv-date",r?r.reservationDate:""); sv("rsv-start",r?r.startTime:""); sv("rsv-end",r?r.endTime:"");
+    sv("rsv-customer",r?r.customerCode:""); sv("rsv-guests",r?String(r.guests):""); sv("rsv-memo",r?r.memo||"":"");
+    sv("rsv-charter",r?String(r.charterType||"0"):"0");
+    g("kb-reservation").innerHTML='<span class="keypart kp-nom">'+id+'</span><span class="klabel">reservationId</span>';
+  } else {
+    ["rsv-date","rsv-start","rsv-end","rsv-customer","rsv-memo"].forEach(function(i){sv(i,"");}); sv("rsv-guests",""); sv("rsv-charter","0");
+    var nid=genRsvId();
+    g("kb-reservation").innerHTML='<span class="keypart kp-nom">'+nid.slice(0,2)+'</span><span class="keypart kp-seq">'+nid.slice(2)+'</span><span class="klabel">reservationId</span>';
+  }
+  openM("m-reservation");
+}
+
+FORM_MODALS.push("m-reservation");
+
+function checkRsvBusinessHours(date,start,end,cb){
+  var fullDate="20"+date;
+  db.collection("schedules").doc(fullDate).get()
+    .then(function(doc){
+      var warn=g("rsv-hours-warn");
+      if(!doc.exists||!doc.data().openTime||!doc.data().closeTime){ if(warn) warn.style.display="none"; cb(true); return; }
+      var sch=doc.data();
+      var bt=parseInt(sch.businessType)||0;
+      if(bt===4||bt===5||bt===8){
+        var label=bt===4?"定休日":bt===8?"臨時休業":"休業日";
+        if(warn){ warn.textContent="この日は"+label+"のため予約できません。"; warn.style.display=""; }
+        cb(false); return;
+      }
+      var open=sch.openTime.slice(0,4),close=sch.closeTime.slice(0,4);
+      var startHHMM=start.slice(0,4),endHHMM=end.slice(0,4);
+      if(startHHMM<open||endHHMM>close){
+        var fmtT=function(t){return t.slice(0,2)+":"+t.slice(2,4);};
+        if(warn){ warn.textContent="営業時間外の予約です。当日の営業時間は"+fmtT(open)+"〜"+fmtT(close)+"です。"; warn.style.display=""; }
+        cb(false); return;
+      }
+      if(warn) warn.style.display="none";
+      cb(true);
+    })
+    .catch(function(){ cb(true); });
+}
+
+(function(){
+  function triggerCheck(){
+    var date=gv("rsv-date"),start=gv("rsv-start"),end=gv("rsv-end");
+    if(date.length===6&&start.length>=4&&end.length>=4) checkRsvBusinessHours(date,start,end,function(){});
+  }
+  ["rsv-date","rsv-start","rsv-end"].forEach(function(id){ var el=g(id); if(el) el.addEventListener("input",triggerCheck); });
+})();
+
+var _bsr2=g("btn-save-reservation");
+if(_bsr2) _bsr2.addEventListener("click",function(){
+  var date=gv("rsv-date"),start=gv("rsv-start"),end=gv("rsv-end"),cust=gv("rsv-customer"),guests=gv("rsv-guests");
+  if(!date||date.length!==6){ toast("予約日（6桁）は必須です","err"); return; }
+  if(!start||start.length!==6){ toast("開始時間（6桁）は必須です","err"); return; }
+  if(!end||end.length!==6){ toast("終了時間（6桁）は必須です","err"); return; }
+  if(!cust||!/^\d{1,6}$/.test(cust)){ toast("顧客コード（6桁以内の数字）は必須です","err"); return; }
+  if(!guests){ toast("人数は必須です","err"); return; }
+  if(start>=end){ toast("終了時間は開始時間より後にしてください","err"); return; }
+  checkRsvBusinessHours(date,start,end,function(ok){
+    if(!ok) return;
+    var id=editId.reservation||genRsvId();
+    if(!editId.reservation){
+      if(cache.reservations.some(function(r){return r.id===id;})){ toast("予約ID「"+id+"」は既に存在します","err"); return; }
+      rsvSeqCounter++;
+    }
+    db.collection("reservations").doc(id).set({
+      reservationId:id,reservationDate:date,startTime:start,endTime:end,
+      customerCode:cust.padStart(6,"0"),guests:parseInt(guests),
+      charterType:parseInt(gv("rsv-charter")||"0"),
+      memo:gv("rsv-memo")||null,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true})
+    .then(function(){
+      toast(editId.reservation?"予約を更新しました":"予約を登録しました（ID: "+id+"）");
+      closeM("m-reservation"); loadReservations();
+      autoPublishCalForMonth(date,"予約");
+    })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// カレンダー
+// ════════════════════════════════════════════════════════════════
+var C23_ICON='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAWCAYAAAClrE55AAAGD0lEQVR4nK1WW2xcVxVde59zZ/yuHeS4LnUI43m4k8zYZUpKKpWJVErzAVErGMoXqqh4RCDKV0EF5KZUVflBtBJIvFXBl12h8mhV8ZDrVAVEMjT22MbjmfqRuCmO69iOX/O4Z28+7DEGWgR19s/R0Vn3nrX3XnvpkAJEgA4gY+6ITn2MFLcLIUyqhxUINRlu2hIRhU4QaESJXziHrV/fm8+vKcAECK5DEADMRI/2QPlJyzwUZDm7VpLLXr1Uy+XggXrjUgScbjM2XVaBAvBVixsOT7y3OPLT60ZmKnysZSaSPDcZPZr8b7iL0eR3lnv6ZD6SqLwZ69VK/H06HUl8HQAGkDH75cFM5buamI42Kz9wJdb30EgokQCAfoAVoPOplKcAXWj2HtlwshRg9kqq/lXfd3XEj73Wk4x+AoNOd/CayZgBwOhOtRWg7bOM0XTaDgBvSZoK3YlTnZ79pQJwUCggV9Xd353PPauZjKHBQVcDz0UT481k4psqAlW5wViz4PxPhwu5Z6bCJwPR4ovl/yV7AiD/1lIbLDf+bsls/KaN7UdEAUAdAZUaoB/gRwG8Gu57F6t0VUiBHYE7KInqDACNFl8sz3X3HgkYnHCkXaLaCUWIiToZuOKgc0wmp0RDN0+++icCZK++qHbhfKTvQw2Mg5fgsr35XL42TRqPB2hiolIMJ75yo2efXPFdBVDq8Dxv3vd/f24qdhIYxLFI7+NK0lgH77lN9ud9RxvGaFudwz2W8M0D1taXRVFWhaj+ccH5X0u8Nv5SP8BnANklsjcUoEGAM8iAMOjykcSdbcTPO2hjkJmDRFhx7oVVrnwqPjm5NBtJfO9QIHD671X/ibly6YfH5/Kze/+Xixy5pYPsywJt8QFuZja+QlZET3UXRp7XTMbUiJAiw0hN8/jWFiUmJiq6c3AplvxSK5mnGpjxpvMB6LmS6Hd/Usj97FFAZ+Pv77B+aT4AIo+YA0xYcP5nQlO5HyOVslhdZSoWyzPR5PcPGvPZZd/3FdAWY7xVJ9lDhdHbFGA7AJj2dJowPCiURXVXmD29H65T+jxDj66LPLOqMmyAoc786G62ZwCk6mXpF2s0o6BDAgR8VWVlnwDVUEiy09MYSqctvbH8+m7WROwUDkBTrQn/0pqZWO/hOuipktLdFlAGjZbIXSDH15wq1zEaiNHqq9aLwBKraSZ754YIqpYf7hTbM1etzMSnR8cU4JeQ5hOpdaJstjobTf62lfmudZEqA8F2a3GpUv1yqJh7aiidtjQdSd7uEd1hoSdVcbzJmOZNFfgiGwCCdcw2QLyratmjcKeKFmNw2VWf68qP3vdWegOA2WjywXZjfuRUESTGNXGbayqPhaZy36pNjr3J2j8HmQFVbKqgoop6YhjLjaKAQrFt7LtC3g1Hu7s2BbgQDnsXikU/Ho+bhqq9NcAUN9CPs+Lua05yAGY24YYWRJ7tLebmFRlD2PYpe9n5n+SqOjEgETL/j1crOSUwbZG8QYD0F4vVM4Ccr68P1lUrt6iim0ErVegrhmB91ZwwTQQRKAEA7Tgyvd34Xu/4WyzW3KTBp2/2Ag9sOId1kTWF/moR8nhyamxSAaKhdNru55ITO+vg8LBmttUvAKDIGKSvUHZ9nW7LZqsAcDGa+GsjcbKkalqNwZaTtaviPhotjg3vuyI1B367PQBoKuUhm/Vno4mnDxr7xWXfrypID1gTWPLd+a7C6LF9VQMACNCxUPxQhw10LPiVBZqeuPgfoKYmJUBngcbaZ0wwm04cE26cfU86yO+UgO68QWajiS+82wtM+NC/dAUC+blI4hEAqLVcAcbwQQXADPpgSQQgIoVWW4wxvur44bnhyjsmgvSVWlvvabW2UaBbAIIC0ABgTiwu8j8nYtDNRBJfbWHu3hKpWiLTbrzgirhLZfCD+5qaneeBFsJHQs1sf97A/IFFJ58LF0Z+sBc3F7v1Jk/l4RsMP+Trtq9XVRYVPHBR3LcDRFEfWN+XWGvC7Efano6t3A9Cn6/qnNKyr1JviSKW6Dgr2gU6pkTjLHp2DfSHWGHk9bPhvvY21m+UVBb+AXxvCxfN9P7SAAAAAElFTkSuQmCC';
+var CAL_DOWS=['日','月','火','水','木','金','土'];
+var CAL_BT_CLASS=['cbt0','cbt1','cbt2','cbt3','cbt4','cbt5','cbt6','cbt7','cbt8'];
+var CAL_BT_LABEL=['夜のみ','昼夜営業','昼のみ','予約営業のみ','定休日','休業日','イベント','貸切','臨時休業'];
+var CAL_BT_ICONS=['','','','','定休日','休業日','イベント','貸切','臨時休業'];
+var CAL_BT_DEFAULT_BG=['#E6F1FB','#EAF3DE','#C0DD97','#FAEEDA','#D3D1C7','#B4B2A9','#FBEAF0','#FEF0E0','#D3D1C7'];
+function calLoadColors(){ try{var s=localStorage.getItem('cal_colors');if(s)return JSON.parse(s);}catch(e){} return CAL_BT_DEFAULT_BG.slice(); }
+function calSaveColors(arr){ try{localStorage.setItem('cal_colors',JSON.stringify(arr));}catch(e){} }
+var CAL_BT_COLORS=calLoadColors();
+function calApplyColors(){ var root=document.documentElement; CAL_BT_COLORS.forEach(function(c,i){root.style.setProperty('--cbt'+i,c);}); }
+calApplyColors();
+function calTogglePalette(){ var p=g('cal-palette'); if(p){ if(p.style.display==='none'){calRenderPalette();p.style.display='';}else{p.style.display='none';} } }
+function calRenderPalette(){
+  var wrap=g('cal-palette'); if(!wrap) return;
+  wrap.innerHTML='';
+  CAL_BT_LABEL.forEach(function(label,i){
+    var item=document.createElement('div'); item.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px';
+    var lbl=document.createElement('span'); lbl.textContent=label; lbl.style.cssText='font-size:12px;width:90px;color:var(--ink2)';
+    var inp=document.createElement('input'); inp.type='color'; inp.value=CAL_BT_COLORS[i]; inp.style.cssText='width:36px;height:24px;border:none;cursor:pointer;background:none;padding:0';
+    inp.addEventListener('input',(function(idx){ return function(){ CAL_BT_COLORS[idx]=this.value; calSaveColors(CAL_BT_COLORS); calApplyColors(); calRenderLegend(); calRenderMonth(); }; })(i));
+    var rst=document.createElement('button'); rst.className='btn bs sm'; rst.textContent='リセット';
+    rst.onclick=(function(idx){ return function(){ CAL_BT_COLORS[idx]=CAL_BT_DEFAULT_BG[idx]; calSaveColors(CAL_BT_COLORS); calApplyColors(); calRenderLegend(); calRenderMonth(); inp.value=CAL_BT_COLORS[idx]; }; })(i);
+    item.appendChild(lbl); item.appendChild(inp); item.appendChild(rst); wrap.appendChild(item);
+  });
+}
+function calApplyPalette(){ calSaveColors(CAL_BT_COLORS); calApplyColors(); calRenderLegend(); calRenderMonth(); }
+function calResetPalette(){ CAL_BT_COLORS=CAL_BT_DEFAULT_BG.slice(); calSaveColors(CAL_BT_COLORS); calApplyColors(); calRenderLegend(); calRenderMonth(); }
+function calPad(n){return String(n).padStart(2,'0');}
+function calFmtT(h){if(!h||h.length<4)return '';return h.slice(0,2)+':'+h.slice(2,4);}
+function calDkey(y,m,d){return y+'-'+calPad(m+1)+'-'+calPad(d);}
+function calIsC23(m,d){return d===23||(m===1&&d===3);}
+function calBuildAnnivMap(y,m){
+  var map={};
+  var mthDay=[[1,23],[2,3]];
+  mthDay.forEach(function(md){ if(md[0]===m+1){ var key=calDkey(y,m,md[1]); map[key]=map[key]||[]; map[key].push({type:'anniv',name:'テキーラの日'}); }});
+  return map;
+}
+function calMakeC23(cls){ return '<img class="c23img '+cls+'" src="'+C23_ICON+'" alt="C23">'; }
+function calFetchHolidays(cb){
+  var y=calCur.y;
+  fetch('https://holidays-jp.github.io/api/v1/'+y+'/date.json')
+    .then(function(r){return r.json();})
+    .then(function(data){ calHolidays=data||{}; calLoaded=true; cb(); })
+    .catch(function(){ calLoaded=true; cb(); });
+}
+var calCur={y:new Date().getFullYear(),m:new Date().getMonth()};
+var calHolidays={};
+var calLoaded=false;
+var calViewMode='cal';
+function calSetView(v){
+  calViewMode=v;
+  var grid=g('cal-view-grid'),list=g('cal-div-list');
+  var btnC=g('cal-btn-cal'),btnL=g('cal-btn-list');
+  if(v==='cal'){ if(grid)grid.style.display=''; if(list)list.style.display='none'; if(btnC)btnC.classList.add('active'); if(btnL)btnL.classList.remove('active'); }
+  else { if(grid)grid.style.display='none'; if(list)list.style.display=''; if(btnC)btnC.classList.remove('active'); if(btnL)btnL.classList.add('active'); }
+}
+function calRenderLegend(){
+  var el=g('cal-legend'); if(!el) return;
+  el.innerHTML=CAL_BT_LABEL.map(function(l,i){
+    return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink2)">'
+      +'<div class="cal-legend-dot" style="background:var(--cbt'+i+','+CAL_BT_DEFAULT_BG[i]+')"></div>'+l+'</div>';
+  }).join('');
+}
+function calRenderMonth(){
+  var y=calCur.y,m=calCur.m;
+  var title=g('cal-title'); if(title) title.textContent=y+'年'+(m+1)+'月';
+  var annivMap=calBuildAnnivMap(y,m);
+  var schMap={},rsvMap={};
+  var ym=String(y)+String(m+1).padStart(2,'0');
+  var p1=db.collection('schedules').get().then(function(snap){
+    snap.docs.forEach(function(d){
+      var sid=d.data().scheduleId||d.id;
+      var dym=sid.slice(0,4); var fullYm=y+String(m+1).padStart(2,'0');
+      if(sid.length>=8&&y===parseInt(sid.slice(0,4))&&(m+1)===parseInt(sid.slice(4,6))){ var dy=parseInt(sid.slice(6,8)); schMap[dy]=d.data(); }
+      else if(sid.length===6&&sid===ym){ /* skip */ }
+      else if(sid.length>=6&&sid.slice(0,4)===ym){ var dy2=parseInt(sid.slice(4,6)); schMap[dy2]=d.data(); }
+    });
+  }).catch(function(){});
+  var p2=db.collection('reservations').get().then(function(snap){
+    snap.docs.forEach(function(d){
+      var rd=d.data().reservationDate||'';
+      if(rd.length>=6){
+        var ryy=parseInt('20'+rd.slice(0,2)),rmm=parseInt(rd.slice(2,4));
+        if(ryy===y&&rmm===m+1){ var rday=parseInt(rd.slice(4,6)); if(!rsvMap[rday])rsvMap[rday]=[]; rsvMap[rday].push(d.data()); }
+      }
+    });
+  }).catch(function(){});
+  Promise.all([p1,p2]).then(function(){
+    if(calViewMode==='cal') calRenderGrid(y,m,schMap,rsvMap,annivMap);
+    else calRenderList(y,m,schMap,rsvMap,annivMap);
+  });
+}
+function calRenderGrid(y,m,schMap,rsvMap,annivMap){
+  var grid=g('cal-grid'); if(!grid) return;
+  var today=new Date(); var todayKey=calDkey(today.getFullYear(),today.getMonth(),today.getDate());
+  var html='';
+  CAL_DOWS.forEach(function(d,i){ html+='<div class="cal-dow'+(i===0?' sun':i===6?' sat':'')+'">'+d+'</div>'; });
+  var first=new Date(y,m,1).getDay();
+  var days=new Date(y,m+1,0).getDate();
+  var prevDays=new Date(y,m,0).getDate();
+  for(var i=0;i<first;i++){
+    var pd=prevDays-first+i+1;
+    html+='<div class="cal-cell cal-other"><div class="cal-drow"><span class="cal-day-num">'+pd+'</span></div></div>';
+  }
+  for(var d=1;d<=days;d++){
+    var dobj=new Date(y,m,d); var dow=dobj.getDay();
+    var key=calDkey(y,m,d); var sch=schMap[d]; var rvs=rsvMap[d]||[]; var anniv=(annivMap||{})[key]||[];
+    var hname=(calHolidays&&calHolidays[key])||''; var isHol=!!hname;
+    var cls='cal-cell'+(key===todayKey?' cal-today':'')+(dow===0||isHol?' csun':dow===6?' csat':'');
+    if(sch) cls+=' '+CAL_BT_CLASS[parseInt(sch.businessType)||0];
+    html+='<div class="'+cls+'">';
+    html+='<div class="cal-drow">';
+    if(calIsC23(m,d)) html+=calMakeC23('');
+    html+='<span class="cal-day-num">'+d+'</span>';
+    if(key===todayKey) html+='<span class="cal-today-badge" style="display:none" class="today-badge">今日</span>';
+    html+='</div>';
+    if(hname) html+='<div class="cal-hname">'+hname+'</div>';
+    anniv.forEach(function(a){ html+='<div class="cal-aname">'+a.name+'</div>'; });
+    if(sch&&sch.openTime) html+='<div class="cal-trow"><span class="cal-ei">'+CAL_BT_LABEL[parseInt(sch.businessType)||0]+'</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'-'+calFmtT(sch.closeTime)+'</span></div>';
+    else if(sch) html+='<div class="cal-trow"><span class="cal-ei">'+CAL_BT_LABEL[parseInt(sch.businessType)||0]+'</span></div>';
+    rvs.slice(0,2).forEach(function(r){ html+='<div class="cal-rrow"><span class="cal-rico">予</span><span class="cal-rtime">'+calFmtT(r.startTime)+'</span><span class="cal-rpax">'+( r.guests||'')+'名</span></div>'; });
+    if(rvs.length>2) html+='<div style="font-size:9px;color:var(--ink3)">他'+(rvs.length-2)+'件</div>';
+    html+='</div>';
+  }
+  var remain=(7-(first+days)%7)%7;
+  for(var i=1;i<=remain;i++) html+='<div class="cal-cell cal-other"><div class="cal-drow"><span class="cal-day-num">'+i+'</span></div></div>';
+  grid.innerHTML=html;
+  grid.querySelectorAll('.cal-cell:not(.cal-other)').forEach(function(cell,idx){
+    var d=idx+1;
+    cell.addEventListener('click',function(e){ if(e.target.closest('button')) return; calShowScheduleModal(y,m,d); });
+    var rvs2=rsvMap[d]||[];
+    var ribtn=cell.querySelector('[data-rsv-btn]');
+    if(ribtn) ribtn.onclick=function(e){ e.stopPropagation(); calShowRsvPopup(rvs2,ribtn); };
+  });
+}
+function calRenderList(y,m,schMap,rsvMap,annivMap){
+  var wrap=g('cal-list-wrap'); if(!wrap) return;
+  var today=new Date(); var todayKey=calDkey(today.getFullYear(),today.getMonth(),today.getDate());
+  var days=new Date(y,m+1,0).getDate(); var html='';
+  for(var d=1;d<=days;d++){
+    var dobj=new Date(y,m,d); var dow=dobj.getDay(); var key=calDkey(y,m,d);
+    var sch=schMap[d]; var rvs=rsvMap[d]||[]; var anniv=(annivMap||{})[key]||[];
+    var hname=(calHolidays&&calHolidays[key])||''; var isHol=!!hname;
+    var btIdx=sch?parseInt(sch.businessType)||0:-1;
+    var headCls='cal-lhead '+(btIdx>=0?CAL_BT_CLASS[btIdx]:'cbt-none');
+    var dowCls=dow===0||isHol?' csun':dow===6?' csat':'';
+    var isToday=key===todayKey;
+    html+='<div class="cal-litem'+(isToday?' cal-ltoday':'')+'" data-date="'+key+'">';
+    html+='<div class="'+headCls+'">';
+    html+='<div class="cal-ldwrap">';
+    if(calIsC23(m,d)) html+=calMakeC23('');
+    html+='<span class="cal-ldate'+dowCls+'">'+d+'</span>';
+    html+='<span class="cal-ldow'+dowCls+'">（'+CAL_DOWS[dow]+'）</span>';
+    html+='</div>';
+    if(hname||anniv.length){ html+='<div class="cal-lnames">'; if(hname) html+='<div class="cal-lhname">'+hname+'</div>'; anniv.forEach(function(a){html+='<div class="cal-laname">'+a.name+'</div>';}); html+='</div>'; }
+    if(isToday) html+='<span class="cal-ltoday-badge">今日</span>';
+    if(sch&&sch.openTime){ html+='<div class="cal-leitime"><span class="cal-ei">'+CAL_BT_LABEL[btIdx]+'</span><span class="cal-ltime-text">'+calFmtT(sch.openTime)+'-'+calFmtT(sch.closeTime)+'</span></div>'; }
+    else if(sch){ html+='<div class="cal-leitime"><span class="cal-ei">'+CAL_BT_LABEL[btIdx]+'</span></div>'; }
+    html+='</div>';
+    if(rvs.length){
+      html+='<div class="cal-lbody">';
+      rvs.sort(function(a,b){return (a.startTime||'').localeCompare(b.startTime||'');}).forEach(function(r){
+        html+='<div class="cal-rrow"><span class="cal-rico">予</span><span class="cal-rtime">'+calFmtT(r.startTime)+'-'+calFmtT(r.endTime)+'</span><span class="cal-rpax">'+( r.guests||'')+'名</span>'+(r.memo?'<span class="cal-rtime">'+r.memo+'</span>':'')+'</div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+  wrap.innerHTML=html;
+  wrap.querySelectorAll('.cal-litem').forEach(function(item){
+    item.addEventListener('click',function(e){
+      if(e.target.closest('button')) return;
+      var key2=item.dataset.date; if(!key2) return;
+      var parts=key2.split('-'); calShowScheduleModal(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+    });
+  });
+}
+function calShowScheduleModal(y,m,d){
+  var key=String(y)+String(m+1).padStart(2,'0')+calPad(d);
+  var dateStr=y+'年'+(m+1)+'月'+d+'日';
+  g('sch-date').value=dateStr;
+  db.collection('schedules').doc(key).get().then(function(doc){
+    if(doc.exists){
+      var data=doc.data();
+      sv('sch-type',String(data.businessType||0));
+      sv('sch-open',data.openTime||''); sv('sch-close',data.closeTime||'');
+      sv('sch-memo',data.memo||'');
+    } else {
+      sv('sch-type','0'); sv('sch-open',''); sv('sch-close',''); sv('sch-memo','');
+    }
+    calSchTypeChange(g('sch-type'));
+    g('m-schedule').__calKey=key;
+    openM('m-schedule');
+  }).catch(function(){ openM('m-schedule'); });
+}
+function calSchTypeChange(sel){
+  var v=sel?sel.value:'0';
+  var tf=g('sch-time-fields');
+  if(tf) tf.style.display=(v==='4'||v==='5'||v==='8')?'none':'';
+}
+function saveSchRow(key,container,cb){
+  var typeVal=gv('sch-type');
+  var data={scheduleId:key,businessType:parseInt(typeVal),memo:gv('sch-memo')||null};
+  if(typeVal!=='4'&&typeVal!=='5'&&typeVal!=='8'){ data.openTime=gv('sch-open')||null; data.closeTime=gv('sch-close')||null; }
+  db.collection('schedules').doc(key).set(data,{merge:true}).then(function(){ if(cb)cb(); }).catch(function(e){ toast('保存失敗: '+e.message,'err'); });
+}
+g('btn-save-schedule').addEventListener('click',function(){
+  var key=g('m-schedule').__calKey; if(!key) return;
+  saveSchRow(key,null,function(){ calFetchHolidays(calRenderMonth); closeM('m-schedule'); toast('営業予定を保存しました'); });
+});
+(function(){
+  var _cp=g('cal-prev'), _cn=g('cal-next');
+  if(_cp) _cp.addEventListener('click',function(){ calCur.m--;if(calCur.m<0){calCur.m=11;calCur.y--;} calFetchHolidays(function(){calRenderMonth();calUpdateNavButtons();}); });
+  if(_cn) _cn.addEventListener('click',function(){ calCur.m++;if(calCur.m>11){calCur.m=0;calCur.y++;} calFetchHolidays(function(){calRenderMonth();calUpdateNavButtons();}); });
+})();
+(function(){
+  var btn=g('cal-add-sch'); if(btn) btn.addEventListener('click',function(){ calShowFormView(); });
+  var backBtn=g('cal-form-back'); if(backBtn) backBtn.addEventListener('click',function(){ g('cal-form-view').style.display='none'; g('cal-main-view').style.display=''; });
+})();
+function calShowFormView(){
+  var y=calCur.y,m=calCur.m; var ym=String(y)+String(m+1).padStart(2,'0');
+  g('cal-form-ym').textContent=y+'年'+(m+1)+'月の営業予定';
+  g('cal-main-view').style.display='none'; g('cal-form-view').style.display='';
+  var list=g('cal-form-list'); list.innerHTML='<div style="padding:12px;font-size:13px;color:var(--ink3)">読み込み中...</div>';
+  db.collection('schedules').get().then(function(snap){
+    var schMap={};
+    snap.docs.forEach(function(d){ var sid=d.id; if(sid.length>=8&&parseInt(sid.slice(0,4))===y&&parseInt(sid.slice(4,6))===m+1) schMap[sid]=d.data(); else if(sid.length===6&&sid===ym) schMap[sid]=d.data(); });
+    renderSchFormList(y,m,schMap,list);
+  }).catch(function(){ list.innerHTML='<div style="padding:12px;color:var(--red)">読込失敗</div>'; });
+}
+function renderSchFormList(y,m,schMap,container){
+  var days=new Date(y,m+1,0).getDate(); container.innerHTML='';
+  for(var d=1;d<=days;d++){
+    var key=String(y)+String(m+1).padStart(2,'0')+calPad(d);
+    var dobj=new Date(y,m,d); var dow=dobj.getDay();
+    var sch=schMap[key]||null;
+    var row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:0.5px solid var(--border)';
+    var dayLabel=document.createElement('span'); dayLabel.style.cssText='font-size:13px;font-family:var(--mono);min-width:80px;color:'+(dow===0?'var(--red)':dow===6?'#378ADD':'var(--ink)');
+    dayLabel.textContent=(m+1)+'/'+d+'（'+CAL_DOWS[dow]+'）';
+    var typeSel=document.createElement('select'); typeSel.className='fsel'; typeSel.style.fontSize='12px';
+    [{v:'',l:'（未設定）'}].concat(CAL_BT_LABEL.map(function(l,i){return {v:String(i),l:i+': '+l};})).forEach(function(o){ var opt=document.createElement('option'); opt.value=o.v; opt.textContent=o.l; typeSel.appendChild(opt); });
+    if(sch) typeSel.value=String(sch.businessType||0); else typeSel.value='';
+    var openInp=document.createElement('input'); openInp.className='fi mono'; openInp.style.cssText='width:70px;font-size:12px'; openInp.placeholder='開始'; openInp.maxLength=4;
+    var closeInp=document.createElement('input'); closeInp.className='fi mono'; closeInp.style.cssText='width:70px;font-size:12px'; closeInp.placeholder='終了'; closeInp.maxLength=4;
+    if(sch){ if(sch.openTime) openInp.value=sch.openTime.slice(0,4); if(sch.closeTime) closeInp.value=sch.closeTime.slice(0,4); }
+    var saveBtn=document.createElement('button'); saveBtn.className='btn bp sm'; saveBtn.textContent='保存';
+    saveBtn.addEventListener('click',(function(k,ts,oi,ci,r){ return function(){
+      var tv=ts.value; if(tv===''){toast('営業タイプを選択してください','err');return;}
+      var data={scheduleId:k,businessType:parseInt(tv),openTime:oi.value||null,closeTime:ci.value||null,memo:null};
+      db.collection('schedules').doc(k).set(data,{merge:true}).then(function(){ toast('保存しました（'+k+'）'); calSaveUpdateTime(k.slice(0,6)); calCheckUnpublished(calGetYm()); }).catch(function(e){toast('保存失敗: '+e.message,'err');});
+    }; })(key,typeSel,openInp,closeInp,sch));
+    row.appendChild(dayLabel); row.appendChild(typeSel); row.appendChild(openInp); row.appendChild(closeInp); row.appendChild(saveBtn);
+    container.appendChild(row);
+  }
+}
+function calShowRsvPopup(rvs,anchor){
+  var existing=document.querySelector('.rsv-popup'); if(existing) existing.remove();
+  var popup=document.createElement('div'); popup.className='rsv-popup';
+  popup.style.cssText='position:absolute;background:var(--white);border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px;z-index:500;box-shadow:var(--shadow-lg);min-width:160px;font-size:12px';
+  rvs.slice().sort(function(a,b){return (a.startTime||'').localeCompare(b.startTime||'');}).forEach(function(r){
+    var line=document.createElement('div'); line.style.marginBottom='4px';
+    line.textContent=calFmtT(r.startTime)+'-'+calFmtT(r.endTime)+' '+( r.guests||'')+'名'+(r.customerCode?' / '+r.customerCode:'');
+    popup.appendChild(line);
+  });
+  var rect=anchor.getBoundingClientRect();
+  popup.style.top=(rect.bottom+window.scrollY+4)+'px'; popup.style.left=(rect.left+window.scrollX)+'px';
+  document.body.appendChild(popup);
+  setTimeout(function(){ document.addEventListener('click',function rm(){ popup.remove(); document.removeEventListener('click',rm); },{once:true}); },0);
+}
+var BT_OPTIONS=[{v:'0',l:'夜のみ営業'},{v:'1',l:'昼夜営業'},{v:'2',l:'昼のみ営業'},{v:'3',l:'予約営業のみ'},{v:'4',l:'定休日'},{v:'5',l:'休業日'},{v:'6',l:'イベント営業'},{v:'7',l:'貸切営業'},{v:'8',l:'臨時休業'}];
+function calTimeStep(btn,delta){ var inp=btn.previousElementSibling||btn.nextElementSibling; if(!inp) return; var v=parseInt(inp.value)||0; inp.value=Math.max(0,Math.min(2359,v+delta)); }
+function calInitRange(){
+  var fromY=g('cal-range-from-y'),fromM=g('cal-range-from-m'),toY=g('cal-range-to-y'),toM=g('cal-range-to-m');
+  if(!fromY) return;
+  var curY=new Date().getFullYear();
+  [fromY,toY].forEach(function(sel){ for(var y=curY-1;y<=curY+2;y++){var opt=document.createElement('option');opt.value=y;opt.textContent=y+'年';sel.appendChild(opt);} });
+  [fromM,toM].forEach(function(sel){ for(var m=1;m<=12;m++){var opt=document.createElement('option');opt.value=m;opt.textContent=m+'月';sel.appendChild(opt);} });
+  fromY.value=curY; fromM.value=1; toY.value=curY; toM.value=12;
+}
+function calToggleRange(){ var p=g('cal-range-panel'); if(p) p.style.display=p.style.display==='none'?'':'none'; }
+function calPopulateRangeSelects(){}
+function calSaveRange(){ toast('表示期間を保存しました'); var p=g('cal-range-panel'); if(p) p.style.display='none'; calFetchHolidays(function(){calRenderMonth();calUpdateNavButtons();}); }
+function calUpdateNavButtons(){ var btnP=g('cal-prev'),btnN=g('cal-next'); if(btnP) btnP.disabled=false; if(btnN) btnN.disabled=false; }
+function calGetYm(){ return String(calCur.y)+String(calCur.m+1).padStart(2,'0'); }
+function calSaveUpdateTime(ym){ var now=new Date().toISOString(); db.collection('calMeta').doc(ym).set({updatedAt:now},{merge:true}).catch(function(){}); localStorage.setItem('cal_updated_'+ym,now); }
+function calSavePublishTime(ym){ var now=new Date().toISOString(); db.collection('calMeta').doc(ym).set({publishedAt:now},{merge:true}).catch(function(){}); localStorage.setItem('cal_published_'+ym,now); }
+function calCheckUnpublished(ym){
+  db.collection('calMeta').doc(ym).get().then(function(doc){
+    var warn=g('cal-unpublished-warn'); if(!warn) return;
+    if(!doc.exists){warn.style.display='none';return;}
+    var data=doc.data(); var upd=data.updatedAt,pub=data.publishedAt;
+    if(upd&&(!pub||upd>pub)){
+      var updDt=new Date(upd);
+      var fmt=function(d){return d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');};
+      warn.textContent='⚠️ HTML未出力　カレンダー最終更新: '+fmt(updDt)+'　※「🌐 HTML公開」ボタンで出力してください';
+      warn.style.display='';
+    } else { warn.style.display='none'; }
+  }).catch(function(){});
+}
+var _origCalRenderMonth=calRenderMonth;
+calRenderMonth=function(){ _origCalRenderMonth(); calCheckUnpublished(calGetYm()); };
+var _origSaveSchRow=saveSchRow;
+saveSchRow=function(key,container,cb){ var ym=key.slice(0,6); calSaveUpdateTime(ym); _origSaveSchRow(key,container,cb); };
+calInitRange();
+
+// GitHub 公開機能
+var GH_TOKEN=localStorage.getItem('gh_token')||'';
+var GH_OWNER='teqmae23';
+var GH_REPO='tequiladojo-site';
+var GH_BRANCH='main';
+
+function toBase64(str){ var bytes=new TextEncoder().encode(str); var binary=''; bytes.forEach(function(b){binary+=String.fromCharCode(b);}); return btoa(binary); }
+function ghPutFile(path,content,statusEl){
+  function upd(msg){if(statusEl)statusEl.textContent=msg;}
+  var url='https://api.github.com/repos/'+GH_OWNER+'/'+GH_REPO+'/contents/'+path;
+  var headers={'Authorization':'token '+GH_TOKEN,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+  return fetch(url,{headers:headers}).then(function(r){return r.ok?r.json():null;}).then(function(existing){
+    var body={message:'Update '+path,content:toBase64(content),branch:GH_BRANCH};
+    if(existing&&existing.sha) body.sha=existing.sha;
+    upd('アップロード中: '+path);
+    return fetch(url,{method:'PUT',headers:headers,body:JSON.stringify(body)});
+  }).then(function(r){ if(!r.ok) return r.text().then(function(t){throw new Error('GitHub API error: '+r.status+' '+t.slice(0,200));}); return r.json(); });
+}
+function deployToGitHub(files,statusEl){
+  var chain=Promise.resolve();
+  files.forEach(function(f){ chain=chain.then(function(){ return ghPutFile(f.path,f.content,statusEl); }); });
+  return chain;
+}
+
+function autoPublishCalForMonth(yymmdd,statusMsg){
+  var ym4='20'+yymmdd.slice(0,2)+yymmdd.slice(2,4);
+  if(!GH_TOKEN){ calSaveUpdateTime(ym4); calCheckUnpublished(calGetYm()); return; }
+  var y4=parseInt(ym4.slice(0,4)),m4=parseInt(ym4.slice(4,6))-1;
+  var schMap={},rsvMap={};
+  var p1=db.collection('schedules').get().then(function(snap){
+    snap.docs.forEach(function(doc){ var sid=doc.data().scheduleId||doc.id; if(sid.slice(0,6)===ym4){var dy=parseInt(sid.slice(6,8));schMap[dy]=doc.data();} });
+  }).catch(function(){});
+  var p2=db.collection('reservations').get().then(function(snap){
+    snap.docs.forEach(function(doc){ var rd=doc.data().reservationDate||''; if(('20'+rd).slice(0,6)===ym4){var dy=parseInt(rd.slice(4,6));if(!rsvMap[dy])rsvMap[dy]=[];rsvMap[dy].push(doc.data());} });
+  }).catch(function(){});
+  Promise.all([p1,p2]).then(function(){ calSaveUpdateTime(ym4); calCheckUnpublished(calGetYm()); });
+}
+
+(function(){
+  var _pb=g('cal-publish'); if(!_pb) return;
+  _pb.addEventListener('click',function(){
+    if(!GH_TOKEN){ var t=prompt('GitHub Personal Access Token を入力してください（ghp_...）'); if(!t){return;} GH_TOKEN=t.trim(); localStorage.setItem('gh_token',GH_TOKEN); }
+    var y=calCur.y,m2=calCur.m; var status=g('cal-publish-status'); if(!status) return;
+    status.style.display=''; status.style.color='var(--ink3)'; status.textContent='データ取得中...';
+    var ym=String(y)+String(m2+1).padStart(2,'0');
+    var schMap={},rsvMap={};
+    var p1=db.collection('schedules').get().then(function(snap){ snap.docs.forEach(function(doc){ var data=doc.data(); var sid=data.scheduleId||doc.id; if(sid.slice(0,6)===ym){var dy=parseInt(sid.slice(6,8));schMap[dy]=data;} }); }).catch(function(){});
+    var p2=db.collection('reservations').get().then(function(snap){ snap.docs.forEach(function(doc){ var data=doc.data(); var rd=data.reservationDate||''; if(rd.slice(0,6)===ym){var dy=parseInt(rd.slice(6,8));if(!rsvMap[dy])rsvMap[dy]=[];rsvMap[dy].push(data);} }); }).catch(function(){});
+    Promise.all([p1,p2]).then(function(){
+      status.textContent='HTML生成中...';
+      calFetchHolidays(function(){
+        status.textContent='✅ カレンダーデータを更新しました（'+ym+'）。HTML公開はメインの admin.html から行ってください。';
+        status.style.color='var(--teal)';
+        calSaveUpdateTime(ym); toast('カレンダーデータを更新しました（'+ym+'）');
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

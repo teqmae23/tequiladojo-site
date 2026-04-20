@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキーラ道場 — 蒸留所管理</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#18110a; --ink2:#4a3820; --ink3:#9a8470;
+  --gold:#c8921e; --gold-l:#e8b84a; --gold-d:#7a5610;
+  --teal:#1a6e58; --teal-l:#e0f0eb;
+  --red:#8c2818; --red-l:#fae8e4;
+  --cream:#faf7f1; --cream2:#f0ebe0; --cream3:#e4ddd0; --white:#fff;
+  --border:rgba(160,130,100,.18); --border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07); --shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px; --rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans)}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+#app{display:none;min-height:100vh}
+.topbar{background:var(--ink);display:flex;align-items:flex-start;padding:8px 20px;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:4px}
+.tbrand{font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em;margin-right:28px;white-space:nowrap}
+.ttabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tab{padding:5px 10px;border:none;background:none;color:rgba(255,255,255,.42);font-size:11px;font-weight:500;border-radius:var(--r);white-space:nowrap}
+.tab:hover{color:rgba(255,255,255,.72);background:rgba(255,255,255,.06)}
+.tab.active{color:var(--gold-l);background:rgba(200,146,30,.16)}
+.tab .cnt{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:9px;font-family:var(--mono);background:rgba(255,255,255,.1);color:rgba(255,255,255,.45)}
+.tab.active .cnt{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.tuser{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.temail{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)}
+.tlogout{padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r);background:none;color:rgba(255,255,255,.38);font-size:11px}
+.tlogout:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+.content{padding:28px;max-width:1280px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--gold-d)}
+.pdesc{font-size:11px;color:var(--ink3);margin-top:2px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sbox{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;flex:1;min-width:160px;background:var(--cream)}
+.sbox input{border:none;background:none;font-size:12px;color:var(--ink);width:100%}
+.sbox input:focus{outline:none}
+.fsel{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;background:var(--cream);color:var(--ink)}
+.fsel:focus{outline:none;border-color:var(--gold)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(200,146,30,.025)}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.acts{display:flex;gap:5px;justify-content:flex-end}
+.ec{text-align:center;color:var(--ink3);padding:32px!important}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-lg{max-width:780px}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--gold-d)}
+.mx{background:none;border:none;font-size:22px;color:var(--ink3);line-height:1;padding:0 4px}.mx:hover{color:var(--ink)}
+.mbody{padding:20px 24px 20px 40px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.req{color:var(--red);margin-left:2px}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,146,30,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow.c3{grid-template-columns:1fr 1fr 1fr}
+.full{grid-column:1/-1}
+.fsep{border:none;border-top:1px solid var(--border);margin:14px 0}
+.keybox{background:var(--ink);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--gold-l);letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.keybox .klabel{font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.fsec{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin:10px 0 4px;border-top:1px solid var(--border);padding-top:10px}
+.cbgroup{display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 0}
+.cbitem{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);cursor:pointer}
+.cbitem input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--gold)}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}
+.terr{background:var(--red);color:#fff}
+.tinf{background:var(--gold-d);color:var(--cream)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cmsg{font-size:14px;margin-bottom:20px;color:var(--ink2);line-height:1.7}
+.cacts{display:flex;gap:8px;justify-content:center}
+#tbl-districts th:last-child,#tbl-locations th:last-child,#tbl-distilleries th:last-child{padding-left:10px;border-left:1px solid var(--border2)}
+#tbl-districts td:last-child,#tbl-locations td:last-child,#tbl-distilleries td:last-child{border-left:1px solid var(--border)}
+#tbl-districts .acts,#tbl-locations .acts,#tbl-distilleries .acts{justify-content:flex-start}
+</style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Distillery Management</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<!-- メインアプリ -->
+<div id="app">
+  <div class="topbar">
+    <div class="tbrand">🥃 テキーラ道場</div>
+    <a href="admin.html" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;margin-right:8px;white-space:nowrap;text-decoration:none">← マスタ管理</a>
+    <div class="ttabs">
+      <button class="tab active" data-page="districts">地区 <span class="cnt" id="cnt-districts">—</span></button>
+      <button class="tab" data-page="locations">所在地 <span class="cnt" id="cnt-locations">—</span></button>
+      <button class="tab" data-page="distilleries">蒸留所 <span class="cnt" id="cnt-distilleries">—</span></button>
+    </div>
+    <div class="tuser">
+      <span class="temail" id="temail"></span>
+      <button class="tlogout" id="btn-logout">ログアウト</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- 地区マスタ -->
+    <div class="page active" id="page-districts">
+      <div class="phead"><div><div class="ptitle">地区マスタ</div><div class="pdesc">districtId 2桁 — 7地区</div></div><button class="btn bp" id="btn-open-district">＋ 地区登録</button></div>
+      <div class="card">
+        <div style="margin-left:auto;display:flex;gap:4px;align-items:center;padding:12px 14px">
+          <select id="sort-key-districts"><option value="id">ID</option><option value="districtName">地区名</option></select>
+          <select id="sort-dir-districts"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+          <button class="btn bs" id="btn-sort-districts">整列</button>
+        </div>
+        <div class="tw"><table id="tbl-districts"><colgroup><col style="width:70px"><col><col style="width:120px"></colgroup><thead><tr><th>地区ID</th><th>地区名</th><th>✏️ レコード操作</th></tr></thead><tbody id="tb-districts"><tr><td colspan="3" class="ec">読み込み中...</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 所在地マスタ -->
+    <div class="page" id="page-locations">
+      <div class="phead"><div><div class="ptitle">所在地マスタ</div><div class="pdesc">locationId 4桁 = 地区2桁 + 連番2桁</div></div><button class="btn bp" id="btn-open-location">＋ 所在地登録</button></div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-loc" placeholder="所在地名で検索..."></div>
+          <select class="fsel" id="f-loc-dist"><option value="">全地区</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-locations"><option value="id">所在地ID</option><option value="locationName">所在地名</option><option value="districtId">地区</option></select>
+            <select id="sort-dir-locations"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-locations">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-locations"><colgroup><col style="width:80px"><col style="width:160px"><col><col style="width:90px"><col style="width:90px"><col style="width:80px"><col style="width:120px"></colgroup><thead><tr><th>所在地ID</th><th>地区</th><th>所在地名</th><th>緯度</th><th>経度</th><th>情報URL</th><th>✏️ レコード操作</th></tr></thead><tbody id="tb-locations"><tr><td colspan="7" class="ec">読み込み中...</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 蒸留所マスタ -->
+    <div class="page" id="page-distilleries">
+      <div class="phead"><div><div class="ptitle">蒸留所マスタ</div><div class="pdesc">distilleryId = NOM番号 4桁</div></div><button class="btn bp" id="btn-open-distillery">＋ 蒸留所登録</button></div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-dis" placeholder="NOM・蒸留所名で検索..."></div>
+          <select class="fsel" id="f-dis-dist"><option value="">全地区</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-distilleries"><option value="id">NOM</option><option value="nomEs">蒸留所名(A)</option><option value="nomJa">蒸留所名(J)</option><option value="districtId">地区</option></select>
+            <select id="sort-dir-distilleries"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-distilleries">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-distilleries"><colgroup><col style="width:60px"><col><col><col style="width:120px"><col style="width:100px"><col style="width:50px"><col style="width:50px"><col style="width:42px"><col style="width:120px"></colgroup><thead><tr><th>NOM</th><th>蒸留所名（A）</th><th>蒸留所名（日本語）</th><th>地区</th><th>所在地</th><th>公式HP</th><th>AMM</th><th>地図</th><th>✏️ レコード操作</th></tr></thead><tbody id="tb-distilleries"><tr><td colspan="9" class="ec">読み込み中...</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- 地区モーダル -->
+<div class="mbg" id="m-district">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-district">地区登録</div><button class="mx" data-close="m-district">✕</button></div>
+    <div class="mbody">
+      <div class="frow">
+        <div class="fg"><label class="fl">地区ID（2桁）<span class="req">*</span></label><input class="fi" id="d-id" placeholder="11" maxlength="2"></div>
+        <div class="fg"><label class="fl">地区名<span class="req">*</span></label><input class="fi" id="d-name" placeholder="Jalisco (Valles)"></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-district">キャンセル</button><button class="btn bp" id="btn-save-district">保存</button></div>
+  </div>
+</div>
+
+<!-- 所在地モーダル -->
+<div class="mbg" id="m-location">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-location">所在地登録</div><button class="mx" data-close="m-location">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-loc">—<span class="klabel">locationId</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">地区<span class="req">*</span></label><select class="fs" id="loc-dist"><option value="">選択...</option></select></div>
+        <div class="fg"><label class="fl">連番（01〜99）<span class="req">*</span></label><input class="fi" id="loc-seq" placeholder="01" maxlength="2"></div>
+      </div>
+      <div class="fg"><label class="fl">所在地名<span class="req">*</span></label><input class="fi" id="loc-name" placeholder="Amatitán"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">緯度</label><input class="fi" id="loc-lat" type="number" step="0.000001" placeholder="20.8333"></div>
+        <div class="fg"><label class="fl">経度</label><input class="fi" id="loc-lng" type="number" step="0.000001" placeholder="-103.7167"></div>
+      </div>
+      <div class="fg"><label class="fl">詳細情報URL</label><input class="fi" id="loc-url" type="url" placeholder="https://..."></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-location">キャンセル</button><button class="btn bp" id="btn-save-location">保存</button></div>
+  </div>
+</div>
+
+<!-- 蒸留所モーダル -->
+<div class="mbg" id="m-distillery">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-distillery">蒸留所登録</div><button class="mx" data-close="m-distillery">✕</button></div>
+    <div class="mbody">
+      <div class="fg"><label class="fl">NOM番号（4桁）<span class="req">*</span></label><input class="fi" id="dis-nom" placeholder="1079" maxlength="4"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">蒸留所名（Alphabet）<span class="req">*</span></label><input class="fi" id="dis-es" placeholder="Casa Herradura"></div>
+        <div class="fg"><label class="fl">蒸留所名（日本語）</label><input class="fi" id="dis-ja" placeholder="カサ・エラドゥーラ"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">地区<span class="req">*</span></label><select class="fs" id="dis-dist"><option value="">選択...</option></select></div>
+        <div class="fg"><label class="fl">所在地</label><select class="fs" id="dis-loc"><option value="">選択...</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">正式名称</label><input class="fi" id="dis-fullname" placeholder="Casa Herradura, Amatitán, Jalisco, Mexico"></div>
+      <div class="fg">
+        <label class="fl">Google Maps URL</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="fi" id="dis-mapurl" placeholder="https://www.google.com/maps/place/..." style="flex:1">
+          <a id="dis-map-link" href="#" target="_blank" class="btn bs" style="white-space:nowrap;flex-shrink:0;text-decoration:none;display:none">🗺 MAP</a>
+        </div>
+        <div id="dis-geocode-status" style="font-size:11px;margin-top:4px;color:var(--ink3)"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">緯度</label><input class="fi" id="dis-lat" type="number" step="0.000001" placeholder="20.8333"></div>
+        <div class="fg"><label class="fl">経度</label><input class="fi" id="dis-lng" type="number" step="0.000001" placeholder="-103.7167"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">公式HP</label><input class="fi" id="dis-web" type="url" placeholder="https://..."></div>
+        <div class="fg"><label class="fl">AMM URL</label><input class="fi" id="dis-amm" type="url" placeholder="https://agavematchmaker.com/..."></div>
+      </div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">操業開始年（西暦）</label><input class="fi" id="dis-year" type="number" min="1700" max="2100" step="1" placeholder="1870"></div>
+        <div class="fg"><label class="fl">規模</label><select class="fs" id="dis-scale"><option value="0">0: 小中規模</option><option value="1">1: 大規模</option></select></div>
+        <div class="fg"><label class="fl">委託</label><select class="fs" id="dis-contract"><option value="0">0: 〇</option><option value="1">1: ◎</option><option value="2">2: ×</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">親会社名</label><input class="fi" id="dis-parent" placeholder="独立経営"></div>
+        <div class="fg"><label class="fl">親会社国</label><input class="fi" id="dis-parentcountry" maxlength="1" placeholder="墨"></div>
+      </div>
+      <div class="fsec">糖化方法</div>
+      <div class="cbgroup">
+        <label class="cbitem"><input type="checkbox" id="dis-sac-0">マンポステリア</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sac-1">アウトクラベ</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sac-2">直火</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sac-3">酵素分解等</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sac-4">その他</label>
+      </div>
+      <div class="fsec">搾汁方法</div>
+      <div class="cbgroup">
+        <label class="cbitem"><input type="checkbox" id="dis-ext-0">ローラーミル</label>
+        <label class="cbitem"><input type="checkbox" id="dis-ext-1">タオナ</label>
+        <label class="cbitem"><input type="checkbox" id="dis-ext-2">スクリューミル</label>
+        <label class="cbitem"><input type="checkbox" id="dis-ext-3">ディフューザー</label>
+        <label class="cbitem"><input type="checkbox" id="dis-ext-4">ハンドクラッシュ</label>
+        <label class="cbitem"><input type="checkbox" id="dis-ext-5">その他</label>
+      </div>
+      <div class="fsec">発酵槽</div>
+      <div class="cbgroup">
+        <label class="cbitem"><input type="checkbox" id="dis-fer-0">金属製</label>
+        <label class="cbitem"><input type="checkbox" id="dis-fer-1">木桶</label>
+        <label class="cbitem"><input type="checkbox" id="dis-fer-2">セメント</label>
+        <label class="cbitem"><input type="checkbox" id="dis-fer-3">その他</label>
+      </div>
+      <div class="fsec">酵母</div>
+      <div class="cbgroup">
+        <label class="cbitem"><input type="checkbox" id="dis-yea-0">天然酵母</label>
+        <label class="cbitem"><input type="checkbox" id="dis-yea-1">独自酵母</label>
+        <label class="cbitem"><input type="checkbox" id="dis-yea-2">その他</label>
+      </div>
+      <div class="fsec">蒸留器</div>
+      <div class="cbgroup">
+        <label class="cbitem"><input type="checkbox" id="dis-sti-0">銅製単式</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sti-1">ステンレス製単式</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sti-2">ステンレス製単式＋銅部品</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sti-3">連続式</label>
+        <label class="cbitem"><input type="checkbox" id="dis-sti-4">その他</label>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-distillery">キャンセル</button><button class="btn bp" id="btn-save-distillery">保存</button></div>
+  </div>
+</div>
+
+<!-- 削除確認 -->
+<div class="cbg" id="confirm-bg">
+  <div class="ccard">
+    <div class="cmsg" id="confirm-msg">削除しますか？</div>
+    <div class="cacts"><button class="btn bg2" id="confirm-cancel">キャンセル</button><button class="btn bd" id="confirm-ok">削除する</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// Firebase初期化
+if (!firebase.apps.length) { firebase.initializeApp(FIREBASE_CONFIG); }
+var auth = firebase.auth();
+var db   = firebase.firestore();
+
+// ── ユーティリティ ──────────────────────────────────────────────
+function g(id)      { return document.getElementById(id); }
+function gv(id)     { var el=g(id); return el?el.value.trim():""; }
+function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
+function pad(s,n)   { return String(s||"").padStart(n,"0"); }
+function lnk(url,l) { return url?'<a href="'+url+'" target="_blank" style="color:var(--gold-d);font-size:11px">'+l+'</a>':'<span class="dim">—</span>'; }
+function setCnt(col,n){ var el=g("cnt-"+col); if(el) el.textContent=n; }
+
+function toast(msg,type) {
+  var t=document.createElement("div");
+  t.className="toast "+(type==="err"?"terr":type==="inf"?"tinf":"tok");
+  t.textContent=msg;
+  g("toasts").appendChild(t);
+  setTimeout(function(){ t.remove(); },3000);
+}
+
+var confirmCb=null;
+g("confirm-cancel").addEventListener("click",function(){ g("confirm-bg").classList.remove("open"); });
+g("confirm-ok").addEventListener("click",function(){ if(confirmCb) confirmCb(); g("confirm-bg").classList.remove("open"); });
+function confirmDel(msg,cb){ g("confirm-msg").textContent=msg; confirmCb=cb; g("confirm-bg").classList.add("open"); }
+
+function openM(id)  { g(id).classList.add("open"); }
+function closeM(id) { g(id).classList.remove("open"); }
+
+// モーダル外クリックで閉じる
+document.addEventListener("click",function(e){
+  if(e.target.dataset.close) closeM(e.target.dataset.close);
+  if(e.target.classList.contains("mbg")) closeM(e.target.id);
+});
+
+// ── キャッシュ ───────────────────────────────────────────────────
+var cache = { districts:[], locations:[], distilleries:[] };
+var editId = { district:null, location:null, distillery:null };
+
+// ── 認証 ────────────────────────────────────────────────────────
+try {
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      g("login-screen").style.display="none";
+      g("app").style.display="block";
+      g("temail").textContent=user.email;
+      loadAll();
+    } else {
+      g("login-screen").style.display="flex";
+      g("app").style.display="none";
+    }
+  });
+} catch(e) { g("lerr").textContent="Firebase接続エラー: "+e.message; }
+
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"), pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){ g("lerr").textContent="メールアドレスとパスワードを入力してください"; return; }
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ g("lbtn").textContent="ログイン"; })
+    .catch(function(e){ g("lerr").textContent="ログイン失敗: "+e.message; g("lbtn").textContent="ログイン"; });
+});
+g("lpass").addEventListener("keydown",function(e){ if(e.key==="Enter") g("lbtn").click(); });
+g("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+
+// タブナビゲーション
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    var page=this.dataset.page;
+    document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
+    g("page-"+page).classList.add("active");
+    this.classList.add("active");
+  });
+});
+
+// ── データロード ─────────────────────────────────────────────────
+function loadAll(){
+  ["districts","locations","distilleries"].forEach(loadCol);
+}
+function loadCol(col){
+  db.collection(col).get()
+    .then(function(snap){
+      cache[col]=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      setCnt(col,cache[col].length);
+      render(col);
+      if(col==="districts"||col==="locations") updateSelects();
+    })
+    .catch(function(e){ toast("読込失敗("+col+"): "+e.message,"err"); });
+}
+
+function updateSelects(){
+  var opts='<option value="">選択...</option>'+cache.districts.map(function(d){ return '<option value="'+d.id+'">'+d.id+' — '+d.districtName+'</option>'; }).join("");
+  var optsF='<option value="">全地区</option>'+cache.districts.map(function(d){ return '<option value="'+d.id+'">'+d.id+' — '+d.districtName+'</option>'; }).join("");
+  ["loc-dist","dis-dist"].forEach(function(id){ var el=g(id); if(el) el.innerHTML=opts; });
+  ["f-loc-dist","f-dis-dist"].forEach(function(id){ var el=g(id); if(el) el.innerHTML=optsF; });
+}
+
+function updateLocSel(distId){
+  var el=g("dis-loc"); if(!el) return;
+  var filtered=distId?cache.locations.filter(function(l){return l.districtId===distId;}):cache.locations;
+  el.innerHTML='<option value="">選択...</option>'+filtered.map(function(l){ return '<option value="'+l.id+'">'+l.locationName+'</option>'; }).join("");
+}
+
+// ── ソート ───────────────────────────────────────────────────────
+var sortState = {};
+["districts","locations","distilleries"].forEach(function(col){
+  var btn=g("btn-sort-"+col); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState[col]={key:gv("sort-key-"+col),dir:gv("sort-dir-"+col)};
+    render(col);
+  });
+});
+function applySortToList(list,col){
+  var st=sortState[col]; if(!st) return list;
+  var key=st.key, dir=st.dir;
+  return list.slice().sort(function(a,b){
+    var av=a[key]!=null?a[key]:"", bv=b[key]!=null?b[key]:"";
+    var an=parseFloat(av), bn=parseFloat(bv);
+    var cmp=(!isNaN(an)&&!isNaN(bn))?(an-bn):String(av).localeCompare(String(bv),"ja");
+    return dir==="desc"?-cmp:cmp;
+  });
+}
+
+// ── フィルター ───────────────────────────────────────────────────
+function addFilter(ids,col){ ids.forEach(function(id){ var el=g(id); if(el){ el.addEventListener("input",function(){ render(col); }); el.addEventListener("change",function(){ render(col); }); }}); }
+addFilter(["s-loc","f-loc-dist"],"locations");
+addFilter(["s-dis","f-dis-dist"],"distilleries");
+
+// ── テーブルレンダリング ─────────────────────────────────────────
+function render(col){
+  if(!cache[col]) return;
+  var list=cache[col].slice(), tb=g("tb-"+col); if(!tb) return;
+  if(col==="locations"){
+    var q=(g("s-loc")||{value:""}).value.toLowerCase(), d=gv("f-loc-dist");
+    list=list.filter(function(r){ return (!q||(r.locationName||"").toLowerCase().indexOf(q)>=0)&&(!d||r.districtId===d); });
+  } else if(col==="distilleries"){
+    var q=(g("s-dis")||{value:""}).value.toLowerCase(), d=gv("f-dis-dist");
+    list=list.filter(function(r){ return (!q||(r.nom||r.id).indexOf(q)>=0||(r.nomEs||"").toLowerCase().indexOf(q)>=0||(r.nomJa||"").toLowerCase().indexOf(q)>=0)&&(!d||r.districtId===d); });
+  }
+  list=applySortToList(list,col);
+  if(!list.length){ tb.innerHTML='<tr><td colspan="20" class="ec">データがありません</td></tr>'; return; }
+  if(col==="districts"){
+    tb.innerHTML=list.map(function(r){ return '<tr><td class="mono">'+r.id+'</td><td>'+(r.districtName||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-district="'+r.id+'">編集</button><button class="btn bs sm" data-copy-district="'+r.id+'">コピー</button><button class="btn bd sm" data-del="districts" data-del-id="'+r.id+'" data-del-label="地区">削除</button></div></td></tr>'; }).join("");
+  } else if(col==="locations"){
+    tb.innerHTML=list.map(function(r){
+      var dn=cache.districts.find(function(d){return d.id===r.districtId;}); dn=dn?dn.districtName:r.districtId||"—";
+      return '<tr><td class="mono">'+r.id+'</td><td class="dim" style="font-size:11px">'+dn+'</td><td>'+(r.locationName||"—")+'</td><td class="mono dim">'+(r.latitude||"—")+'</td><td class="mono dim">'+(r.longitude||"—")+'</td><td>'+lnk(r.infoUrl,"リンク")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-location="'+r.id+'">編集</button><button class="btn bs sm" data-copy-location="'+r.id+'">コピー</button><button class="btn bd sm" data-del="locations" data-del-id="'+r.id+'" data-del-label="所在地">削除</button></div></td></tr>';
+    }).join("");
+  } else if(col==="distilleries"){
+    tb.innerHTML=list.map(function(r){
+      var dn=cache.districts.find(function(d){return d.id===r.districtId;}); dn=dn?dn.districtName:r.districtId||"—";
+      var ln=cache.locations.find(function(l){return l.id===r.locationId;}); ln=ln?ln.locationName:r.locationId||"—";
+      return '<tr><td class="mono">'+(r.nom||r.id)+'</td><td>'+(r.nomEs||"—")+'</td><td class="dim">'+(r.nomJa||"—")+'</td><td class="dim" style="font-size:11px">'+dn+'</td><td class="dim" style="font-size:11px">'+ln+'</td><td>'+lnk(r.webUrl,"HP")+'</td><td>'+lnk(r.ammUrl,"AMM")+'</td><td>'+(r.mapUrl?'<a href="'+r.mapUrl+'" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:4px;background:var(--cream2);border:1px solid var(--border);font-size:13px;text-decoration:none" title="Google Maps">🗺</a>':'<span class="dim" style="font-size:11px">—</span>')+'</td><td><div class="acts"><button class="btn bs sm" data-edit-distillery="'+r.id+'">編集</button><button class="btn bs sm" data-copy-distillery="'+r.id+'">コピー</button><button class="btn bd sm" data-del="distilleries" data-del-id="'+r.id+'" data-del-label="蒸留所">削除</button></div></td></tr>';
+    }).join("");
+  }
+}
+
+// ── テーブル内ボタン（イベント委任） ────────────────────────────
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  if(btn.dataset.editDistrict)   { openDistrictModal(btn.dataset.editDistrict); return; }
+  if(btn.dataset.editLocation)   { openLocationModal(btn.dataset.editLocation); return; }
+  if(btn.dataset.editDistillery) { openDistilleryModal(btn.dataset.editDistillery); return; }
+  if(btn.dataset.copyDistrict)   { copyDistrictModal(btn.dataset.copyDistrict); return; }
+  if(btn.dataset.copyLocation)   { copyLocationModal(btn.dataset.copyLocation); return; }
+  if(btn.dataset.copyDistillery) { copyDistilleryModal(btn.dataset.copyDistillery); return; }
+  if(btn.dataset.del){
+    var col=btn.dataset.del, id=btn.dataset.delId, label=btn.dataset.delLabel;
+    confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
+      db.collection(col).doc(id).delete()
+        .then(function(){ toast(label+"を削除しました"); loadCol(col); })
+        .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
+    });
+  }
+});
+
+// ── 地区 ────────────────────────────────────────────────────────
+g("btn-open-district").addEventListener("click",function(){ openDistrictModal(null); });
+function openDistrictModal(id){
+  editId.district=id; g("mt-district").textContent=id?"地区編集":"地区登録";
+  var idEl=g("d-id");
+  if(id){ var r=cache.districts.find(function(d){return d.id===id;}); sv("d-id",r?r.id:""); sv("d-name",r?r.districtName:""); idEl.readOnly=true; idEl.style.background="var(--cream2)"; }
+  else  { sv("d-id",""); sv("d-name",""); idEl.readOnly=false; idEl.style.background=""; }
+  openM("m-district");
+}
+function copyDistrictModal(id){
+  var r=cache.districts.find(function(d){return d.id===id;}); if(!r) return;
+  editId.district=null; g("mt-district").textContent="地区登録（コピー）";
+  sv("d-id",""); sv("d-name",r.districtName);
+  var idEl=g("d-id"); idEl.readOnly=false; idEl.style.background="";
+  openM("m-district");
+}
+g("btn-save-district").addEventListener("click",function(){
+  var id=gv("d-id"), name=gv("d-name");
+  if(!id||id.length!==2){ toast("地区IDは2桁で入力してください","err"); return; }
+  if(!name){ toast("地区名を入力してください","err"); return; }
+  db.collection("districts").doc(id).set({districtId:id,districtName:name})
+    .then(function(){ toast(editId.district?"地区を更新しました":"地区を登録しました"); closeM("m-district"); loadCol("districts"); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ── 所在地 ──────────────────────────────────────────────────────
+function updateLocKey(){
+  var dist=gv("loc-dist"), seq=gv("loc-seq");
+  var kb=g("kb-loc"); if(!kb) return;
+  kb.textContent=(dist&&seq)?dist+pad(seq,2):"—";
+  var sp=document.createElement("span"); sp.className="klabel"; sp.textContent="locationId";
+  kb.appendChild(sp);
+}
+["loc-dist","loc-seq"].forEach(function(id){ var el=g(id); if(el){ el.addEventListener("input",updateLocKey); el.addEventListener("change",updateLocKey); }});
+
+g("btn-open-location").addEventListener("click",function(){ openLocationModal(null); });
+function openLocationModal(id){
+  editId.location=id; g("mt-location").textContent=id?"所在地編集":"所在地登録";
+  if(id){
+    var r=cache.locations.find(function(l){return l.id===id;}); if(!r) return;
+    sv("loc-dist",r.districtId); sv("loc-seq",r.id.slice(2));
+    sv("loc-name",r.locationName); sv("loc-lat",r.latitude||""); sv("loc-lng",r.longitude||""); sv("loc-url",r.infoUrl||"");
+    updateLocKey();
+  } else {
+    sv("loc-dist",""); sv("loc-seq",""); sv("loc-name",""); sv("loc-lat",""); sv("loc-lng",""); sv("loc-url","");
+    var kb=g("kb-loc"); if(kb){ kb.textContent="—"; var sp=document.createElement("span"); sp.className="klabel"; sp.textContent="locationId"; kb.appendChild(sp); }
+  }
+  openM("m-location");
+}
+function copyLocationModal(id){
+  var r=cache.locations.find(function(l){return l.id===id;}); if(!r) return;
+  editId.location=null; g("mt-location").textContent="所在地登録（コピー）";
+  sv("loc-dist",r.districtId); sv("loc-seq","");
+  sv("loc-name",r.locationName); sv("loc-lat",r.latitude||""); sv("loc-lng",r.longitude||""); sv("loc-url",r.infoUrl||"");
+  updateLocKey(); openM("m-location");
+}
+g("btn-save-location").addEventListener("click",function(){
+  var dist=gv("loc-dist"), seq=gv("loc-seq"), name=gv("loc-name");
+  if(!dist){ toast("地区を選択してください","err"); return; }
+  if(!seq||seq.length>2){ toast("連番は01〜99で入力してください","err"); return; }
+  if(!name){ toast("所在地名を入力してください","err"); return; }
+  var id=dist+pad(seq,2);
+  var data={locationId:id,districtId:dist,locationName:name};
+  var lat=gv("loc-lat"), lng=gv("loc-lng"), url=gv("loc-url");
+  if(lat) data.latitude=parseFloat(lat);
+  if(lng) data.longitude=parseFloat(lng);
+  if(url) data.infoUrl=url;
+  db.collection("locations").doc(id).set(data)
+    .then(function(){ toast(editId.location?"所在地を更新しました":"所在地を登録しました"); closeM("m-location"); loadCol("locations"); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ── 蒸留所 ──────────────────────────────────────────────────────
+g("dis-dist").addEventListener("change",function(){ updateLocSel(this.value); });
+
+var disMapUrlEl=g("dis-mapurl");
+if(disMapUrlEl) disMapUrlEl.addEventListener("input",function(){
+  var url=this.value.trim();
+  var link=g("dis-map-link");
+  if(link){ if(url){ link.href=url; link.style.display=""; } else { link.style.display="none"; } }
+  // Google Maps URLから緯度経度を抽出
+  var status=g("dis-geocode-status"); if(!status) return;
+  var m=url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if(m){ sv("dis-lat",m[1]); sv("dis-lng",m[2]); status.textContent="📍 緯度経度を自動取得しました"; status.style.color="var(--teal)"; }
+  else { status.textContent=""; }
+});
+
+function cbToStr(prefix,count){
+  var arr=[]; for(var i=0;i<count;i++){ var el=g(prefix+i); if(el&&el.checked) arr.push(String(i)); } return arr.join(",");
+}
+function strToCb(prefix,count,val){
+  var arr=(val||"").split(",");
+  for(var i=0;i<count;i++){ var el=g(prefix+i); if(el) el.checked=arr.indexOf(String(i))>=0; }
+}
+
+g("btn-open-distillery").addEventListener("click",function(){ openDistilleryModal(null); });
+function openDistilleryModal(id){
+  editId.distillery=id; g("mt-distillery").textContent=id?"蒸留所編集":"蒸留所登録";
+  if(id){
+    var r=cache.distilleries.find(function(d){return d.id===id;}); if(!r) return;
+    sv("dis-nom",r.nom||r.id); sv("dis-es",r.nomEs||""); sv("dis-ja",r.nomJa||"");
+    sv("dis-dist",r.districtId||""); updateLocSel(r.districtId||""); sv("dis-loc",r.locationId||"");
+    sv("dis-fullname",r.fullName||""); sv("dis-mapurl",r.mapUrl||""); sv("dis-lat",r.latitude||""); sv("dis-lng",r.longitude||"");
+    sv("dis-web",r.webUrl||""); sv("dis-amm",r.ammUrl||"");
+    sv("dis-year",r.foundedYear||""); sv("dis-scale",r.scale||"0"); sv("dis-contract",r.contract||"0");
+    sv("dis-parent",r.parentCompany||""); sv("dis-parentcountry",r.parentCountry||"");
+    strToCb("dis-sac-",5,r.sacMethod||""); strToCb("dis-ext-",6,r.extMethod||"");
+    strToCb("dis-fer-",4,r.ferMethod||""); strToCb("dis-yea-",3,r.yeastType||""); strToCb("dis-sti-",5,r.stillType||"");
+    var link=g("dis-map-link"); if(link){ if(r.mapUrl){ link.href=r.mapUrl; link.style.display=""; } else link.style.display="none"; }
+  } else {
+    ["dis-nom","dis-es","dis-ja","dis-fullname","dis-mapurl","dis-lat","dis-lng","dis-web","dis-amm","dis-year","dis-parent","dis-parentcountry"].forEach(function(f){ sv(f,""); });
+    sv("dis-scale","0"); sv("dis-contract","0");
+    ["dis-sac-","dis-ext-","dis-fer-","dis-yea-","dis-sti-"].forEach(function(p){ for(var i=0;i<6;i++){ var el=g(p+i); if(el) el.checked=false; } });
+    var link=g("dis-map-link"); if(link) link.style.display="none";
+    var status=g("dis-geocode-status"); if(status) status.textContent="";
+  }
+  openM("m-distillery");
+}
+function copyDistilleryModal(id){
+  openDistilleryModal(id);
+  editId.distillery=null; g("mt-distillery").textContent="蒸留所登録（コピー）";
+  sv("dis-nom","");
+}
+g("btn-save-distillery").addEventListener("click",function(){
+  var nom=gv("dis-nom"), es=gv("dis-es"), dist=gv("dis-dist");
+  if(!nom||nom.length!==4){ toast("NOM番号は4桁で入力してください","err"); return; }
+  if(!es){ toast("蒸留所名（Alphabet）を入力してください","err"); return; }
+  if(!dist){ toast("地区を選択してください","err"); return; }
+  var data={nom:nom,nomEs:es,nomJa:gv("dis-ja"),districtId:dist,locationId:gv("dis-loc")||null,
+    fullName:gv("dis-fullname")||null,mapUrl:gv("dis-mapurl")||null,
+    latitude:gv("dis-lat")?parseFloat(gv("dis-lat")):null,longitude:gv("dis-lng")?parseFloat(gv("dis-lng")):null,
+    webUrl:gv("dis-web")||null,ammUrl:gv("dis-amm")||null,
+    foundedYear:gv("dis-year")?parseInt(gv("dis-year")):null,
+    scale:gv("dis-scale"),contract:gv("dis-contract"),
+    parentCompany:gv("dis-parent")||null,parentCountry:gv("dis-parentcountry")||null,
+    sacMethod:cbToStr("dis-sac-",5),extMethod:cbToStr("dis-ext-",6),
+    ferMethod:cbToStr("dis-fer-",4),yeastType:cbToStr("dis-yea-",3),stillType:cbToStr("dis-sti-",5)
+  };
+  db.collection("distilleries").doc(nom).set(data)
+    .then(function(){ toast(editId.distillery?"蒸留所を更新しました":"蒸留所を登録しました"); closeM("m-distillery"); loadCol("distilleries"); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+</script>
+</body>
+</html>
