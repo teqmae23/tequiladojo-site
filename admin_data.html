@@ -1456,17 +1456,50 @@ function calShowRsvPopup(rvs,anchor){
 }
 var BT_OPTIONS=[{v:'0',l:'夜のみ営業'},{v:'1',l:'昼夜営業'},{v:'2',l:'昼のみ営業'},{v:'3',l:'予約営業のみ'},{v:'4',l:'定休日'},{v:'5',l:'休業日'},{v:'6',l:'イベント営業'},{v:'7',l:'貸切営業'},{v:'8',l:'臨時休業'}];
 function calTimeStep(btn,delta){ var inp=btn.previousElementSibling||btn.nextElementSibling; if(!inp) return; var v=parseInt(inp.value)||0; inp.value=Math.max(0,Math.min(2359,v+delta)); }
+// ── 公開期間管理 ─────────────────────────────────────────────
+var CAL_RANGE={fromY:0,fromM:0,toY:0,toM:0};
+
 function calInitRange(){
-  var fromY=g('cal-range-from-y'),fromM=g('cal-range-from-m'),toY=g('cal-range-to-y'),toM=g('cal-range-to-m');
-  if(!fromY) return;
-  var curY=new Date().getFullYear();
-  [fromY,toY].forEach(function(sel){ for(var y=curY-1;y<=curY+2;y++){var opt=document.createElement('option');opt.value=y;opt.textContent=y+'年';sel.appendChild(opt);} });
-  [fromM,toM].forEach(function(sel){ for(var m=1;m<=12;m++){var opt=document.createElement('option');opt.value=m;opt.textContent=m+'月';sel.appendChild(opt);} });
-  fromY.value=curY; fromM.value=1; toY.value=curY; toM.value=12;
+  try{var s=localStorage.getItem('cal_range');if(s)CAL_RANGE=JSON.parse(s);}catch(e){}
+  var now=new Date();
+  if(!CAL_RANGE.fromY){CAL_RANGE.fromY=now.getFullYear();CAL_RANGE.fromM=1;}
+  if(!CAL_RANGE.toY){CAL_RANGE.toY=now.getFullYear()+1;CAL_RANGE.toM=12;}
 }
-function calToggleRange(){ var p=g('cal-range-panel'); if(p) p.style.display=p.style.display==='none'?'':'none'; }
-function calPopulateRangeSelects(){}
-function calSaveRange(){ toast('表示期間を保存しました'); var p=g('cal-range-panel'); if(p) p.style.display='none'; calFetchHolidays(function(){calRenderMonth();calUpdateNavButtons();}); }
+function calToggleRange(){
+  var p=g('cal-range-panel'); if(!p) return;
+  if(p.style.display==='none'){ p.style.display=''; calPopulateRangeSelects(); } else { p.style.display='none'; }
+}
+function calPopulateRangeSelects(){
+  calInitRange();
+  var now=new Date(); var baseY=now.getFullYear();
+  ['cal-range-from-y','cal-range-to-y'].forEach(function(id,isTo){
+    var sel=g(id); if(!sel) return; sel.innerHTML='';
+    for(var y=baseY-2;y<=baseY+5;y++){
+      var opt=document.createElement('option'); opt.value=y; opt.textContent=y;
+      if(isTo===0&&y===CAL_RANGE.fromY) opt.selected=true;
+      if(isTo===1&&y===CAL_RANGE.toY) opt.selected=true;
+      sel.appendChild(opt);
+    }
+  });
+  ['cal-range-from-m','cal-range-to-m'].forEach(function(id,isTo){
+    var sel=g(id); if(!sel) return; sel.innerHTML='';
+    for(var m=1;m<=12;m++){
+      var opt=document.createElement('option'); opt.value=m; opt.textContent=m+'月';
+      if(isTo===0&&m===CAL_RANGE.fromM) opt.selected=true;
+      if(isTo===1&&m===CAL_RANGE.toM) opt.selected=true;
+      sel.appendChild(opt);
+    }
+  });
+}
+function calSaveRange(){
+  var fy=g('cal-range-from-y'),fm=g('cal-range-from-m'),ty=g('cal-range-to-y'),tm2=g('cal-range-to-m');
+  if(!fy||!fm||!ty||!tm2) return;
+  CAL_RANGE={fromY:parseInt(fy.value),fromM:parseInt(fm.value),toY:parseInt(ty.value),toM:parseInt(tm2.value)};
+  try{localStorage.setItem('cal_range',JSON.stringify(CAL_RANGE));}catch(e){}
+  g('cal-range-panel').style.display='none';
+  toast('表示期間を設定しました');
+  calUpdateNavButtons();
+}
 function calUpdateNavButtons(){ var btnP=g('cal-prev'),btnN=g('cal-next'); if(btnP) btnP.disabled=false; if(btnN) btnN.disabled=false; }
 function calGetYm(){ return String(calCur.y)+String(calCur.m+1).padStart(2,'0'); }
 function calSaveUpdateTime(ym){ var now=new Date().toISOString(); db.collection('calMeta').doc(ym).set({updatedAt:now},{merge:true}).catch(function(){}); localStorage.setItem('cal_updated_'+ym,now); }
@@ -1490,11 +1523,12 @@ var _origSaveSchRow=saveSchRow;
 saveSchRow=function(key,container,cb){ var ym=key.slice(0,6); calSaveUpdateTime(ym); _origSaveSchRow(key,container,cb); };
 calInitRange();
 
-// GitHub 公開機能
+// ── GitHub 公開 ───────────────────────────────────────────────
 var GH_TOKEN=localStorage.getItem('gh_token')||'';
 var GH_OWNER='teqmae23';
 var GH_REPO='tequiladojo-site';
 var GH_BRANCH='main';
+var C23_SRC=C23_ICON; // 同じbase64を再利用
 
 function toBase64(str){ var bytes=new TextEncoder().encode(str); var binary=''; bytes.forEach(function(b){binary+=String.fromCharCode(b);}); return btoa(binary); }
 function ghPutFile(path,content,statusEl){
@@ -1504,9 +1538,9 @@ function ghPutFile(path,content,statusEl){
   return fetch(url,{headers:headers}).then(function(r){return r.ok?r.json():null;}).then(function(existing){
     var body={message:'Update '+path,content:toBase64(content),branch:GH_BRANCH};
     if(existing&&existing.sha) body.sha=existing.sha;
-    upd('アップロード中: '+path);
+    upd('アップロード中: '+path+' ('+Math.round(content.length/1024)+'KB)');
     return fetch(url,{method:'PUT',headers:headers,body:JSON.stringify(body)});
-  }).then(function(r){ if(!r.ok) return r.text().then(function(t){throw new Error('GitHub API error: '+r.status+' '+t.slice(0,200));}); return r.json(); });
+  }).then(function(r){ if(!r.ok) return r.text().then(function(t){throw new Error('GitHub API error ('+path+'): '+r.status+' '+t.slice(0,200));}); return r.json(); });
 }
 function deployToGitHub(files,statusEl){
   var chain=Promise.resolve();
@@ -1514,9 +1548,141 @@ function deployToGitHub(files,statusEl){
   return chain;
 }
 
+// ── HTML生成関数 ──────────────────────────────────────────────
+function genCalPublicHtml(y,m2,schMap,rsvMap,mode){
+  var PDOWS=['日','月','火','水','木','金','土'];
+  var PBT=['cbt0','cbt1','cbt2','cbt3','cbt4','cbt5','cbt6','cbt7','cbt8'];
+  var ym=String(y)+String(m2+1).padStart(2,'0');
+  var pm=m2-1<0?11:m2-1,py=m2-1<0?y-1:y;
+  var nm=m2+1>11?0:m2+1,ny=m2+1>11?y+1:y;
+  var prevYm=String(py)+String(pm+1).padStart(2,'0');
+  var nextYm=String(ny)+String(nm+1).padStart(2,'0');
+  var suffix=mode==='cal'?'calendar':'listcal';
+  calInitRange();
+  var fromVal=CAL_RANGE.fromY*12+CAL_RANGE.fromM;
+  var toVal=CAL_RANGE.toY*12+CAL_RANGE.toM;
+  var prevVal=py*12+(pm+1);
+  var nextVal=ny*12+(nm+1);
+  var hasPrev=prevVal>=fromVal;
+  var hasNext=nextVal<=toVal;
+  var opts='';
+  for(var i2=-36;i2<=36;i2++){var tm2x=m2+i2,ty2=y;while(tm2x<0){tm2x+=12;ty2--;}while(tm2x>11){tm2x-=12;ty2++;}var tYm2=String(ty2)+String(tm2x+1).padStart(2,'0');var tVal2=ty2*12+(tm2x+1);if(tVal2<fromVal||tVal2>toVal)continue;opts+='<option value="'+tYm2+'"'+(tYm2===ym?' selected':'')+'>'+ty2+'年'+(tm2x+1)+'月</option>';}
+  var BASE='https://www.tequiladojo.com/calendar/';
+  var prevBtn=hasPrev?'<a href="'+BASE+prevYm+suffix+'.html" style="text-decoration:none;padding:4px 12px;border:1px solid #ddd;border-radius:6px;color:#333">&#8592;</a>':'<span style="padding:4px 12px;border:1px solid #eee;border-radius:6px;color:#ccc;cursor:default">&#8592;</span>';
+  var nextBtn=hasNext?'<a href="'+BASE+nextYm+suffix+'.html" style="text-decoration:none;padding:4px 12px;border:1px solid #ddd;border-radius:6px;color:#333">&#8594;</a>':'<span style="padding:4px 12px;border:1px solid #eee;border-radius:6px;color:#ccc;cursor:default">&#8594;</span>';
+  var nav='<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">'+prevBtn+'<span style="font-size:20px;font-weight:500">'+y+'年'+(m2+1)+'月</span>'+nextBtn+(opts?'<select onchange="location.href=\''+BASE+'\'+(this.value)+\''+suffix+'.html\'" style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px">'+opts+'</select>':'')+'<div style="margin-left:auto;display:flex;gap:6px"><a href="'+BASE+ym+'calendar.html" style="text-decoration:none;padding:4px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;color:#333'+(mode==='cal'?';background:#333;color:#fff':'')+'">カレンダー</a><a href="'+BASE+ym+'listcal.html" style="text-decoration:none;padding:4px 12px;border:1px solid #ddd;border-radius:6px;font-size:12px;color:#333'+(mode==='list'?';background:#333;color:#fff':'')+'">リスト</a></div></div>';
+  var body=mode==='cal'?genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT):genPubList(y,m2,schMap,rsvMap,PDOWS,PBT);
+  var legend='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px">'+CAL_BT_LABEL.map(function(lbl,i){var c=CAL_BT_COLORS[i]||CAL_BT_DEFAULT_BG[i];return '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#666"><div style="width:10px;height:10px;border-radius:2px;background:'+c+';border:0.5px solid rgba(0,0,0,0.15)"></div>'+lbl+'</div>';}).join('')+'</div>';
+  var css='<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:sans-serif;background:#f9f7f2;color:#333}.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(56px,1fr));gap:4px}.cal-dow{text-align:center;font-size:11px;font-weight:500;padding:4px 0;color:#888}.cal-dow.sun{color:#E24B4A}.cal-dow.sat{color:#378ADD}.cal-cell{min-height:90px;border:0.5px solid #ddd;border-radius:6px;padding:4px 5px;overflow:hidden;background:#fff}.cal-cell.cal-other{opacity:0.3}.cal-cell.cal-today{border:2px solid #185FA5}'+(function(){var s='';CAL_BT_COLORS.forEach(function(c,i){s+='.cbt'+i+'{background:'+c+'}'});return s;}())+'.cal-day-num{font-size:20px;font-weight:500;line-height:1;flex-shrink:0}.cal-drow{display:flex;align-items:center;gap:3px;margin-bottom:2px;min-height:26px}.cal-hname{font-size:9px;color:#E24B4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}.cal-aname{font-size:9px;color:#993556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}.cal-ei{font-size:11px;font-weight:600;background:#444;color:#fff;border-radius:3px;padding:1px 5px;line-height:1.6}.cal-ttime{font-size:10px;color:#666;font-family:monospace}.litem{border:0.5px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:6px}.litem.ltoday{border:3px solid #185FA5}.lhead{display:flex;align-items:center;gap:6px;padding:6px 10px}.ldate{font-size:20px;font-weight:500;line-height:1}.ldate.lsun,.ldate.lhol{color:#E24B4A}.ldate.lsat{color:#378ADD}.ldow{font-size:13px;font-weight:500;color:#333}.ldow.lsun,.ldow.lhol{color:#E24B4A}.ldow.lsat{color:#378ADD}.leitime{display:flex;align-items:center;gap:4px;flex-shrink:0}.ltime{font-size:14px;font-weight:500;font-family:monospace}@media(max-width:480px){.cal-cell{min-height:70px}.cal-day-num{font-size:16px}}</style>';
+  return '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>テキーラ道場 営業カレンダー '+y+'年'+(m2+1)+'月</title>'+css+'</head><body><div style="max-width:900px;margin:0 auto;padding:16px"><div style="text-align:center;margin-bottom:16px"><h1 style="font-size:18px;font-weight:500;color:#333">🌵 テキーラ道場 営業カレンダー</h1></div>'+nav+body+legend+'</div><script>(function(){var t=new Date();var today=t.getFullYear()+"-"+(t.getMonth()+1).toString().padStart(2,"0")+"-"+t.getDate().toString().padStart(2,"0");document.querySelectorAll("[data-date]").forEach(function(el){if(el.dataset.date===today){el.classList.add("cal-today");var badge=el.querySelector(".today-badge");if(badge)badge.style.display="";var litem=el.closest(".litem");if(litem)litem.classList.add("ltoday");}else{el.classList.remove("cal-today");var litem2=el.closest(".litem");if(litem2)litem2.classList.remove("ltoday");}});})();<\/script></body></html>';
+}
+
+function genPubGrid(y,m2,schMap,rsvMap,PDOWS,PBT){
+  var today=new Date();
+  var amap=calBuildAnnivMap(y,m2);
+  var first=new Date(y,m2,1).getDay();
+  var days=new Date(y,m2+1,0).getDate();
+  var prevDays=new Date(y,m2,0).getDate();
+  var html='<div class="cal-grid">';
+  PDOWS.forEach(function(d,i){html+='<div class="cal-dow'+(i===0?' sun':i===6?' sat':'')+'">' + d+'</div>';});
+  var total=(first+days)<=35?35:42;
+  for(var i=0;i<total;i++){
+    var isOther=i<first||(i>=first+days);
+    var day,cy,cm3;
+    if(i<first){day=prevDays-(first-1-i);cy=m2===0?y-1:y;cm3=m2===0?11:m2-1;}
+    else if(i>=first+days){day=i-first-days+1;cy=m2===11?y+1:y;cm3=m2===11?0:m2+1;}
+    else{day=i-first+1;cy=y;cm3=m2;}
+    var dow=i%7,key=calDkey(cy,cm3,day);
+    var isHol=!!calHolidays[key],anniv=(!isOther)?amap[day]:null;
+    var isToday=(cy===today.getFullYear()&&cm3===today.getMonth()&&day===today.getDate());
+    var isC23=(!isOther)&&calIsC23(cm3,day);
+    var sch=(!isOther)?schMap[day]:null;
+    var cls='cal-cell';
+    if(isOther)cls+=' cal-other';
+    if(dow===0)cls+=' cal-sun';if(dow===6)cls+=' cal-sat';
+    if(isHol)cls+=' cal-hol';if(isToday)cls+=' cal-today';
+    if(sch)cls+=' '+PBT[parseInt(sch.businessType)||0];
+    var dayPart=isC23?'<img src="'+C23_SRC+'" style="height:19.8px;width:23.1px;object-fit:fill" alt="23">':'<span class="cal-day-num">'+day+'</span>';
+    var namePart=anniv?'<span class="cal-aname">'+(anniv.nameJa||anniv.name||'')+'</span>':(isHol?'<span class="cal-hname">'+calHolidays[key]+'</span>':'<span style="flex:1"></span>');
+    var trow='';
+    if(sch){
+      var bt=parseInt(sch.businessType)||0;
+      if(bt===4||bt===5||bt===8){
+        trow='<div style="margin-top:2px"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
+      } else if(sch.openTime&&sch.closeTime){
+        trow='<div style="display:flex;align-items:center;gap:3px;margin-top:2px"><span class="cal-ei" style="background:#FEF9C3;color:#333">営</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span></div>';
+      } else if(CAL_BT_LABEL[bt]){
+        trow='<div style="margin-top:2px"><span class="cal-ei">'+CAL_BT_LABEL[bt]+'</span></div>';
+      }
+      var memoStr=sch.memo?'<span style="font-size:9px;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+sch.memo+'</span>':'<span style="flex:1"></span>';
+      if(sch.memo){
+        trow+='<div style="display:flex;align-items:flex-end;margin-top:1px">'+memoStr+'</div>';
+      }
+    }
+    var rvs2=(!isOther)?rsvMap[day]:null;
+    var rsvRow2='';
+    if(rvs2&&rvs2.length){
+      var hasC2=rvs2.some(function(r2){return r2.charterType===1||r2.charterType==="1";});
+      rsvRow2='<div style="display:flex;gap:3px;align-items:center;margin-top:2px">'+(hasC2?'<span style="font-size:9px;font-weight:600;background:#7a5610;color:#e8b84a;border-radius:2px;padding:0 4px;line-height:1.5">貸切</span>':'')+'<span style="font-size:9px;font-weight:600;background:#FBEAF0;color:#C44873;border-radius:2px;padding:0 4px;line-height:1.5">予約'+rvs2.length+'件</span></div>';
+    }
+    html+='<div class="'+cls+'" data-date="'+key+'"><div class="cal-drow">'+dayPart+namePart+'<span class="today-badge" style="font-size:8px;font-weight:600;background:#185FA5;color:#fff;border-radius:2px;padding:0 3px;margin-left:auto;display:'+(isToday?'inline':'none')+';">当日</span></div>'+trow+rsvRow2+'</div>';
+  }
+  html+='</div>';
+  return html;
+}
+
+function genPubList(y,m2,schMap,rsvMap,PDOWS,PBT){
+  var today=new Date();
+  var amap=calBuildAnnivMap(y,m2);
+  var days=new Date(y,m2+1,0).getDate();
+  var html='<div>';var hasAny=false;
+  for(var d=1;d<=days;d++){
+    var key=calDkey(y,m2,d);
+    var dow=new Date(y,m2,d).getDay();
+    var isHol=!!calHolidays[key],anniv=amap[d];
+    var isToday=(y===today.getFullYear()&&m2===today.getMonth()&&d===today.getDate());
+    var isC23=calIsC23(m2,d);
+    var sch=schMap[d];var rvs3=rsvMap[d];
+    if(!sch&&!isToday&&!isHol&&!anniv&&!isC23&&(!rvs3||!rvs3.length)) continue;
+    hasAny=true;
+    var dowCls=dow===0||isHol?'lsun':dow===6?'lsat':'';
+    var cls='litem'+(isToday?' ltoday':'');
+    var headCls='lhead '+(sch?PBT[parseInt(sch.businessType)||0]:'');
+    var datePart=isC23?'<span class="ldate'+(dowCls?' '+dowCls:'')+'">'+(m2+1).toString().padStart(2,'0')+'/</span><img src="'+C23_SRC+'" style="height:19.8px;width:23.1px;object-fit:fill" alt="23">':'<span class="ldate'+(dowCls?' '+dowCls:'')+'">'+(m2+1).toString().padStart(2,'0')+'/'+d.toString().padStart(2,'0')+'</span>';
+    var dowPart='<span class="ldow'+(dowCls?' '+dowCls:'')+'">（'+PDOWS[dow]+'）</span>';
+    var timePart='';
+    if(sch){
+      var bt=parseInt(sch.businessType)||0;
+      if(bt===4||bt===5||bt===8){
+        timePart='<div class="leitime"><span class="cal-ei">'+(bt===4?'定休日':bt===8?'臨時休業':'休業日')+'</span></div>';
+      } else {
+        var typeIcon2=(!sch.openTime&&!sch.closeTime&&CAL_BT_LABEL[bt])?'<span class="cal-ei">'+CAL_BT_LABEL[bt]+'</span>':'';
+        var timeHtml2=sch.openTime&&sch.closeTime?'<span class="cal-ei" style="background:#FEF9C3;color:#333">営</span><span class="ltime">'+calFmtT(sch.openTime)+'〜'+calFmtT(sch.closeTime)+'</span>':typeIcon2;
+        if(timeHtml2) timePart='<div class="leitime">'+timeHtml2+'</div>';
+      }
+    }
+    var names=[];
+    if(isHol)names.push('<span style="font-size:11px;color:#E24B4A">'+calHolidays[key]+'</span>');
+    if(anniv)names.push('<span style="font-size:11px;color:#993556">'+(anniv.nameJa||anniv.name||'')+'</span>');
+    var namesPart=names.length?'<div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;margin-left:4px">'+names.join('')+'</div>':'<span style="flex:1"></span>';
+    var todayPart='<span class="today-badge" style="font-size:10px;font-weight:600;background:#185FA5;color:#fff;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0;display:'+(isToday?'inline':'none')+';">当日</span>';
+    var rsvPart3='';
+    if(rvs3&&rvs3.length){
+      var hasC3=rvs3.some(function(r3){return r3.charterType===1||r3.charterType==="1";});
+      rsvPart3='<div style="padding:2px 10px 4px;display:flex;gap:4px">'+(hasC3?'<span style="font-size:10px;font-weight:600;background:#7a5610;color:#e8b84a;border-radius:3px;padding:0 6px;line-height:1.6">貸切</span>':'')+'<span style="font-size:10px;font-weight:600;background:#FBEAF0;color:#C44873;border-radius:3px;padding:0 6px;line-height:1.6">予約'+rvs3.length+'件</span></div>';
+    }
+    html+='<div class="'+cls+'" data-date="'+key+'"><div class="'+headCls+'"><div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+datePart+dowPart+'</div>'+timePart+namesPart+todayPart+'</div>'+(sch&&sch.memo?'<div style="font-size:11px;color:#222;padding:2px 10px 4px">'+sch.memo+'</div>':'')+rsvPart3+'</div>';
+  }
+  if(!hasAny)html+='<div style="font-size:13px;color:#888;padding:16px">この月の予定はありません</div>';
+  html+='</div>';
+  return html;
+}
+
+// ── 予約変更後の自動公開 ──────────────────────────────────────
 function autoPublishCalForMonth(yymmdd,statusMsg){
   var ym4='20'+yymmdd.slice(0,2)+yymmdd.slice(2,4);
-  if(!GH_TOKEN){ calSaveUpdateTime(ym4); calCheckUnpublished(calGetYm()); return; }
+  calSaveUpdateTime(ym4);
+  if(!GH_TOKEN){ calCheckUnpublished(calGetYm()); return; }
   var y4=parseInt(ym4.slice(0,4)),m4=parseInt(ym4.slice(4,6))-1;
   var schMap={},rsvMap={};
   var p1=db.collection('schedules').get().then(function(snap){
@@ -1525,25 +1691,78 @@ function autoPublishCalForMonth(yymmdd,statusMsg){
   var p2=db.collection('reservations').get().then(function(snap){
     snap.docs.forEach(function(doc){ var rd=doc.data().reservationDate||''; if(('20'+rd).slice(0,6)===ym4){var dy=parseInt(rd.slice(4,6));if(!rsvMap[dy])rsvMap[dy]=[];rsvMap[dy].push(doc.data());} });
   }).catch(function(){});
-  Promise.all([p1,p2]).then(function(){ calSaveUpdateTime(ym4); calCheckUnpublished(calGetYm()); });
+  Promise.all([p1,p2]).then(function(){
+    calFetchHolidays(function(){
+      try{
+        var calHtml=genCalPublicHtml(y4,m4,schMap,rsvMap,'cal');
+        var listHtml=genCalPublicHtml(y4,m4,schMap,rsvMap,'list');
+        deployToGitHub([
+          {path:'calendar/'+ym4+'calendar.html',content:calHtml},
+          {path:'calendar/'+ym4+'listcal.html',content:listHtml}
+        ],null).then(function(){
+          calSavePublishTime(ym4);
+          toast((statusMsg||'カレンダーHTML')+'を自動出力しました（'+y4+'年'+(m4+1)+'月）');
+          calCheckUnpublished(calGetYm());
+        }).catch(function(){ calCheckUnpublished(calGetYm()); });
+      }catch(e){ calCheckUnpublished(calGetYm()); }
+    });
+  });
 }
 
+// ── 🌐 HTML公開ボタン ─────────────────────────────────────────
 (function(){
   var _pb=g('cal-publish'); if(!_pb) return;
   _pb.addEventListener('click',function(){
-    if(!GH_TOKEN){ var t=prompt('GitHub Personal Access Token を入力してください（ghp_...）'); if(!t){return;} GH_TOKEN=t.trim(); localStorage.setItem('gh_token',GH_TOKEN); }
-    var y=calCur.y,m2=calCur.m; var status=g('cal-publish-status'); if(!status) return;
+    if(!GH_TOKEN){
+      var t=prompt('GitHub Personal Access Token を入力してください（ghp_...）');
+      if(!t){return;}
+      GH_TOKEN=t.trim();
+      localStorage.setItem('gh_token',GH_TOKEN);
+    }
+    var y=calCur.y,m2=calCur.m;
+    var status=g('cal-publish-status'); if(!status) return;
     status.style.display=''; status.style.color='var(--ink3)'; status.textContent='データ取得中...';
     var ym=String(y)+String(m2+1).padStart(2,'0');
     var schMap={},rsvMap={};
-    var p1=db.collection('schedules').get().then(function(snap){ snap.docs.forEach(function(doc){ var data=doc.data(); var sid=data.scheduleId||doc.id; if(sid.slice(0,6)===ym){var dy=parseInt(sid.slice(6,8));schMap[dy]=data;} }); }).catch(function(){});
-    var p2=db.collection('reservations').get().then(function(snap){ snap.docs.forEach(function(doc){ var data=doc.data(); var rd=data.reservationDate||''; if(rd.slice(0,6)===ym){var dy=parseInt(rd.slice(6,8));if(!rsvMap[dy])rsvMap[dy]=[];rsvMap[dy].push(data);} }); }).catch(function(){});
+    var p1=db.collection('schedules').get().then(function(snap){
+      snap.docs.forEach(function(doc){ var data=doc.data(); var sid=data.scheduleId||doc.id; if(sid.slice(0,6)===ym){var dy=parseInt(sid.slice(6,8));schMap[dy]=data;} });
+    }).catch(function(){});
+    var p2=db.collection('reservations').get().then(function(snap){
+      snap.docs.forEach(function(doc){ var data=doc.data(); var rd=data.reservationDate||''; if(rd.slice(0,6)===ym){var dy=parseInt(rd.slice(6,8));if(!rsvMap[dy])rsvMap[dy]=[];rsvMap[dy].push(data);} });
+    }).catch(function(){});
     Promise.all([p1,p2]).then(function(){
       status.textContent='HTML生成中...';
       calFetchHolidays(function(){
-        status.textContent='✅ カレンダーデータを更新しました（'+ym+'）。HTML公開はメインの admin.html から行ってください。';
-        status.style.color='var(--teal)';
-        calSaveUpdateTime(ym); toast('カレンダーデータを更新しました（'+ym+'）');
+        var calHtml,listHtml;
+        try{
+          calHtml=genCalPublicHtml(y,m2,schMap,rsvMap,'cal');
+          listHtml=genCalPublicHtml(y,m2,schMap,rsvMap,'list');
+        }catch(genErr){
+          status.textContent='❌ HTML生成エラー: '+genErr.message;
+          status.style.color='var(--red)'; return;
+        }
+        if(!calHtml||calHtml.length<100){status.textContent='❌ HTML生成失敗（空）';status.style.color='var(--red)';return;}
+        status.textContent='アップロード中... (cal:'+Math.round(calHtml.length/1024)+'KB, list:'+Math.round(listHtml.length/1024)+'KB)';
+        var calPath='calendar/'+ym+'calendar.html';
+        var listPath='calendar/'+ym+'listcal.html';
+        deployToGitHub([
+          {path:calPath,content:calHtml},
+          {path:listPath,content:listHtml}
+        ],status).then(function(){
+          status.textContent='✅ 公開完了！ https://www.tequiladojo.com/'+calPath;
+          status.style.color='var(--teal)';
+          calSavePublishTime(ym);
+          calCheckUnpublished(calGetYm());
+          toast('カレンダーを公開しました（'+ym+'）');
+        }).catch(function(e){
+          if(e.message.indexOf('401')>=0){
+            localStorage.removeItem('gh_token'); GH_TOKEN='';
+            status.textContent='❌ Token無効。次回公開時に再入力してください。';
+          } else {
+            status.textContent='❌ エラー: '+e.message;
+          }
+          status.style.color='var(--red)';
+        });
       });
     });
   });
