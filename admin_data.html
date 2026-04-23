@@ -174,7 +174,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
 .cal-rpax{font-size:9px;font-weight:500;color:var(--ink3);flex-shrink:0;font-family:monospace}
 .cal-litem{border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:0}
 .cal-litem.cal-ltoday{border:3px solid #185FA5}
-.cal-lhead{display:flex;align-items:center;gap:6px;padding:6px 10px}
+.cal-lhead{display:flex;align-items:center;gap:6px;padding:6px 10px;flex-wrap:wrap}
 .cal-lhead.cbt0{background:var(--cbt0,#E6F1FB)}.cal-lhead.cbt1{background:var(--cbt1,#EAF3DE)}
 .cal-lhead.cbt2{background:var(--cbt2,#C0DD97)}.cal-lhead.cbt3{background:var(--cbt3,#FAEEDA)}
 .cal-lhead.cbt4{background:var(--cbt4,#D3D1C7)}.cal-lhead.cbt5{background:var(--cbt5,#B4B2A9)}
@@ -192,7 +192,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
 .cal-lhname{font-size:11px;color:#E24B4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-laname{font-size:11px;color:#993556;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-ltoday-badge{font-size:10px;font-weight:500;background:#185FA5;color:#E6F1FB;border-radius:3px;padding:0 5px;margin-left:auto;flex-shrink:0}
-.cal-leitime{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.cal-leitime{display:flex;align-items:center;gap:4px;flex-shrink:0;flex-basis:100%;padding-top:2px}
 .cal-ltime-text{font-size:15px;font-weight:500;color:var(--ink);font-family:monospace}
 .cal-lbody{padding:4px 10px 6px;display:flex;flex-direction:column;gap:3px;background:var(--cream)}
 .cal-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
@@ -1298,12 +1298,13 @@ function calRenderGrid(y,m,schMap,rsvMap,annivMap){
     html+='<div class="cal-drow">';
     if(calIsC23(m,d)) html+=calMakeC23('');
     html+='<span class="cal-day-num">'+d+'</span>';
-    if(key===todayKey) html+='<span class="cal-today-badge" style="display:none" class="today-badge">今日</span>';
+    if(key===todayKey) html+='<span class="cal-today-badge">今日</span>';
     html+='</div>';
     if(hname) html+='<div class="cal-hname">'+hname+'</div>';
     anniv.forEach(function(a){ html+='<div class="cal-aname">'+a.name+'</div>'; });
     if(sch&&sch.openTime) html+='<div class="cal-trow"><span class="cal-ei">'+CAL_BT_LABEL[parseInt(sch.businessType)||0]+'</span><span class="cal-ttime">'+calFmtT(sch.openTime)+'-'+calFmtT(sch.closeTime)+'</span></div>';
     else if(sch) html+='<div class="cal-trow"><span class="cal-ei">'+CAL_BT_LABEL[parseInt(sch.businessType)||0]+'</span></div>';
+    if(sch&&sch.memo) html+='<div style="font-size:9px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+sch.memo+'</div>';
     rvs.slice(0,2).forEach(function(r){ html+='<div class="cal-rrow"><span class="cal-rico">予</span><span class="cal-rtime">'+calFmtT(r.startTime)+'</span><span class="cal-rpax">'+( r.guests||'')+'名</span></div>'; });
     if(rvs.length>2) html+='<div style="font-size:9px;color:var(--ink3)">他'+(rvs.length-2)+'件</div>';
     html+='</div>';
@@ -1340,8 +1341,8 @@ function calRenderList(y,m,schMap,rsvMap,annivMap){
     html+='</div>';
     if(hname||anniv.length){ html+='<div class="cal-lnames">'; if(hname) html+='<div class="cal-lhname">'+hname+'</div>'; anniv.forEach(function(a){html+='<div class="cal-laname">'+a.name+'</div>';}); html+='</div>'; }
     if(isToday) html+='<span class="cal-ltoday-badge">今日</span>';
-    if(sch&&sch.openTime){ html+='<div class="cal-leitime"><span class="cal-ei">'+CAL_BT_LABEL[btIdx]+'</span><span class="cal-ltime-text">'+calFmtT(sch.openTime)+'-'+calFmtT(sch.closeTime)+'</span></div>'; }
-    else if(sch){ html+='<div class="cal-leitime"><span class="cal-ei">'+CAL_BT_LABEL[btIdx]+'</span></div>'; }
+    if(sch&&sch.openTime){ html+='<div class="cal-leitime"><span class="cal-ei">'+CAL_BT_LABEL[btIdx]+'</span><span class="cal-ltime-text">'+calFmtT(sch.openTime)+'-'+calFmtT(sch.closeTime)+'</span>'+(sch.memo?'<span style="font-size:11px;color:var(--ink2);margin-left:4px">'+sch.memo+'</span>':'')+'</div>'; }
+    else if(sch){ html+='<div class="cal-leitime"><span class="cal-ei">'+CAL_BT_LABEL[btIdx]+'</span>'+(sch.memo?'<span style="font-size:11px;color:var(--ink2);margin-left:4px">'+sch.memo+'</span>':'')+'</div>'; }
     html+='</div>';
     if(rvs.length){
       html+='<div class="cal-lbody">';
