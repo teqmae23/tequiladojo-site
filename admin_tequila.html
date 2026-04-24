@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキーラ道場 — テキーラマスタ</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#18110a; --ink2:#4a3820; --ink3:#9a8470;
+  --gold:#c8921e; --gold-l:#e8b84a; --gold-d:#7a5610;
+  --teal:#1a6e58; --teal-l:#e0f0eb;
+  --red:#8c2818; --red-l:#fae8e4;
+  --cream:#faf7f1; --cream2:#f0ebe0; --cream3:#e4ddd0; --white:#fff;
+  --border:rgba(160,130,100,.18); --border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07); --shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px; --rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans)}
+
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+
+#app{display:none;min-height:100vh}
+.topbar{background:var(--ink);display:flex;align-items:flex-start;padding:8px 20px;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:4px}
+.tbrand{font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em;margin-right:8px;white-space:nowrap}
+.ttabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tab{padding:5px 10px;border:none;background:none;color:rgba(255,255,255,.42);font-size:11px;font-weight:500;border-radius:var(--r);white-space:nowrap}
+.tab:hover{color:rgba(255,255,255,.72);background:rgba(255,255,255,.06)}
+.tab.active{color:var(--gold-l);background:rgba(200,146,30,.16)}
+.tab .cnt{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:9px;font-family:var(--mono);background:rgba(255,255,255,.1);color:rgba(255,255,255,.45)}
+.tab.active .cnt{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.tuser{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.temail{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)}
+.tlogout{padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r);background:none;color:rgba(255,255,255,.38);font-size:11px}
+.tlogout:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+
+.content{padding:28px;max-width:1280px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--gold-d)}
+.pdesc{font-size:11px;color:var(--ink3);margin-top:2px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sbox{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;flex:1;min-width:160px;background:var(--cream)}
+.sbox input{border:none;background:none;font-size:12px;color:var(--ink);width:100%}
+.sbox input:focus{outline:none}
+.fsel{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;background:var(--cream);color:var(--ink)}
+.fsel:focus{outline:none;border-color:var(--gold)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(200,146,30,.025)}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.acts{display:flex;gap:5px;justify-content:flex-end}
+.ec{text-align:center;color:var(--ink3);padding:32px!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.bg-gold{background:#fdf0d0;color:var(--gold-d);border:1px solid rgba(200,146,30,.3)}
+.bg-teal{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
+.bg-red{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}
+.bg-gray{background:var(--cream2);color:var(--ink3);border:1px solid var(--border2)}
+.bg-blue{background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4}
+.bg-yellow{background:#FAEEDA;color:#633806;border:1px solid #FAC775}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-lg{max-width:780px}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--gold-d)}
+.mx{background:none;border:none;font-size:22px;color:var(--ink3);line-height:1;padding:0 4px}.mx:hover{color:var(--ink)}
+.mbody{padding:20px 24px 20px 40px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.req{color:var(--red);margin-left:2px}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,146,30,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow.c3{grid-template-columns:1fr 1fr 1fr}
+.frow.c4{grid-template-columns:repeat(4,1fr)}
+.full{grid-column:1/-1}
+.fsep{border:none;border-top:1px solid var(--border);margin:14px 0}
+.keybox{background:var(--ink);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--gold-l);letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.keybox .klabel{font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.keypart{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px}
+.kp-nom{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.kp-seq{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+.kp-cat{background:rgba(200,146,30,.25);color:var(--gold-l)}
+.kp-cls{background:rgba(26,110,88,.25);color:#7fe0c0}
+.kp-flt{background:rgba(255,255,255,.08);color:rgba(255,255,255,.6)}
+#toasts{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}
+.terr{background:var(--red);color:#fff}
+.tinf{background:var(--gold-d);color:var(--cream)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cmsg{font-size:14px;margin-bottom:20px;color:var(--ink2);line-height:1.7}
+.cacts{display:flex;gap:8px;justify-content:center}
+.date-group{display:flex;align-items:center;gap:2px}
+.date-group input{text-align:center;padding:4px 4px}
+.date-group .dy{width:46px}
+.date-group .dm{width:30px}
+.date-group .dd{width:30px}
+.date-sep{color:var(--ink3);font-size:13px;padding:0 1px}
+#tbl-bottles .acts{justify-content:flex-start}
+#tbl-brands th:last-child,#tbl-classes th:last-child,#tbl-bottles th:last-child,#tbl-bdata th:last-child{padding-left:10px;border-left:1px solid var(--border2)}
+#tbl-brands td:last-child,#tbl-classes td:last-child,#tbl-bottles td:last-child,#tbl-bdata td:last-child{border-left:1px solid var(--border)}
+#tbl-brands .acts,#tbl-classes .acts{justify-content:flex-start}
+#tbl-bottles td{padding:11px 8px}
+#tbl-bottles th{padding:10px 8px}
+</style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Tequila Master</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="tbrand">🥃 テキーラ道場</div>
+    <a href="admin.html" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;margin-right:8px;white-space:nowrap;text-decoration:none">← ハブ</a>
+    <div class="ttabs">
+      <button class="tab active" data-page="classes">クラス <span class="cnt" id="cnt-classes">—</span></button>
+      <button class="tab" data-page="brands">ブランド <span class="cnt" id="cnt-brands">—</span></button>
+      <button class="tab" data-page="bottles">ボトルマスタ <span class="cnt" id="cnt-bottles">—</span></button>
+      <button class="tab" data-page="bdata">ボトルデータ <span class="cnt" id="cnt-bdata">—</span></button>
+    </div>
+    <div class="tuser">
+      <span class="temail" id="temail"></span>
+      <button class="tlogout" id="btn-logout">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- クラスページ -->
+    <div class="page active" id="page-classes">
+      <div class="phead"><div><div class="ptitle">クラスマスタ</div><div class="pdesc">classId 2桁 = カテゴリ1 + クラス1</div></div><button class="btn bp" id="btn-open-class">＋ クラス登録</button></div>
+      <div class="card">
+        <div class="toolbar">
+          <select class="fsel" id="f-cl-cat"><option value="">全カテゴリ</option><option value="0">100% Agave</option><option value="1">Mixto</option></select>
+          <select class="fsel" id="f-cl-cls"><option value="">全クラス</option><option value="1">Blanco</option><option value="2">Joven/Gold</option><option value="3">Reposado</option><option value="4">Añejo</option><option value="5">Extra Añejo</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-classes"><option value="id">クラスID</option><option value="classNameJa">クラス名</option></select>
+            <select id="sort-dir-classes"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-classes">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-classes">
+          <colgroup><col style="width:70px"><col style="width:100px"><col style="width:130px"><col style="width:100px"><col style="width:60px"><col style="width:120px"></colgroup>
+          <thead><tr><th>クラスID</th><th>カテゴリ</th><th>クラス（A）</th><th>クラス（日本語）</th><th>略称</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-classes"><tr><td colspan="6" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ブランドページ -->
+    <div class="page" id="page-brands">
+      <div class="phead"><div><div class="ptitle">ブランドマスタ</div><div class="pdesc">brandId 7桁 = 蒸留所ID4桁 + 連番3桁</div></div><button class="btn bp" id="btn-open-brand">＋ ブランド登録</button></div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:220px"><input type="text" id="s-br" placeholder="ブランド名で検索..."></div>
+          <select class="fsel" id="f-br-nom"><option value="">全NOM</option></select>
+          <select class="fsel" id="f-br-type"><option value="">全区分</option><option value="0">蒸留所ブランド</option><option value="1">委託ブランド</option></select>
+          <select class="fsel" id="f-br-st"><option value="">全状態</option><option value="0">稼働中</option><option value="1">終売</option><option value="2">移転</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-brands"><option value="id">ブランドID</option><option value="brandEs">ブランド名(A)</option><option value="brandJa">ブランド名(J)</option><option value="brandStatus">状態</option><option value="foundedYear">創設年</option></select>
+            <select id="sort-dir-brands"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-brands">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-brands">
+          <colgroup><col style="width:80px"><col style="width:70px"><col><col><col style="width:40px"><col style="width:60px"><col style="width:50px"><col style="width:120px"></colgroup>
+          <thead><tr><th>ブランドID</th><th>蒸留所ID</th><th>ブランド名（A）</th><th>ブランド名(J)</th><th>区分</th><th>状態</th><th>AMM</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-brands"><tr><td colspan="8" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ボトルマスタページ -->
+    <div class="page" id="page-bottles">
+      <div class="phead"><div><div class="ptitle">ボトルマスタ</div><div class="pdesc">bottleId 12桁 = brandId7 + classId2 + 連番3 ／ ABV・生産区分・色素濾過・添加物</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn bs" id="btn-migrate-bottles" style="font-size:11px;color:var(--ink3)">⚙ IDを12桁に修正</button>
+          <button class="btn bp" id="btn-open-bottle">＋ ボトル登録</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:220px"><input type="text" id="s-bt" placeholder="ボトル名で検索..."></div>
+          <select class="fsel" id="f-bt-nom"><option value="">全NOM</option></select>
+          <select class="fsel" id="f-bt-brand"><option value="">全ブランド</option></select>
+          <select class="fsel" id="f-bt-class"><option value="">全クラス</option></select>
+          <input type="number" class="fsel" id="f-bt-abv-min" min="0" max="99" placeholder="ABV下限" style="width:80px">
+          <input type="number" class="fsel" id="f-bt-abv-max" min="0" max="99" placeholder="ABV上限" style="width:80px">
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-bottles"><option value="id">ボトルID</option><option value="bottleEs">ボトル名(A)</option><option value="brandId">ブランドID</option><option value="abv">ABV</option></select>
+            <select id="sort-dir-bottles"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-bottles">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-bottles">
+          <colgroup><col><col><col><col style="width:36px"><col style="width:44px"><col style="width:86px"></colgroup>
+          <thead><tr><th>ボトルID</th><th>ボトル名（A）</th><th>ブランド名(NOM)</th><th>クラス</th><th>ABV</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-bottles"><tr><td colspan="6" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ボトルデータページ -->
+    <div class="page" id="page-bdata">
+      <div class="phead">
+        <div><div class="ptitle">ボトルデータ</div><div class="pdesc">bottleDataId = "T" + 連番5桁</div></div>
+        <button class="btn bp" id="btn-open-bdata">＋ ボトルデータ登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:220px"><input type="text" id="s-bd" placeholder="ボトル名で検索..."></div>
+          <select class="fsel" id="f-bd-nom"><option value="">全NOM</option></select>
+          <select class="fsel" id="f-bd-brand"><option value="">全ブランド</option></select>
+          <select class="fsel" id="f-bd-pub"><option value="">全公開区分</option><option value="0">OP</option><option value="1">CL</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-bdata"><option value="id">データID</option><option value="bottleJa">ボトル名</option><option value="volume">容量</option><option value="remaining">残量</option><option value="price">単価</option></select>
+            <select id="sort-dir-bdata"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-bdata">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-bdata">
+          <colgroup><col style="width:110px"><col><col><col style="width:50px"><col style="width:44px"><col style="width:50px"><col style="width:60px"><col style="width:40px"><col style="width:86px"></colgroup>
+          <thead><tr><th>ボトルデータID</th><th>ボトル名</th><th>ブランド名(NOM)</th><th>容量</th><th>ABV</th><th>残量</th><th>10ml単価</th><th>公開</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-bdata"><tr><td colspan="9" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- クラスモーダル -->
+<div class="mbg" id="m-class">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-class">クラス登録</div><button class="mx" data-close="m-class">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-class">—<span class="klabel">classId</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">カテゴリ<span class="req">*</span></label><select class="fs" id="cl-cat"><option value="0">0: 100% Agave</option><option value="1">1: Mixto</option></select></div>
+        <div class="fg"><label class="fl">クラス<span class="req">*</span></label><select class="fs" id="cl-cls"><option value="1">1: Blanco</option><option value="2">2: Joven/Gold</option><option value="3">3: Reposado</option><option value="4">4: Añejo</option><option value="5">5: Extra Añejo</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">クラス（日本語）</label><input class="fi" id="cl-name-ja" placeholder="ブランコ"></div>
+      <div class="fg"><label class="fl">略称</label><input class="fi" id="cl-abbr" placeholder="B" maxlength="3"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-class">キャンセル</button><button class="btn bp" id="btn-save-class">保存</button></div>
+  </div>
+</div>
+
+<!-- ブランドモーダル -->
+<div class="mbg" id="m-brand">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-brand">ブランド登録</div><button class="mx" data-close="m-brand">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-brand">—<span class="klabel">brandId</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">蒸留所ID（4桁）<span class="req">*</span></label><input class="fi" id="br-dis" placeholder="1079" maxlength="4"></div>
+        <div class="fg"><label class="fl">連番（001〜999）<span class="req">*</span></label><input class="fi" id="br-seq" placeholder="001" maxlength="3"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">区分</label><select class="fs" id="br-type"><option value="0">0: 蒸留所ブランド</option><option value="1">1: 委託ブランド</option></select></div>
+        <div class="fg"><label class="fl">状態</label><select class="fs" id="br-st"><option value="0">0: 稼働中</option><option value="1">1: 終売</option><option value="2">2: 移転</option></select></div>
+      </div>
+      <hr class="fsep">
+      <div class="frow">
+        <div class="fg"><label class="fl">ブランド名（Alphabet）<span class="req">*</span></label><input class="fi" id="br-es" placeholder="Herradura"></div>
+        <div class="fg"><label class="fl">ブランド名(J)</label><input class="fi" id="br-ja" placeholder="エラドゥーラ"></div>
+      </div>
+      <div class="fg"><label class="fl">創設年（西暦）</label><input class="fi" id="br-year" type="number" min="1700" max="2100" step="1" placeholder="1870"></div>
+      <div class="fg"><label class="fl">詳細情報URL</label><input class="fi" id="br-info" type="url" placeholder="https://..."></div>
+      <div class="fg"><label class="fl">AMMブランドページURL</label><input class="fi" id="br-amm" type="url" placeholder="https://www.ammex.org/..."></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-brand">キャンセル</button><button class="btn bp" id="btn-save-brand">保存</button></div>
+  </div>
+</div>
+
+<!-- ボトルモーダル -->
+<div class="mbg" id="m-bottle">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-bottle">ボトル登録</div><button class="mx" data-close="m-bottle">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-bottle">—<span class="klabel">bottleId</span></div>
+      <div style="display:grid;grid-template-columns:80px 1fr 140px 70px;gap:8px;align-items:end;margin-bottom:12px">
+        <div class="fg" style="margin-bottom:0"><label class="fl">NOM<span class="req">*</span></label><input class="fi" id="bt-nom" placeholder="1079" maxlength="4"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">ブランド<span class="req">*</span></label><select class="fs" id="bt-brand"><option value="">NOM入力後に選択</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">クラス</label><select class="fs" id="bt-class"><option value="">選択...</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">連番</label><input class="fi" id="bt-seq" placeholder="—" maxlength="3" readonly style="background:var(--cream2)"></div>
+      </div>
+      <div class="fg"><label class="fl">ボトル名（Alphabet）</label><input class="fi" id="bt-es" placeholder="Herradura Silver"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">ボトル名（日本語）</label><input class="fi" id="bt-ja" placeholder="エラドゥーラ シルバー"></div>
+      </div>
+      <div class="frow c4">
+        <div class="fg"><label class="fl">ABV（%）</label><input class="fi" id="bt-abv" type="number" min="0" max="99" step="0.1" placeholder="40.0"></div>
+        <div class="fg"><label class="fl">生産区分</label><select class="fs" id="bt-prod"><option value="0">0: 定番品</option><option value="1">1: 限定品</option></select></div>
+        <div class="fg"><label class="fl">色素濾過</label><select class="fs" id="bt-flt"><option value="0">0: なし</option><option value="1">1: 色素濾過</option></select></div>
+        <div class="fg"><label class="fl">添加物</label><select class="fs" id="bt-add"><option value="0">0: なし</option><option value="1">1: 不明</option></select></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-bottle">キャンセル</button><button class="btn bp" id="btn-save-bottle">保存</button></div>
+  </div>
+</div>
+
+<!-- 重複エラーダイアログ -->
+<div class="cbg" id="dup-bg">
+  <div class="ccard" style="max-width:400px">
+    <div style="font-size:22px;margin-bottom:10px">⚠️</div>
+    <div class="cmsg" id="dup-msg">このボトルIDは既に存在します。</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">重複しない最小の連番の提案：</div>
+    <div id="dup-suggest" style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--gold-d);background:var(--cream2);border-radius:var(--r);padding:10px 16px;margin-bottom:18px;text-align:center"></div>
+    <div class="cacts">
+      <button class="btn bg2" id="dup-cancel">キャンセル</button>
+      <button class="btn bp" id="dup-apply">この連番を使う</button>
+    </div>
+  </div>
+</div>
+
+<!-- ボトルデータモーダル -->
+<div class="mbg" id="m-bdata">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-bdata">ボトルデータ登録</div><button class="mx" data-close="m-bdata">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-bdata">—<span class="klabel">bottleDataId</span></div>
+      <div style="display:grid;grid-template-columns:1fr 70px;gap:8px;margin-bottom:12px">
+        <div class="fg" style="margin-bottom:0"><label class="fl">ボトルマスタID（12桁）<span class="req">*</span></label><input class="fi" id="bd-bottle" placeholder="ボトルIDを入力" maxlength="12" readonly style="background:var(--cream2)"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">連番</label><input class="fi" id="bd-seq" placeholder="T00001" maxlength="6" readonly style="background:var(--cream2)"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">NOM<span class="req">*</span></label><input class="fi" id="bd-nom" placeholder="1079" maxlength="4"></div>
+        <div class="fg"><label class="fl">ブランド<span class="req">*</span></label><select class="fs" id="bd-brand"><option value="">NOM入力後に選択</option></select></div>
+        <div class="fg"><label class="fl">ボトルマスタ<span class="req">*</span></label><select class="fs" id="bd-master"><option value="">ブランド選択後に選択</option></select></div>
+      </div>
+      <hr class="fsep">
+      <div id="bd-master-panel" style="display:none;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">ボトルマスタ参照情報</div>
+        <div style="background:var(--cream2);border-radius:var(--r);border:1px solid var(--border);padding:10px 14px">
+          <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:6px" id="bd-ref-name">—</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--ink3)">
+            <span>ID: <span class="mono" id="bd-ref-id" style="color:var(--ink2)">—</span></span>
+            <span>クラス: <span id="bd-ref-class" style="color:var(--ink2)">—</span></span>
+            <span>ABV: <span id="bd-ref-abv" style="color:var(--ink2)">—</span></span>
+            <span>生産区分: <span id="bd-ref-prod" style="color:var(--ink2)">—</span></span>
+            <span>色素濾過: <span id="bd-ref-flt" style="color:var(--ink2)">—</span></span>
+            <span>添加物: <span id="bd-ref-add" style="color:var(--ink2)">—</span></span>
+          </div>
+        </div>
+      </div>
+      <hr class="fsep">
+      <div class="frow c4">
+        <div class="fg"><label class="fl">ロット番号</label><input class="fi" id="bd-lot" placeholder="N/A" maxlength="20"></div>
+        <div class="fg"><label class="fl">容量（ml）</label><input class="fi" id="bd-vol" type="number" min="0" value="750"></div>
+        <div class="fg"><label class="fl">残量（ml）</label><input class="fi" id="bd-remain" type="number" min="0" value="750"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">10ml単価（円）</label><input class="fi" id="bd-price" type="number" min="0" placeholder="120"></div>
+        <div class="fg"><label class="fl">公開区分</label><select class="fs" id="bd-pub"><option value="0">0: OP（公開）</option><option value="1">1: CL（非公開）</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">購入日</label><div class="date-group"><input class="fi dy" id="bd-buy-date-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="bd-buy-date-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="bd-buy-date-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="bd-buy-date"></div>
+        <div class="fg"><label class="fl">提供開始日</label><div class="date-group"><input class="fi dy" id="bd-start-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="bd-start-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="bd-start-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="bd-start"></div>
+        <div class="fg"><label class="fl">提供終了日</label><div class="date-group"><input class="fi dy" id="bd-end-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="bd-end-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="bd-end-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="bd-end"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">仕入れ価格（円）</label><input class="fi" id="bd-cost" type="number" min="0" placeholder="5000"></div>
+        <div class="fg"><label class="fl">仕入れ区分</label><select class="fs" id="bd-import"><option value="0">0: 日本</option><option value="1">1: 米国</option><option value="2">2: メキシコ</option><option value="3">3: EU</option><option value="4">4: 英国</option><option value="5">5: その他</option></select></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-bdata">キャンセル</button><button class="btn bp" id="btn-save-bdata">保存</button></div>
+  </div>
+</div>
+
+<!-- 削除確認 -->
+<div class="cbg" id="confirm-bg">
+  <div class="ccard">
+    <div class="cmsg" id="confirm-msg">削除しますか？</div>
+    <div class="cacts"><button class="btn bg2" id="confirm-cancel">キャンセル</button><button class="btn bd" id="confirm-ok">削除する</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+if (!firebase.apps.length) { firebase.initializeApp(FIREBASE_CONFIG); }
+var auth = firebase.auth();
+var db   = firebase.firestore();
+
+// ── ユーティリティ ─────────────────────────────────────────────
+function g(id)      { return document.getElementById(id); }
+function gv(id)     { var el=g(id); return el?el.value.trim():""; }
+function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
+function pad(s,n)   { return String(s||"").padStart(n,"0"); }
+function lnk(url,l) { return url?'<a href="'+url+'" target="_blank" style="color:var(--gold-d);font-size:11px">'+l+'</a>':'<span class="dim">—</span>'; }
+function setCnt(col,n){ var el=g("cnt-"+col); if(el) el.textContent=n; }
+function toast(msg,type){
+  var el=document.createElement("div");
+  el.className="toast t"+(type||"ok");
+  el.textContent=(type==="err"?"✕ ":type==="inf"?"ℹ ":"✓ ")+msg;
+  g("toasts").appendChild(el);
+  setTimeout(function(){el.remove();},3000);
+}
+function openM(id)  { g(id).classList.add("open"); }
+function closeM(id) { g(id).classList.remove("open"); }
+
+var FORM_MODALS=["m-class","m-brand","m-bottle","m-bdata"];
+function isFormModal(id){ return FORM_MODALS.indexOf(id)>=0; }
+function confirmClose(id){
+  if(isFormModal(id)){ if(!confirm("登録作業を中止しますか？\n入力内容は破棄されます。")) return; }
+  g(id).classList.remove("open");
+}
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("[data-close]");
+  if(btn){ confirmClose(btn.dataset.close); return; }
+  if(e.target.classList.contains("mbg")){ var id=e.target.id; if(id) confirmClose(id); }
+});
+
+var confirmCb=null;
+g("confirm-cancel").addEventListener("click",function(){ g("confirm-bg").classList.remove("open"); });
+g("confirm-ok").addEventListener("click",function(){ if(confirmCb) confirmCb(); g("confirm-bg").classList.remove("open"); });
+function confirmDel(msg,cb){ g("confirm-msg").textContent=msg; confirmCb=cb; g("confirm-bg").classList.add("open"); }
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function classBadge(code,esName){
+  var BG={"1":"","2":"#FAEEDA","3":"#F9D98A","4":"#FAC775","5":"#EF9F27"};
+  var TC={"1":"","2":"#633806","3":"#633806","4":"#633806","5":"#412402"};
+  var bg=BG[code]||""; var tc=TC[code]||"var(--gold-d)";
+  if(!bg) return '<span class="badge bg-gold">'+esName+'</span>';
+  return '<span class="badge" style="background:'+bg+';color:'+tc+';border:1px solid rgba(0,0,0,.08)">'+esName+'</span>';
+}
+function badge(t,c){ return '<span class="badge '+c+'">'+t+'</span>'; }
+
+// 定数
+var BRAND_TYPE={"0":"蒸留所ブランド","1":"委託ブランド"};
+var BRAND_ST={"0":"稼働中","1":"終売","2":"移転"};
+var CLASS_CAT={"0":"100% Agave","1":"Mixto"};
+var CLASS_CLS={"1":"Blanco","2":"Joven/Gold","3":"Reposado","4":"Añejo","5":"Extra Añejo"};
+var PUB_ST={"0":"OP","1":"CL"};
+
+// ── キャッシュ ──────────────────────────────────────────────────
+var cache={distilleries:[],brands:[],classes:[],bottles:[],bdata:[]};
+var editId={brand:null,klass:null,bottle:null,bdata:null};
+var sortState={};
+
+// ── 認証 ───────────────────────────────────────────────────────
+try {
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      g("login-screen").style.display="none";
+      g("app").style.display="block";
+      g("temail").textContent=user.email;
+      loadAll();
+    } else {
+      g("login-screen").style.display="flex";
+      g("app").style.display="none";
+    }
+  });
+} catch(e){ g("lerr").textContent="Firebase接続エラー: "+e.message; }
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"), pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){ g("lerr").textContent="メールアドレスとパスワードを入力してください"; return; }
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ g("lbtn").textContent="ログイン"; })
+    .catch(function(e){ g("lerr").textContent="ログイン失敗: "+e.message; g("lbtn").textContent="ログイン"; });
+});
+g("lpass").addEventListener("keydown",function(e){ if(e.key==="Enter") g("lbtn").click(); });
+g("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+
+// ── タブナビゲーション ──────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    var page=this.dataset.page;
+    document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
+    g("page-"+page).classList.add("active");
+    this.classList.add("active");
+  });
+});
+document.querySelector('[data-page="bdata"]').addEventListener("click",function(){
+  if(!cache.bdata.length) loadBdata();
+});
+
+// ── データ読み込み ──────────────────────────────────────────────
+function loadAll(){
+  ["distilleries","brands","classes","bottles"].forEach(loadCol);
+}
+
+function loadCol(col){
+  db.collection(col).get()
+    .then(function(snap){
+      cache[col]=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      setCnt(col,cache[col].length);
+      render(col);
+      if(col==="classes"){ updateClassSel(); updateBottleFilters(); }
+      if(col==="distilleries"){ updateBottleFilters(); updateBrandNomFilter(); updateBdataFilters(); }
+      if(col==="brands"){ updateBottleFilters(); updateBdataFilters(); }
+    })
+    .catch(function(e){ toast("読込失敗("+col+"): "+e.message,"err"); });
+}
+
+// ── フィルター更新 ──────────────────────────────────────────────
+function updateBrandNomFilter(){
+  var sel=g("f-br-nom"); if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">全NOM</option>'+
+    cache.distilleries.map(function(d){
+      return '<option value="'+d.nom+'">'+(d.nom||d.id)+' — '+(d.nomJa||d.nomEs||"")+'</option>';
+    }).join("");
+  if(cur) sel.value=cur;
+}
+
+function updateBottleFilters(){
+  var brdSel=g("f-bt-brand"); if(brdSel){
+    var curBrd=brdSel.value;
+    brdSel.innerHTML='<option value="">全ブランド</option>'+
+      cache.brands.map(function(b){ return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+'</option>'; }).join("");
+    if(curBrd) brdSel.value=curBrd;
+  }
+  var nomSel=g("f-bt-nom"); if(nomSel){
+    var curNom=nomSel.value;
+    nomSel.innerHTML='<option value="">全NOM</option>'+
+      cache.distilleries.map(function(d){ return '<option value="'+(d.nom||d.id)+'">'+(d.nom||d.id)+' — '+(d.nomJa||d.nomEs||"")+'</option>'; }).join("");
+    if(curNom) nomSel.value=curNom;
+  }
+  var clsSel=g("f-bt-class"); if(clsSel){
+    var curCls=clsSel.value;
+    clsSel.innerHTML='<option value="">全クラス</option>'+
+      cache.classes.map(function(c){
+        var label=(CLASS_CLS[c.id[1]]||c.id[1])+(c.classNameJa?" / "+c.classNameJa:"");
+        return '<option value="'+c.id+'">'+label+'</option>';
+      }).join("");
+    if(curCls) clsSel.value=curCls;
+  }
+}
+
+function updateClassSel(){
+  var sel=g("bt-class"); if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">選択...</option>'+
+    cache.classes.map(function(c){
+      var jaLabel=c.classNameJa?' / '+c.classNameJa:'';
+      return '<option value="'+c.id+'">'+c.id+' — '+(CLASS_CAT[c.id[0]]||c.id[0])+' / '+(CLASS_CLS[c.id[1]]||c.id[1])+jaLabel+'</option>';
+    }).join("");
+  if(cur) sel.value=cur;
+}
+
+function updateBdataFilters(){
+  var nomSel=g("f-bd-nom"); if(nomSel){
+    var cur=nomSel.value;
+    nomSel.innerHTML='<option value="">全NOM</option>'+
+      cache.distilleries.map(function(d){ return '<option value="'+(d.nom||d.id)+'">'+(d.nom||d.id)+' — '+(d.nomJa||d.nomEs||"")+'</option>'; }).join("");
+    if(cur) nomSel.value=cur;
+  }
+  var brdSel=g("f-bd-brand"); if(brdSel){
+    var curB=brdSel.value;
+    brdSel.innerHTML='<option value="">全ブランド</option>'+
+      cache.brands.map(function(b){ return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+'</option>'; }).join("");
+    if(curB) brdSel.value=curB;
+  }
+}
+
+// ── フィルター入力バインド ──────────────────────────────────────
+function addFilter(ids,col){
+  ids.forEach(function(id){
+    var el=g(id); if(!el) return;
+    el.addEventListener("input",function(){ render(col); });
+    el.addEventListener("change",function(){ render(col); });
+  });
+}
+addFilter(["f-cl-cat","f-cl-cls"],"classes");
+addFilter(["s-br","f-br-nom","f-br-type","f-br-st"],"brands");
+addFilter(["s-bt","f-bt-nom","f-bt-brand","f-bt-class","f-bt-abv-min","f-bt-abv-max"],"bottles");
+addFilter(["s-bd","f-bd-nom","f-bd-brand","f-bd-pub"],"bdata");
+
+// NOMフィルター変更でブランドも絞り込み（ボトルページ）
+var fBtNom=g("f-bt-nom"); if(fBtNom) fBtNom.addEventListener("change",function(){
+  var nom=this.value;
+  var brdSel=g("f-bt-brand"); if(!brdSel) return;
+  var cur=brdSel.value;
+  var filtered=nom?cache.brands.filter(function(b){return b.id.slice(0,4)===nom;}):cache.brands;
+  brdSel.innerHTML='<option value="">全ブランド</option>'+filtered.map(function(b){
+    return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+'</option>';
+  }).join("");
+  if(cur&&filtered.some(function(b){return b.id===cur;})) brdSel.value=cur;
+  render("bottles");
+});
+
+// ── ソート ─────────────────────────────────────────────────────
+["classes","brands","bottles","bdata"].forEach(function(col){
+  var btn=g("btn-sort-"+col); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState[col]={key:gv("sort-key-"+col),dir:gv("sort-dir-"+col)};
+    render(col);
+  });
+});
+function applySortToList(list,col){
+  var st=sortState[col]; if(!st) return list;
+  var key=st.key, dir=st.dir;
+  return list.slice().sort(function(a,b){
+    var av=a[key]!==undefined&&a[key]!==null?a[key]:"";
+    var bv=b[key]!==undefined&&b[key]!==null?b[key]:"";
+    var an=parseFloat(av),bn=parseFloat(bv);
+    var cmp=(!isNaN(an)&&!isNaN(bn))?(an-bn):String(av).localeCompare(String(bv),"ja");
+    return dir==="desc"?-cmp:cmp;
+  });
+}
+
+// ── テーブルレンダリング ────────────────────────────────────────
+function render(col){
+  if(col==="bdata"){ renderBdata(); return; }
+  var list=cache[col]?cache[col].slice():[];
+  var tb=g("tb-"+col); if(!tb) return;
+
+  if(col==="classes"){
+    var cat=gv("f-cl-cat"),cls=gv("f-cl-cls");
+    list=list.filter(function(r){ return (!cat||r.id[0]===cat)&&(!cls||r.id[1]===cls); });
+  } else if(col==="brands"){
+    var q=(g("s-br")||{value:""}).value.toLowerCase(),nom=gv("f-br-nom"),t=gv("f-br-type"),s=gv("f-br-st");
+    list=list.filter(function(r){
+      return (!q||(r.brandEs||"").toLowerCase().indexOf(q)>=0||(r.brandJa||"").toLowerCase().indexOf(q)>=0)&&
+             (!nom||r.id.slice(0,4)===nom)&&(!t||r.brandType===t)&&(!s||r.brandStatus===s);
+    });
+  } else if(col==="bottles"){
+    var q=(g("s-bt")||{value:""}).value.toLowerCase(),nom=gv("f-bt-nom"),brd=gv("f-bt-brand"),cls=gv("f-bt-class"),abvMin=gv("f-bt-abv-min"),abvMax=gv("f-bt-abv-max");
+    list=list.filter(function(r){
+      if(q&&(r.bottleEs||"").toLowerCase().indexOf(q)<0&&(r.bottleJa||"").toLowerCase().indexOf(q)<0) return false;
+      if(nom&&(r.brandId||"").slice(0,4)!==nom) return false;
+      if(brd&&r.brandId!==brd) return false;
+      if(cls&&r.classId!==cls) return false;
+      if(abvMin&&(r.abv||0)<parseInt(abvMin)) return false;
+      if(abvMax&&(r.abv||0)>parseInt(abvMax)) return false;
+      return true;
+    });
+  }
+
+  list=applySortToList(list,col);
+  if(!list.length){ tb.innerHTML='<tr><td colspan="20" class="ec">データがありません</td></tr>'; return; }
+
+  if(col==="classes"){
+    tb.innerHTML=list.map(function(r){
+      return '<tr><td class="mono">'+r.id+'</td><td>'+badge(CLASS_CAT[r.id[0]]||r.id[0],r.id[0]==="0"?"bg-teal":"bg-gray")+'</td><td>'+classBadge(r.id[1],CLASS_CLS[r.id[1]]||r.id[1])+'</td><td>'+(r.classNameJa?classBadge(r.id[1],r.classNameJa):'<span class="dim">—</span>')+'</td><td>'+(r.abbr?classBadge(r.id[1],r.abbr):'<span class="dim">—</span>')+'</td><td><div class="acts"><button class="btn bs sm" data-edit-class="'+r.id+'">編集</button><button class="btn bs sm" data-copy-class="'+r.id+'">コピー</button><button class="btn bd sm" data-del="classes" data-del-id="'+r.id+'" data-del-label="クラス">削除</button></div></td></tr>';
+    }).join("");
+  } else if(col==="brands"){
+    tb.innerHTML=list.map(function(r){
+      return '<tr><td class="mono" style="font-size:11px">'+r.id+'</td><td class="mono">'+(r.distilleryId||r.id.slice(0,4))+'</td><td>'+(r.brandEs||"—")+'</td><td class="dim">'+(r.brandJa||"—")+'</td><td>'+(r.brandType==="0"?'<span class="badge bg-teal">蒸</span>':'<span class="badge bg-blue">委</span>')+'</td><td>'+(r.brandStatus==="0"?'<span class="badge bg-teal">稼</span>':r.brandStatus==="1"?'<span class="badge bg-red">終</span>':'<span class="badge bg-yellow">移</span>')+'</td><td>'+lnk(r.ammUrl,"AMM")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-brand="'+r.id+'">編集</button><button class="btn bs sm" data-copy-brand="'+r.id+'">コピー</button><button class="btn bd sm" data-del="brands" data-del-id="'+r.id+'" data-del-label="ブランド">削除</button></div></td></tr>';
+    }).join("");
+  } else if(col==="bottles"){
+    tb.innerHTML=list.map(function(r){
+      var br=cache.brands.find(function(b){return b.id===r.brandId;});
+      var cls=r.classId?cache.classes.find(function(c){return c.id===r.classId;}):null;
+      var abbr=cls?cls.abbr:"";
+      return '<tr><td class="mono" style="font-size:10px">'+r.id+'</td><td>'+(r.bottleEs||r.bottleJa||"—")+'</td><td class="dim" style="font-size:11px">'+(br?br.brandEs+' ('+r.brandId.slice(0,4)+')':r.brandId||"—")+'</td><td class="dim" style="font-size:11px">'+(abbr?classBadge(r.classId[1],abbr):'<span class="dim">—</span>')+'</td><td class="mono dim">'+(r.abv!==null&&r.abv!==undefined?parseFloat(r.abv).toFixed(1)+"%":"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-bottle="'+r.id+'">編集</button><button class="btn bs sm" data-copy-bottle="'+r.id+'">コピー</button><button class="btn bd sm" data-del="bottles" data-del-id="'+r.id+'" data-del-label="ボトル">削除</button></div></td></tr>';
+    }).join("");
+  }
+}
+
+// ── テーブル内ボタン委任 ────────────────────────────────────────
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  if(btn.dataset.editClass)   { openClassModal(btn.dataset.editClass); return; }
+  if(btn.dataset.editBrand)   { openBrandModal(btn.dataset.editBrand); return; }
+  if(btn.dataset.editBottle)  { openBottleModal(btn.dataset.editBottle); return; }
+  if(btn.dataset.editBdata)   { openBdataModal(btn.dataset.editBdata); return; }
+  if(btn.dataset.copyClass)   { copyClassModal(btn.dataset.copyClass); return; }
+  if(btn.dataset.copyBrand)   { copyBrandModal(btn.dataset.copyBrand); return; }
+  if(btn.dataset.copyBottle)  { copyBottleModal(btn.dataset.copyBottle); return; }
+  if(btn.dataset.copyBdata)   { copyBdataModal(btn.dataset.copyBdata); return; }
+  if(btn.dataset.del){
+    var col=btn.dataset.del,id=btn.dataset.delId,label=btn.dataset.delLabel;
+    confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
+      db.collection(col).doc(id).delete()
+        .then(function(){ toast(label+"を削除しました"); loadCol(col==="bottleData"?"bdata":col); if(col==="bottleData"){ cache.bdata=cache.bdata.filter(function(d){return d.id!==id;}); renderBdata(); } else { loadCol(col); } })
+        .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
+    });
+  }
+});
+
+// ── クラス ────────────────────────────────────────────────────
+function updateClassKey(){
+  var cat=gv("cl-cat")||"0",cls=gv("cl-cls")||"1";
+  g("kb-class").innerHTML='<span class="keypart kp-cat">'+cat+'</span><span class="keypart kp-cls">'+cls+'</span><span class="klabel">classId</span>';
+}
+["cl-cat","cl-cls"].forEach(function(id){
+  var el=g(id); if(el) el.addEventListener("change",function(){
+    updateClassKey();
+    if(id==="cl-cls"){ var def={"1":"B","2":"J","3":"R","4":"A","5":"X"}; sv("cl-abbr",def[gv("cl-cls")]||""); }
+  });
+});
+
+g("btn-open-class").addEventListener("click",function(){ openClassModal(null); });
+function openClassModal(id){
+  editId.klass=id; g("mt-class").textContent=id?"クラス編集":"クラス登録";
+  var catEl=g("cl-cat"),clsEl=g("cl-cls");
+  var ABBR_DEF={"1":"B","2":"J","3":"R","4":"A","5":"X"};
+  if(id){ var r=cache.classes.find(function(c){return c.id===id;}); sv("cl-cat",id[0]); sv("cl-cls",id[1]); sv("cl-name-ja",r?r.classNameJa:""); sv("cl-abbr",r?r.abbr||ABBR_DEF[id[1]]||"":""); catEl.disabled=true; clsEl.disabled=true; }
+  else  { sv("cl-cat","0"); sv("cl-cls","1"); sv("cl-name-ja",""); sv("cl-abbr",ABBR_DEF[gv("cl-cls")]||""); catEl.disabled=false; clsEl.disabled=false; }
+  updateClassKey(); openM("m-class");
+}
+function copyClassModal(id){
+  var r=cache.classes.find(function(c){return c.id===id;});
+  editId.klass=null; g("mt-class").textContent="クラス登録（コピー）";
+  sv("cl-cat",id[0]); sv("cl-cls",id[1]); sv("cl-name-ja",r?r.classNameJa:""); sv("cl-abbr",r?r.abbr||{"1":"B","2":"J","3":"R","4":"A","5":"X"}[id[1]]||"":"");
+  var catEl=g("cl-cat"),clsEl=g("cl-cls");
+  catEl.disabled=false; clsEl.disabled=false;
+  updateClassKey(); openM("m-class");
+}
+g("btn-save-class").addEventListener("click",function(){
+  var cat=gv("cl-cat")||"0",cls=gv("cl-cls")||"1";
+  var id=editId.klass||(cat+cls);
+  db.collection("classes").doc(id).set({classId:id,classNameJa:gv("cl-name-ja")||null,abbr:gv("cl-abbr")||null},{merge:true})
+    .then(function(){ toast(editId.klass?"クラスを更新しました":"クラスを登録しました"); closeM("m-class"); loadCol("classes"); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ── ブランド ───────────────────────────────────────────────────
+function updateBrandKey(){
+  var dis=gv("br-dis"),seq=pad(gv("br-seq"),3);
+  g("kb-brand").innerHTML=(dis.length===4&&seq.replace(/^0+/,""))?'<span class="keypart kp-nom">'+dis+'</span><span class="keypart kp-seq">'+seq+'</span><span class="klabel">brandId</span>':'—<span class="klabel">brandId</span>';
+}
+["br-dis","br-seq"].forEach(function(id){ var el=g(id); if(el) el.addEventListener("input",updateBrandKey); });
+
+g("btn-open-brand").addEventListener("click",function(){ openBrandModal(null); });
+function openBrandModal(id){
+  editId.brand=id; g("mt-brand").textContent=id?"ブランド編集":"ブランド登録";
+  var disEl=g("br-dis"),seqEl=g("br-seq");
+  if(id){ var r=cache.brands.find(function(b){return b.id===id;}); sv("br-dis",id.slice(0,4)); sv("br-seq",id.slice(4,7)); sv("br-type",r?r.brandType:"0"); sv("br-st",r?r.brandStatus:"0"); sv("br-es",r?r.brandEs:""); sv("br-ja",r?r.brandJa:""); sv("br-year",r?r.foundedYear:""); sv("br-info",r?r.infoUrl:""); sv("br-amm",r?r.ammUrl:""); disEl.readOnly=true; disEl.style.background="var(--cream2)"; seqEl.readOnly=true; seqEl.style.background="var(--cream2)"; }
+  else  { ["br-dis","br-es","br-ja","br-year","br-info","br-amm"].forEach(function(i){sv(i,"");}); sv("br-seq","001"); sv("br-type","0"); sv("br-st","0"); disEl.readOnly=false; disEl.style.background=""; seqEl.readOnly=false; seqEl.style.background=""; }
+  updateBrandKey(); openM("m-brand");
+}
+function copyBrandModal(id){
+  var r=cache.brands.find(function(b){return b.id===id;});
+  editId.brand=null; g("mt-brand").textContent="ブランド登録（コピー）";
+  var brSeq=parseInt(id.slice(4,7))||0; sv("br-dis",id.slice(0,4)); sv("br-seq",String(brSeq+1).padStart(3,"0"));
+  sv("br-type",r?r.brandType:"0"); sv("br-st",r?r.brandStatus:"0");
+  sv("br-es",r?r.brandEs:""); sv("br-ja",r?r.brandJa:"");
+  sv("br-year",r?r.foundedYear:""); sv("br-info",r?r.infoUrl:""); sv("br-amm",r?r.ammUrl:"");
+  var disEl=g("br-dis"),seqEl=g("br-seq");
+  disEl.readOnly=false; disEl.style.background=""; seqEl.readOnly=false; seqEl.style.background="";
+  updateBrandKey(); openM("m-brand");
+}
+g("btn-save-brand").addEventListener("click",function(){
+  var dis=gv("br-dis"),seq=pad(gv("br-seq"),3),es=gv("br-es");
+  if(dis.length!==4||!seq.replace(/^0+/,"")||!es){ toast("蒸留所ID(4桁)・連番・ブランド名(A)は必須です","err"); return; }
+  var id=editId.brand||(dis+seq);
+  db.collection("brands").doc(id).set({brandId:id,distilleryId:dis,seq:seq,brandType:gv("br-type")||"0",brandStatus:gv("br-st")||"0",brandEs:es,brandJa:gv("br-ja")||null,foundedYear:parseInt(gv("br-year"))||null,infoUrl:gv("br-info")||null,ammUrl:gv("br-amm")||null},{merge:true})
+    .then(function(){ toast(editId.brand?"ブランドを更新しました":"ブランドを登録しました"); closeM("m-brand"); loadCol("brands"); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ── ボトルマスタ ───────────────────────────────────────────────
+function updateBottleKey(){
+  var br=gv("bt-brand"),cl=gv("bt-class"),seq=pad(gv("bt-seq"),3);
+  g("kb-bottle").innerHTML=(br.length===7&&cl.length===2&&seq.replace(/^0+/,""))?'<span class="keypart kp-nom">'+br.slice(0,4)+'</span><span class="keypart kp-seq">'+br.slice(4,7)+'</span><span class="keypart kp-cls">'+cl+'</span><span class="keypart kp-flt">'+seq+'</span><span class="klabel">bottleId</span>':'—<span class="klabel">bottleId</span>';
+}
+function autoSetBottleSeq(){
+  var brandId=gv("bt-brand"),classId=gv("bt-class");
+  if(!brandId||!classId) return;
+  var prefix=brandId+classId; var maxSeq=0;
+  cache.bottles.forEach(function(b){ if(b.id&&b.id.slice(0,9)===prefix){ var s=parseInt(b.id.slice(9,12))||0; if(s>maxSeq) maxSeq=s; } });
+  var seqEl=g("bt-seq");
+  seqEl.readOnly=false; seqEl.style.background="";
+  sv("bt-seq",String(maxSeq+1).padStart(3,"0"));
+  seqEl.readOnly=true; seqEl.style.background="var(--cream2)";
+  updateBottleKey();
+}
+function autoSetBottleJa(){
+  var brandId=gv("bt-brand"),classId=gv("bt-class");
+  if(!brandId||!classId) return;
+  var brand=cache.brands.find(function(b){return b.id===brandId;});
+  var classObj=cache.classes.find(function(c){return c.id===classId;});
+  var brandJa=brand?(brand.brandJa||""):"";
+  var brandEs=brand?(brand.brandEs||""):"";
+  var classNameJa=(classObj&&classObj.classNameJa)?classObj.classNameJa:(CLASS_CLS[classId[1]]||classId[1]);
+  var classNameEs=CLASS_CLS[classId[1]]||classId[1];
+  sv("bt-ja",(brandJa?brandJa+"・":"")+classNameJa);
+  sv("bt-es",(brandEs?brandEs+" ":"")+classNameEs);
+}
+
+var btNomEl=g("bt-nom"); if(btNomEl) btNomEl.addEventListener("input",function(){
+  var nom=this.value.replace(/\D/g,""); this.value=nom;
+  var sel=g("bt-brand");
+  if(nom.length===4){
+    var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
+    sel.innerHTML=brands.length?'<option value="">選択してください</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+(b.brandJa?" / "+b.brandJa:"")+'</option>';}).join(""):'<option value="">該当ブランドなし</option>';
+  } else { sel.innerHTML='<option value="">NOM番号を入力してください</option>'; }
+  sv("bt-brand",""); updateBottleKey();
+});
+var btBrandSel=g("bt-brand"); if(btBrandSel) btBrandSel.addEventListener("change",function(){ updateBottleKey(); autoSetBottleSeq(); autoSetBottleJa(); });
+var btClassEl=g("bt-class"); if(btClassEl) btClassEl.addEventListener("change",function(){ autoSetBottleSeq(); autoSetBottleJa(); });
+
+g("btn-open-bottle").addEventListener("click",function(){ openBottleModal(null); });
+function openBottleModal(id){
+  editId.bottle=id; g("mt-bottle").textContent=id?"ボトル編集":"ボトル登録";
+  var sqEl=g("bt-seq"),nomEl=g("bt-nom"),brSel=g("bt-brand");
+  if(id){
+    var r=cache.bottles.find(function(b){return b.id===id;});
+    var nom=r?r.brandId.slice(0,4):"";
+    sv("bt-nom",nom);
+    var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
+    brSel.innerHTML='<option value="">選択...</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+(b.brandJa?" / "+b.brandJa:"")+'</option>';}).join("");
+    sv("bt-brand",r?r.brandId:""); sv("bt-seq",r?r.seq:""); updateClassSel(); sv("bt-class",r?r.classId:"");
+    nomEl.readOnly=true; nomEl.style.background="var(--cream2)"; brSel.disabled=true; brSel.style.background="var(--cream2)"; sqEl.readOnly=true; sqEl.style.background="var(--cream2)";
+    sv("bt-es",r?r.bottleEs:""); sv("bt-ja",r?r.bottleJa:""); sv("bt-abv",r?r.abv:""); sv("bt-prod",r?r.production:"0"); sv("bt-flt",r?r.filtration:"0"); sv("bt-add",r?r.additive:"0");
+    updateBottleKey();
+  } else {
+    ["bt-nom","bt-seq","bt-es","bt-ja"].forEach(function(i){sv(i,"");}); sv("bt-abv","40"); sv("bt-prod","0"); sv("bt-flt","0"); sv("bt-add","0");
+    brSel.innerHTML='<option value="">NOM番号を入力してください</option>'; brSel.disabled=false; brSel.style.background=""; nomEl.readOnly=false; nomEl.style.background=""; sqEl.readOnly=false; sqEl.style.background="";
+    updateClassSel(); g("kb-bottle").innerHTML='—<span class="klabel">bottleId</span>';
+  }
+  openM("m-bottle");
+}
+function copyBottleModal(id){
+  var r=cache.bottles.find(function(b){return b.id===id;});
+  editId.bottle=null; g("mt-bottle").textContent="ボトル登録（コピー）";
+  var sqEl=g("bt-seq"),nomEl=g("bt-nom"),brSel=g("bt-brand");
+  var nom=r?r.brandId.slice(0,4):""; sv("bt-nom",nom);
+  var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
+  brSel.innerHTML='<option value="">選択...</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+(b.brandJa?" / "+b.brandJa:"")+'</option>';}).join("");
+  sv("bt-brand",r?r.brandId:""); updateClassSel(); sv("bt-class",r?r.classId:"");
+  nomEl.readOnly=false; nomEl.style.background=""; brSel.disabled=false; brSel.style.background="";
+  sqEl.readOnly=true; sqEl.style.background="var(--cream2)";
+  autoSetBottleSeq();
+  sv("bt-es",r?r.bottleEs:""); sv("bt-ja",r?r.bottleJa:""); sv("bt-abv",r?r.abv:"");
+  sv("bt-prod",r?r.production:"0"); sv("bt-flt",r?r.filtration:"0"); sv("bt-add",r?r.additive:"0");
+  updateBottleKey(); openM("m-bottle");
+}
+
+// 重複ダイアログ
+var dupSuggestSeq="";
+g("dup-cancel").addEventListener("click",function(){ g("dup-bg").classList.remove("open"); });
+g("dup-apply").addEventListener("click",function(){
+  g("dup-bg").classList.remove("open");
+  var seqEl=g("bt-seq"); seqEl.readOnly=false; seqEl.style.background=""; sv("bt-seq",dupSuggestSeq); seqEl.readOnly=true; seqEl.style.background="var(--cream2)"; updateBottleKey();
+});
+function findMinAvailableSeq(brandId,classId){
+  var prefix=brandId+classId; var used={};
+  cache.bottles.forEach(function(b){ if(b.id&&b.id.slice(0,9)===prefix) used[parseInt(b.id.slice(9,12))]=true; });
+  for(var i=1;i<=999;i++){ if(!used[i]) return String(i).padStart(3,"0"); }
+  return null;
+}
+g("btn-save-bottle").addEventListener("click",function(){
+  var brandId=gv("bt-brand"),classId=gv("bt-class"),seq=pad(gv("bt-seq"),3);
+  if(brandId.length!==7){ toast("ブランドを選択してください","err"); return; }
+  if(classId.length!==2){ toast("クラスを選択してください","err"); return; }
+  if(!seq.replace(/^0+/,"")){ toast("連番は必須です","err"); return; }
+  var id=editId.bottle||(brandId+classId+seq);
+  if(!editId.bottle){
+    var exists=cache.bottles.some(function(b){return b.id===id;});
+    if(exists){
+      var suggest=findMinAvailableSeq(brandId,classId);
+      dupSuggestSeq=suggest||"";
+      g("dup-msg").textContent="ボトルID「"+id+"」は既に存在します。";
+      g("dup-suggest").textContent=suggest?(brandId+classId+suggest):"（空き連番なし）";
+      g("dup-bg").classList.add("open"); return;
+    }
+  }
+  db.collection("bottles").doc(id).set({bottleId:id,brandId:brandId,classId:classId,seq:seq,bottleEs:gv("bt-es")||null,bottleJa:gv("bt-ja")||null,abv:parseFloat(gv("bt-abv"))||null,production:gv("bt-prod")||"0",filtration:gv("bt-flt")||"0",additive:gv("bt-add")||"0"},{merge:true})
+    .then(function(){ toast(editId.bottle?"ボトルを更新しました":"ボトルを登録しました"); closeM("m-bottle"); loadCol("bottles"); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ボトルID移行ツール
+g("btn-migrate-bottles").addEventListener("click",function(){
+  var targets=cache.bottles.filter(function(b){return b.id&&b.id.length!==12;});
+  if(!targets.length){ toast("修正が必要なレコードはありません","inf"); return; }
+  var canFix=[],cannotFix=[];
+  targets.forEach(function(r){
+    var brandId=r.brandId||(r.id.length>=7?r.id.slice(0,7):"");
+    var classId=r.classId||"";
+    var seq=r.seq||(r.id.length>=10?r.id.slice(r.id.length-3):"");
+    if(brandId.length===7&&classId.length===2&&seq.length===3) canFix.push({r:r,newId:brandId+classId+seq,brandId:brandId,classId:classId,seq:seq});
+    else cannotFix.push(r.id+"（classId="+(classId||"なし")+"）");
+  });
+  var msgLines=["【移行対象】"+targets.length+"件","✓ 自動補完可能: "+canFix.length+"件"];
+  canFix.forEach(function(x){msgLines.push("  "+x.r.id+" → "+x.newId);});
+  if(cannotFix.length){ msgLines.push("✕ 補完不能: "+cannotFix.length+"件"); cannotFix.forEach(function(x){msgLines.push("  "+x);}); }
+  msgLines.push(""); msgLines.push("自動補完可能な"+canFix.length+"件を移行しますか？");
+  if(!canFix.length){ alert(msgLines.join("\n")); return; }
+  if(!confirm(msgLines.join("\n"))) return;
+  var batch=db.batch();
+  canFix.forEach(function(item){
+    if(item.newId===item.r.id) return;
+    batch.delete(db.collection("bottles").doc(item.r.id));
+    var data=Object.assign({},item.r,{bottleId:item.newId,brandId:item.brandId,classId:item.classId,seq:item.seq});
+    delete data.id;
+    batch.set(db.collection("bottles").doc(item.newId),data);
+  });
+  batch.commit()
+    .then(function(){ toast(canFix.length+"件を12桁に移行しました"+(cannotFix.length?"（スキップ:"+cannotFix.length+"件）":""),cannotFix.length?"inf":"ok"); loadCol("bottles"); })
+    .catch(function(e){ toast("移行失敗: "+e.message,"err"); });
+});
+
+// ── ボトルデータ ───────────────────────────────────────────────
+setCnt("bdata","—");
+
+function loadBdata(){
+  db.collection("bottleData").get()
+    .then(function(snap){
+      cache.bdata=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      setCnt("bdata",cache.bdata.length);
+      renderBdata();
+    })
+    .catch(function(e){ toast("読込失敗(bottleData): "+e.message,"err"); });
+}
+
+function renderBdata(){
+  var list=cache.bdata.slice();
+  var q=(g("s-bd")||{value:""}).value.toLowerCase();
+  var nom=gv("f-bd-nom"),brd=gv("f-bd-brand"),pub=gv("f-bd-pub");
+  list=list.filter(function(r){
+    if(q&&(r.bottleJa||r.bottleEs||"").toLowerCase().indexOf(q)<0) return false;
+    if(nom&&(r.bottleId||r.id).slice(0,4)!==nom) return false;
+    if(brd&&r.brandId!==brd) return false;
+    if(pub&&r.visibility!==pub) return false;
+    return true;
+  });
+  list=applySortToList(list,"bdata");
+  var tb=g("tb-bdata");
+  if(!list.length){ tb.innerHTML='<tr><td colspan="9" class="ec">データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var br=cache.brands.find(function(b){return b.id===r.brandId;});
+    var brName=br?(br.brandEs||"")+"("+(r.bottleId?r.bottleId.slice(0,4):r.brandId?r.brandId.slice(0,4):"")+")":(r.brandId||"—");
+    var pubBadge=r.visibility==="1"?'<span class="badge bg-gray">CL</span>':'<span class="badge bg-teal">OP</span>';
+    return '<tr><td class="mono" style="font-size:10px">'+r.id+'</td>'
+      +'<td>'+(r.bottleJa||r.bottleEs||"—")+'</td>'
+      +'<td class="dim" style="font-size:11px">'+brName+'</td>'
+      +'<td class="mono dim">'+(r.volume||"—")+'</td>'
+      +'<td class="mono dim">'+(r.abv!==null&&r.abv!==undefined?parseFloat(r.abv).toFixed(1)+"%":"—")+'</td>'
+      +'<td class="mono dim">'+(r.remaining||"—")+'</td>'
+      +'<td class="mono" style="text-align:right">'+(r.price?("¥"+Number(r.price).toLocaleString()):"—")+'</td>'
+      +'<td>'+pubBadge+'</td>'
+      +'<td><div class="acts"><button class="btn bs sm" data-edit-bdata="'+r.id+'">編集</button><button class="btn bs sm" data-copy-bdata="'+r.id+'">コピー</button><button class="btn bd sm" data-del="bottleData" data-del-id="'+r.id+'" data-del-label="ボトルデータ">削除</button></div></td></tr>';
+  }).join("");
+}
+
+// NOM入力→ブランド絞り込み（ボトルデータ登録）
+var bdNomEl=g("bd-nom"); if(bdNomEl) bdNomEl.addEventListener("input",function(){
+  var nom=this.value.replace(/\D/g,""); this.value=nom;
+  var sel=g("bd-brand");
+  if(nom.length===4){
+    var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
+    sel.innerHTML=brands.length?'<option value="">選択してください</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+(b.brandJa?" / "+b.brandJa:"")+'</option>';}).join(""):'<option value="">該当ブランドなし</option>';
+  } else { sel.innerHTML='<option value="">NOM番号を入力してください</option>'; }
+  sv("bd-brand",""); sv("bd-bottle",""); g("bd-master").innerHTML='<option value="">ブランド選択後に選択</option>';
+  var _p=g("bd-master-panel"); if(_p) _p.style.display="none"; updateBdataKey();
+});
+
+// ブランド変更→ボトルマスタ絞り込み
+var bdBrandEl=g("bd-brand"); if(bdBrandEl) bdBrandEl.addEventListener("change",function(){
+  var brandId=this.value; var sel=g("bd-master");
+  if(brandId){
+    var bottles=cache.bottles.filter(function(b){return b.brandId===brandId;});
+    sel.innerHTML=bottles.length?'<option value="">選択してください</option>'+bottles.map(function(b){
+      var cls=cache.classes.find(function(c){return c.id===b.classId;});
+      var clsName=cls?(cls.classNameJa||CLASS_CLS[b.classId[1]]||b.classId):"";
+      return '<option value="'+b.id+'">'+b.id+' — '+(b.bottleJa||b.bottleEs||"")+(clsName?" / "+clsName:"")+'</option>';
+    }).join(""):'<option value="">該当ボトルなし</option>';
+  } else { sel.innerHTML='<option value="">ブランド選択後に選択</option>'; }
+  sv("bd-bottle",""); var _p=g("bd-master-panel"); if(_p) _p.style.display="none"; updateBdataKey();
+});
+
+// ボトルマスタ選択→情報表示・連番自動セット
+var bdMasterEl=g("bd-master"); if(bdMasterEl) bdMasterEl.addEventListener("change",function(){
+  var bottleId=this.value; sv("bd-bottle",bottleId);
+  if(bottleId){
+    var b=cache.bottles.find(function(x){return x.id===bottleId;});
+    var br=b?cache.brands.find(function(x){return x.id===b.brandId;}):null;
+    var cls=b?cache.classes.find(function(x){return x.id===b.classId;}):null;
+    var panel=g("bd-master-panel");
+    if(b&&panel){
+      panel.style.display="block";
+      var brName=br?(br.brandEs||"")+(br.brandJa?" / "+br.brandJa:""):"";
+      g("bd-ref-name").textContent=(b.bottleJa||b.bottleEs||"")+(brName?" — "+brName:"");
+      g("bd-ref-id").textContent=b.id;
+      g("bd-ref-class").textContent=cls?(cls.classNameJa||CLASS_CLS[b.classId[1]]||b.classId):(b.classId||"—");
+      g("bd-ref-abv").textContent=(b.abv!==null&&b.abv!==undefined)?parseFloat(b.abv).toFixed(1)+"%":"—";
+      g("bd-ref-prod").textContent={"0":"定番品","1":"限定品"}[b.production]||"—";
+      g("bd-ref-flt").textContent={"0":"なし","1":"色素濾過"}[b.filtration]||"—";
+      g("bd-ref-add").textContent={"0":"なし","1":"不明"}[b.additive]||"—";
+    }
+    autoSetBdataSeq(bottleId);
+  } else { var _p4=g("bd-master-panel"); if(_p4) _p4.style.display="none"; }
+  updateBdataKey();
+});
+
+function autoSetBdataSeq(bottleId){
+  var maxSeq=0;
+  cache.bdata.forEach(function(d){ if(d.id&&d.id.slice(0,1)==="T"){ var s=parseInt(d.id.slice(1))||0; if(s>maxSeq) maxSeq=s; } });
+  var newId="T"+String(maxSeq+1).padStart(5,"0");
+  var seqEl=g("bd-seq"); seqEl.readOnly=false; seqEl.style.background=""; sv("bd-seq",newId); seqEl.readOnly=true; seqEl.style.background="var(--cream2)";
+  updateBdataKey();
+}
+function updateBdataKey(){
+  var seq=gv("bd-seq");
+  g("kb-bdata").innerHTML=seq?'<span class="keypart kp-nom" style="color:var(--gold-d)">T</span><span class="keypart kp-seq">'+seq.slice(1)+'</span><span class="klabel">bottleDataId</span>':'—<span class="klabel">bottleDataId</span>';
+}
+
+g("btn-open-bdata").addEventListener("click",function(){ openBdataModal(null); });
+function openBdataModal(id){
+  editId.bdata=id; g("mt-bdata").textContent=id?"ボトルデータ編集":"ボトルデータ登録";
+  var bottleEl=g("bd-bottle"),seqEl=g("bd-seq");
+  if(id){
+    var r=cache.bdata.find(function(d){return d.id===id;});
+    sv("bd-bottle",r?r.bottleId||r.id.slice(0,12):""); sv("bd-seq",r?r.id:"");
+    bottleEl.readOnly=true; bottleEl.style.background="var(--cream2)"; seqEl.readOnly=true; seqEl.style.background="var(--cream2)";
+    var nom=r?(r.bottleId||r.id).slice(0,4):""; sv("bd-nom",nom);
+    var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
+    var brandSel=g("bd-brand");
+    brandSel.innerHTML='<option value="">選択...</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+'</option>';}).join("");
+    sv("bd-brand",r?r.brandId:"");
+    var bottles=cache.bottles.filter(function(b){return b.brandId===(r?r.brandId:"");});
+    var masterSel=g("bd-master");
+    masterSel.innerHTML='<option value="">選択...</option>'+bottles.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.bottleJa||b.bottleEs||"")+'</option>';}).join("");
+    sv("bd-master",r?r.bottleId||r.id.slice(0,12):"");
+    var _rp=g("bd-master-panel"); if(_rp) _rp.style.display="none";
+    sv("bd-lot",r?r.lotNo:"N/A"); sv("bd-vol",r?r.volume:750); sv("bd-remain",r?r.remaining:750);
+    sv("bd-price",r?r.price:""); sv("bd-pub",r?r.visibility:"0");
+    sv("bd-buy-date",r?r.purchaseDate:todayStr()); sv("bd-start",r?r.serveStart:todayStr()); sv("bd-end",r?r.serveEnd:"");
+    sv("bd-cost",r?r.cost:""); sv("bd-import",r?r.importType:"0");
+  } else {
+    sv("bd-nom",""); sv("bd-bottle",""); sv("bd-seq","");
+    g("bd-brand").innerHTML='<option value="">NOM入力後に選択</option>';
+    g("bd-master").innerHTML='<option value="">ブランド選択後に選択</option>';
+    var _rp2=g("bd-master-panel"); if(_rp2) _rp2.style.display="none";
+    bottleEl.readOnly=false; bottleEl.style.background=""; seqEl.readOnly=true; seqEl.style.background="var(--cream2)";
+    sv("bd-lot","N/A"); sv("bd-vol",750); sv("bd-remain",750);
+    sv("bd-price",""); sv("bd-pub","0");
+    sv("bd-buy-date",todayStr()); sv("bd-start",todayStr()); sv("bd-end","");
+    sv("bd-cost",""); sv("bd-import","0");
+    g("kb-bdata").innerHTML='—<span class="klabel">bottleDataId</span>';
+  }
+  updateBdataKey(); openM("m-bdata");
+}
+function copyBdataModal(id){
+  var r=cache.bdata.find(function(d){return d.id===id;});
+  openBdataModal(null);
+  var nom=r?(r.bottleId||r.id).slice(0,4):""; sv("bd-nom",nom);
+  var e=new Event("input"); g("bd-nom").dispatchEvent(e);
+  setTimeout(function(){
+    sv("bd-brand",r?r.brandId:"");
+    var e2=new Event("change"); g("bd-brand").dispatchEvent(e2);
+    setTimeout(function(){
+      sv("bd-master",r?r.bottleId||r.id.slice(0,12):"");
+      var e3=new Event("change"); g("bd-master").dispatchEvent(e3);
+      sv("bd-lot",r?r.lotNo:"N/A"); sv("bd-vol",r?r.volume:750); sv("bd-remain",r?r.remaining:750);
+      sv("bd-price",r?r.price:""); sv("bd-pub",r?r.visibility:"0");
+      sv("bd-buy-date",todayStr()); sv("bd-start",todayStr()); sv("bd-end","");
+      sv("bd-cost",r?r.cost:""); sv("bd-import",r?r.importType:"0");
+    },50);
+  },50);
+}
+g("btn-save-bdata").addEventListener("click",function(){
+  var bottleId=gv("bd-bottle"),seq=gv("bd-seq");
+  if(bottleId.length!==12){ toast("ボトルマスタを選択してください","err"); return; }
+  if(!seq){ toast("連番が設定されていません","err"); return; }
+  var id=editId.bdata||seq;
+  if(!editId.bdata&&cache.bdata.some(function(d){return d.id===id;})){ toast("ボトルデータID「"+id+"」は既に存在します","err"); return; }
+  var b=cache.bottles.find(function(x){return x.id===bottleId;});
+  db.collection("bottleData").doc(id).set({
+    bottleDataId:id, bottleId:bottleId, brandId:b?b.brandId:gv("bd-brand"), seq:seq,
+    bottleEs:b?b.bottleEs||null:null, bottleJa:b?b.bottleJa||null:null,
+    classId:b?b.classId||null:null, abv:b?b.abv||null:null,
+    production:b?b.production||null:null, filtration:b?b.filtration||null:null, additive:b?b.additive||null:null,
+    lotNo:gv("bd-lot")||"N/A", volume:parseInt(gv("bd-vol"))||750, remaining:parseInt(gv("bd-remain"))||750,
+    price:parseInt(gv("bd-price"))||null, visibility:gv("bd-pub")||"0",
+    purchaseDate:gv("bd-buy-date")||null, serveStart:gv("bd-start")||null, serveEnd:gv("bd-end")||null,
+    cost:parseInt(gv("bd-cost"))||null, importType:gv("bd-import")||"0"
+  },{merge:true})
+  .then(function(){ toast(editId.bdata?"ボトルデータを更新しました":"ボトルデータを登録しました"); closeM("m-bdata"); loadBdata(); })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+</script>
+</body>
+</html>
