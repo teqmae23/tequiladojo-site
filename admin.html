@@ -69,7 +69,7 @@ input{font-family:var(--sans)}
 .hub-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}
 .hub-title{font-family:var(--serif);font-size:15px;font-weight:500;color:var(--ink3);letter-spacing:.18em;text-transform:uppercase;margin-bottom:36px;text-align:center}
 
-.hub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;width:100%;max-width:680px}
+.hub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;width:100%;max-width:980px}
 
 .hub-tile{
   background:var(--white);
@@ -155,6 +155,7 @@ input{font-family:var(--sans)}
 .tile-tequila   { --tile-accent:#c8921e; --tile-bg:#fdf0d0; }
 .tile-customer  { --tile-accent:#185FA5; --tile-bg:#E6F1FB; }
 .tile-data      { --tile-accent:#8c2818; --tile-bg:var(--red-l); }
+.tile-other     { --tile-accent:#5a2d82; --tile-bg:#f0e8f8; }
 
 /* フッター */
 .hub-footer{
@@ -167,7 +168,10 @@ input{font-family:var(--sans)}
 }
 
 /* レスポンシブ */
-@media(max-width:540px){
+@media(max-width:720px){
+  .hub-grid{grid-template-columns:repeat(2,1fr);max-width:540px}
+}
+@media(max-width:480px){
   .hub-grid{grid-template-columns:1fr;max-width:380px}
   .hub-tile{padding:24px 20px 22px}
 }
@@ -255,6 +259,22 @@ input{font-family:var(--sans)}
           <span class="tile-tag">来店データ</span>
           <span class="tile-tag">予約</span>
           <span class="tile-tag">カレンダー</span>
+        </div>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <!-- その他商品 -->
+      <a class="hub-tile tile-other" href="admin_other.html">
+        <div class="tile-icon-wrap">🍷</div>
+        <div class="tile-name">その他商品</div>
+        <div class="tile-desc">他酒分類・ボトルデータ、<br>その他種別・商品マスタを管理します。</div>
+        <div class="tile-tags">
+          <span class="tile-tag">他酒大分類</span>
+          <span class="tile-tag">他酒中分類</span>
+          <span class="tile-tag">他酒小分類</span>
+          <span class="tile-tag">他酒ボトル</span>
+          <span class="tile-tag">その他種別</span>
+          <span class="tile-tag">その他商品</span>
         </div>
         <span class="tile-arrow">→</span>
       </a>

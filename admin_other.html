@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テキーラ道場 — その他商品マスタ</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#18110a;--ink2:#4a3820;--ink3:#9a8470;
+  --gold:#c8921e;--gold-l:#e8b84a;--gold-d:#7a5610;
+  --teal:#1a6e58;--teal-l:#e0f0eb;
+  --red:#8c2818;--red-l:#fae8e4;
+  --purple:#5a2d82;--purple-l:#f0e8f8;
+  --cream:#faf7f1;--cream2:#f0ebe0;--cream3:#e4ddd0;--white:#fff;
+  --border:rgba(160,130,100,.18);--border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07);--shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:6px;--rl:12px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans)}
+input,select,textarea{font-family:var(--sans)}
+
+/* ログイン */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:380px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:44px 36px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:44px;margin-bottom:6px}
+.lbrand{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:2px}
+.lsub{text-align:center;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-bottom:32px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink)}
+.lcard input:focus{outline:none;border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:22px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500}
+.lbtn:hover{background:var(--gold)}
+
+/* アプリ */
+#app{display:none;min-height:100vh}
+.topbar{background:var(--ink);display:flex;align-items:flex-start;padding:8px 20px;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:4px}
+.tbrand{font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em;margin-right:8px;white-space:nowrap}
+.ttabs{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+.tab{padding:5px 10px;border:none;background:none;color:rgba(255,255,255,.42);font-size:11px;font-weight:500;border-radius:var(--r);white-space:nowrap}
+.tab:hover{color:rgba(255,255,255,.72);background:rgba(255,255,255,.06)}
+.tab.active{color:var(--gold-l);background:rgba(200,146,30,.16)}
+.tab .cnt{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:9px;font-family:var(--mono);background:rgba(255,255,255,.1);color:rgba(255,255,255,.45)}
+.tab.active .cnt{background:rgba(200,146,30,.3);color:var(--gold-l)}
+/* タブグループ区切り */
+.tab-sep{width:1px;background:rgba(255,255,255,.15);margin:4px 4px;align-self:stretch}
+.tab-group-label{font-size:9px;color:rgba(255,255,255,.25);letter-spacing:.1em;text-transform:uppercase;padding:6px 6px 0;align-self:flex-end;white-space:nowrap}
+.tuser{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.temail{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)}
+.tlogout{padding:5px 12px;border:1px solid rgba(255,255,255,.14);border-radius:var(--r);background:none;color:rgba(255,255,255,.38);font-size:11px}
+.tlogout:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+
+.content{padding:28px;max-width:1280px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--serif);font-size:28px;font-weight:500;color:var(--gold-d)}
+.pdesc{font-size:11px;color:var(--ink3);margin-top:2px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sbox{display:flex;align-items:center;gap:6px;border:1px solid var(--border2);border-radius:var(--r);padding:6px 10px;flex:1;min-width:160px;background:var(--cream)}
+.sbox input{border:none;background:none;font-size:12px;color:var(--ink);width:100%}
+.sbox input:focus{outline:none}
+.fsel{padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:12px;background:var(--cream);color:var(--ink)}
+.fsel:focus{outline:none;border-color:var(--gold)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{border-bottom:1px solid var(--border2)}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(200,146,30,.025)}
+.mono{font-family:var(--mono);font-size:11px}
+.dim{color:var(--ink3)}
+.acts{display:flex;gap:5px;justify-content:flex-end}
+.ec{text-align:center;color:var(--ink3);padding:32px!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.bg-gold{background:#fdf0d0;color:var(--gold-d);border:1px solid rgba(200,146,30,.3)}
+.bg-teal{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
+.bg-red{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}
+.bg-gray{background:var(--cream2);color:var(--ink3);border:1px solid var(--border2)}
+.bg-purple{background:var(--purple-l);color:var(--purple);border:1px solid rgba(90,45,130,.25)}
+.bg-blue{background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;white-space:nowrap}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bg2{background:none;color:var(--ink2);border:1px solid var(--border2)}.bg2:hover{background:var(--cream)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}.bd:hover{background:#f5d4ce}
+.sm{padding:5px 10px;font-size:11px}
+.mbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.mbg.open{display:flex}
+.modal{background:var(--white);border-radius:var(--rl);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-lg{max-width:720px}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px;border-bottom:1px solid var(--border)}
+.mtitle{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--gold-d)}
+.mx{background:none;border:none;font-size:22px;color:var(--ink3);line-height:1;padding:0 4px}.mx:hover{color:var(--ink)}
+.mbody{padding:20px 24px 20px 40px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase}
+.req{color:var(--red);margin-left:2px}
+.fi,.fs{padding:9px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%}
+.fi:focus,.fs:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,146,30,.1)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow.c3{grid-template-columns:1fr 1fr 1fr}
+.frow.c4{grid-template-columns:repeat(4,1fr)}
+.fsep{border:none;border-top:1px solid var(--border);margin:14px 0}
+.keybox{background:var(--ink);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--gold-l);letter-spacing:.12em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.keybox .klabel{font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.08em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.keypart{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px}
+.kp-a{background:rgba(90,45,130,.35);color:#d4aaff}
+.kp-b{background:rgba(26,110,88,.3);color:#7fe0c0}
+.kp-c{background:rgba(200,146,30,.3);color:var(--gold-l)}
+.kp-d{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+#toasts{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:6px;min-width:200px}
+.tok{background:var(--teal);color:#fff}.terr{background:var(--red);color:#fff}.tinf{background:var(--gold-d);color:var(--cream)}
+.cbg{position:fixed;inset:0;background:rgba(24,17,10,.52);z-index:2000;display:none;align-items:center;justify-content:center}
+.cbg.open{display:flex}
+.ccard{background:var(--white);border-radius:var(--rl);padding:28px;max-width:340px;width:100%;box-shadow:var(--shadow-lg);text-align:center}
+.cmsg{font-size:14px;margin-bottom:20px;color:var(--ink2);line-height:1.7}
+.cacts{display:flex;gap:8px;justify-content:center}
+.date-group{display:flex;align-items:center;gap:2px}
+.date-group input{text-align:center;padding:4px}
+.date-group .dy{width:46px}.date-group .dm{width:30px}.date-group .dd{width:30px}
+.date-sep{color:var(--ink3);font-size:13px;padding:0 1px}
+/* 階層インデント */
+.indent1{padding-left:20px}.indent2{padding-left:40px}
+</style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🍷</div>
+    <div class="lbrand">テキーラ道場</div>
+    <div class="lsub">Other Products Master</div>
+    <label>メールアドレス</label>
+    <input type="email" id="lemail" placeholder="owner@example.com">
+    <label>パスワード</label>
+    <input type="password" id="lpass" placeholder="••••••••">
+    <div class="lerr" id="lerr"></div>
+    <button class="lbtn" id="lbtn">ログイン</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="tbrand">🥃 テキーラ道場</div>
+    <a href="admin.html" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;margin-right:8px;white-space:nowrap;text-decoration:none">← ハブ</a>
+    <div class="ttabs">
+      <!-- 他酒グループ -->
+      <span class="tab-group-label">他酒</span>
+      <button class="tab active" data-page="ocat1">大分類 <span class="cnt" id="cnt-ocat1">—</span></button>
+      <button class="tab" data-page="ocat2">中分類 <span class="cnt" id="cnt-ocat2">—</span></button>
+      <button class="tab" data-page="ocat3">小分類 <span class="cnt" id="cnt-ocat3">—</span></button>
+      <button class="tab" data-page="obottles">ボトルデータ <span class="cnt" id="cnt-obottles">—</span></button>
+      <div class="tab-sep"></div>
+      <!-- その他グループ -->
+      <span class="tab-group-label">その他</span>
+      <button class="tab" data-page="mkinds">種別 <span class="cnt" id="cnt-mkinds">—</span></button>
+      <button class="tab" data-page="mproducts">商品 <span class="cnt" id="cnt-mproducts">—</span></button>
+    </div>
+    <div class="tuser">
+      <span class="temail" id="temail"></span>
+      <button class="tlogout" id="btn-logout">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── 他酒大分類 ── -->
+    <div class="page active" id="page-ocat1">
+      <div class="phead">
+        <div><div class="ptitle">他酒大分類マスタ</div><div class="pdesc">otherCat1 ID = 1桁（例: 1=ワイン, 2=ウイスキー, ...）</div></div>
+        <button class="btn bp" id="btn-open-ocat1">＋ 大分類登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-ocat1" placeholder="大分類名で検索..."></div>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-ocat1"><option value="id">ID</option><option value="name">名称</option></select>
+            <select id="sort-dir-ocat1"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-ocat1">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-ocat1">
+          <colgroup><col style="width:60px"><col><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>大分類名</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-ocat1"><tr><td colspan="3" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── 他酒中分類 ── -->
+    <div class="page" id="page-ocat2">
+      <div class="phead">
+        <div><div class="ptitle">他酒中分類マスタ</div><div class="pdesc">otherCat2 ID = 大分類1桁 + 中分類1桁 = 2桁</div></div>
+        <button class="btn bp" id="btn-open-ocat2">＋ 中分類登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-ocat2" placeholder="中分類名で検索..."></div>
+          <select class="fsel" id="f-ocat2-cat1"><option value="">全大分類</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-ocat2"><option value="id">ID</option><option value="name">名称</option></select>
+            <select id="sort-dir-ocat2"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-ocat2">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-ocat2">
+          <colgroup><col style="width:60px"><col style="width:120px"><col><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>大分類</th><th>中分類名</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-ocat2"><tr><td colspan="4" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── 他酒小分類 ── -->
+    <div class="page" id="page-ocat3">
+      <div class="phead">
+        <div><div class="ptitle">他酒小分類マスタ</div><div class="pdesc">otherCat3 ID = 大分類1桁 + 中分類1桁 + 小分類2桁 = 4桁</div></div>
+        <button class="btn bp" id="btn-open-ocat3">＋ 小分類登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-ocat3" placeholder="小分類名で検索..."></div>
+          <select class="fsel" id="f-ocat3-cat1"><option value="">全大分類</option></select>
+          <select class="fsel" id="f-ocat3-cat2"><option value="">全中分類</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-ocat3"><option value="id">ID</option><option value="name">名称</option></select>
+            <select id="sort-dir-ocat3"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-ocat3">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-ocat3">
+          <colgroup><col style="width:60px"><col style="width:120px"><col style="width:120px"><col><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>大分類</th><th>中分類</th><th>小分類名</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-ocat3"><tr><td colspan="5" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── 他酒ボトルデータ ── -->
+    <div class="page" id="page-obottles">
+      <div class="phead">
+        <div><div class="ptitle">他種ボトルデータ</div><div class="pdesc">otherBottles ID = 大分類1 + 中分類1 + 小分類2 + 連番3 = 7桁</div></div>
+        <button class="btn bp" id="btn-open-obottle">＋ ボトル登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-obottle" placeholder="ボトル名で検索..."></div>
+          <select class="fsel" id="f-ob-cat1"><option value="">全大分類</option></select>
+          <select class="fsel" id="f-ob-cat2"><option value="">全中分類</option></select>
+          <select class="fsel" id="f-ob-cat3"><option value="">全小分類</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-obottles"><option value="id">ID</option><option value="bottleName">ボトル名</option><option value="price10">10ml単価</option><option value="volume">容量</option></select>
+            <select id="sort-dir-obottles"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-obottles">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-obottles">
+          <colgroup><col style="width:80px"><col><col style="width:80px"><col style="width:80px"><col style="width:60px"><col style="width:70px"><col style="width:60px"><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>ボトル名</th><th>分類</th><th>購入日</th><th>容量</th><th>10ml単価</th><th>購入価格</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-obottles"><tr><td colspan="8" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── その他種別 ── -->
+    <div class="page" id="page-mkinds">
+      <div class="phead">
+        <div><div class="ptitle">その他種別マスタ</div><div class="pdesc">miscKinds ID = 1桁（例: 1=フード, 2=ソフトドリンク, ...）</div></div>
+        <button class="btn bp" id="btn-open-mkind">＋ 種別登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-mkind" placeholder="種別名で検索..."></div>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-mkinds"><option value="id">ID</option><option value="name">名称</option></select>
+            <select id="sort-dir-mkinds"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-mkinds">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-mkinds">
+          <colgroup><col style="width:60px"><col><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>種別名</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-mkinds"><tr><td colspan="3" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── その他商品 ── -->
+    <div class="page" id="page-mproducts">
+      <div class="phead">
+        <div><div class="ptitle">その他商品マスタ</div><div class="pdesc">miscProducts ID = 種別1桁 + 商品2桁 = 3桁</div></div>
+        <button class="btn bp" id="btn-open-mproduct">＋ 商品登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-mproduct" placeholder="商品名で検索..."></div>
+          <select class="fsel" id="f-mp-kind"><option value="">全種別</option></select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-mproducts"><option value="id">ID</option><option value="name">商品名</option><option value="unitPrice">単価</option></select>
+            <select id="sort-dir-mproducts"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-mproducts">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-mproducts">
+          <colgroup><col style="width:60px"><col style="width:100px"><col><col style="width:60px"><col style="width:60px"><col style="width:70px"><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>種別</th><th>商品名</th><th>数量</th><th>単位</th><th>単価</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-mproducts"><tr><td colspan="7" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div><!-- .content -->
+</div><!-- #app -->
+
+<!-- ── 他酒大分類モーダル ── -->
+<div class="mbg" id="m-ocat1">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-ocat1">大分類登録</div><button class="mx" data-close="m-ocat1">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-ocat1">—<span class="klabel">otherCat1 ID</span></div>
+      <div class="fg"><label class="fl">大分類ID（1桁数字）<span class="req">*</span></label><input class="fi mono" id="oc1-id" maxlength="1" placeholder="1"></div>
+      <div class="fg"><label class="fl">大分類名<span class="req">*</span></label><input class="fi" id="oc1-name" placeholder="ワイン"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-ocat1">キャンセル</button><button class="btn bp" id="btn-save-ocat1">保存</button></div>
+  </div>
+</div>
+
+<!-- ── 他酒中分類モーダル ── -->
+<div class="mbg" id="m-ocat2">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-ocat2">中分類登録</div><button class="mx" data-close="m-ocat2">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-ocat2">—<span class="klabel">otherCat2 ID（2桁）</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">大分類<span class="req">*</span></label><select class="fs" id="oc2-cat1"><option value="">選択...</option></select></div>
+        <div class="fg"><label class="fl">中分類ID（1桁）<span class="req">*</span></label><input class="fi mono" id="oc2-id" maxlength="1" placeholder="1"></div>
+      </div>
+      <div class="fg"><label class="fl">中分類名<span class="req">*</span></label><input class="fi" id="oc2-name" placeholder="赤ワイン"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-ocat2">キャンセル</button><button class="btn bp" id="btn-save-ocat2">保存</button></div>
+  </div>
+</div>
+
+<!-- ── 他酒小分類モーダル ── -->
+<div class="mbg" id="m-ocat3">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-ocat3">小分類登録</div><button class="mx" data-close="m-ocat3">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-ocat3">—<span class="klabel">otherCat3 ID（4桁）</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">大分類<span class="req">*</span></label><select class="fs" id="oc3-cat1"><option value="">選択...</option></select></div>
+        <div class="fg"><label class="fl">中分類<span class="req">*</span></label><select class="fs" id="oc3-cat2" disabled><option value="">大分類を先に選択</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">小分類ID（2桁）<span class="req">*</span></label><input class="fi mono" id="oc3-id" maxlength="2" placeholder="01"></div>
+      <div class="fg"><label class="fl">小分類名<span class="req">*</span></label><input class="fi" id="oc3-name" placeholder="ボルドー"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-ocat3">キャンセル</button><button class="btn bp" id="btn-save-ocat3">保存</button></div>
+  </div>
+</div>
+
+<!-- ── 他酒ボトルデータモーダル ── -->
+<div class="mbg" id="m-obottle">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-obottle">他酒ボトル登録</div><button class="mx" data-close="m-obottle">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-obottle">—<span class="klabel">otherBottles ID（7桁）</span></div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">大分類<span class="req">*</span></label><select class="fs" id="ob-cat1"><option value="">選択...</option></select></div>
+        <div class="fg"><label class="fl">中分類<span class="req">*</span></label><select class="fs" id="ob-cat2" disabled><option value="">先に大分類を選択</option></select></div>
+        <div class="fg"><label class="fl">小分類<span class="req">*</span></label><select class="fs" id="ob-cat3" disabled><option value="">先に中分類を選択</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">連番（3桁）</label><input class="fi mono" id="ob-seq" maxlength="3" readonly style="background:var(--cream2)" placeholder="自動採番"></div>
+      <hr class="fsep">
+      <div class="fg"><label class="fl">ボトル名<span class="req">*</span></label><input class="fi" id="ob-name" placeholder="シャトー・マルゴー 2020"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">購入日</label>
+          <div class="date-group">
+            <input class="fi dy" id="ob-buy-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center">
+            <span class="date-sep">/</span>
+            <input class="fi dm" id="ob-buy-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center">
+            <span class="date-sep">/</span>
+            <input class="fi dd" id="ob-buy-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center">
+          </div>
+          <input type="hidden" id="ob-buy-date">
+        </div>
+        <div class="fg"><label class="fl">容量（ml）</label><input class="fi" id="ob-volume" type="number" min="0" placeholder="750"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">購入価格（円）</label><input class="fi" id="ob-purchase-price" type="number" min="0" placeholder="5000"></div>
+        <div class="fg"><label class="fl">10ml単価（円）</label><input class="fi" id="ob-price10" type="number" min="0" placeholder="80"></div>
+      </div>
+      <div class="fg"><label class="fl">備考</label><textarea class="fi" id="ob-memo" rows="2" style="resize:vertical" placeholder="自由記入..."></textarea></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-obottle">キャンセル</button><button class="btn bp" id="btn-save-obottle">保存</button></div>
+  </div>
+</div>
+
+<!-- ── その他種別モーダル ── -->
+<div class="mbg" id="m-mkind">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-mkind">種別登録</div><button class="mx" data-close="m-mkind">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-mkind">—<span class="klabel">miscKinds ID</span></div>
+      <div class="fg"><label class="fl">種別ID（1桁数字）<span class="req">*</span></label><input class="fi mono" id="mk-id" maxlength="1" placeholder="1"></div>
+      <div class="fg"><label class="fl">種別名<span class="req">*</span></label><input class="fi" id="mk-name" placeholder="フード"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-mkind">キャンセル</button><button class="btn bp" id="btn-save-mkind">保存</button></div>
+  </div>
+</div>
+
+<!-- ── その他商品モーダル ── -->
+<div class="mbg" id="m-mproduct">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-mproduct">商品登録</div><button class="mx" data-close="m-mproduct">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-mproduct">—<span class="klabel">miscProducts ID（3桁）</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">種別<span class="req">*</span></label><select class="fs" id="mp-kind"><option value="">選択...</option></select></div>
+        <div class="fg"><label class="fl">商品ID（2桁）<span class="req">*</span></label><input class="fi mono" id="mp-id" maxlength="2" placeholder="01"></div>
+      </div>
+      <div class="fg"><label class="fl">商品名<span class="req">*</span></label><input class="fi" id="mp-name" placeholder="生ハム盛り合わせ"></div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">数量（デフォルト）</label><input class="fi" id="mp-qty" type="number" min="1" placeholder="1" value="1"></div>
+        <div class="fg"><label class="fl">単位</label><input class="fi" id="mp-unit" maxlength="10" placeholder="個"></div>
+        <div class="fg"><label class="fl">単価（円）<span class="req">*</span></label><input class="fi" id="mp-price" type="number" min="0" placeholder="500"></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-mproduct">キャンセル</button><button class="btn bp" id="btn-save-mproduct">保存</button></div>
+  </div>
+</div>
+
+<!-- 削除確認 -->
+<div class="cbg" id="confirm-bg">
+  <div class="ccard">
+    <div class="cmsg" id="confirm-msg">削除しますか？</div>
+    <div class="cacts"><button class="btn bg2" id="confirm-cancel">キャンセル</button><button class="btn bd" id="confirm-ok">削除する</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+if (!firebase.apps.length) { firebase.initializeApp(FIREBASE_CONFIG); }
+var auth = firebase.auth();
+var db   = firebase.firestore();
+
+// ── ユーティリティ ─────────────────────────────────────────────
+function g(id)      { return document.getElementById(id); }
+function gv(id)     { var el=g(id); return el?el.value.trim():""; }
+function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
+function pad(n,l)   { return String(n||"").padStart(l,"0"); }
+function setCnt(col,n){ var el=g("cnt-"+col); if(el) el.textContent=n; }
+function toast(msg,type){
+  var el=document.createElement("div");
+  el.className="toast t"+(type||"ok");
+  el.textContent=(type==="err"?"✕ ":type==="inf"?"ℹ ":"✓ ")+msg;
+  g("toasts").appendChild(el);
+  setTimeout(function(){el.remove();},3000);
+}
+function openM(id)  { g(id).classList.add("open"); }
+function closeM(id) { g(id).classList.remove("open"); }
+function todayStr() { return new Date().toISOString().slice(0,10); }
+
+// モーダル閉じ確認
+var FORM_MODALS=["m-ocat1","m-ocat2","m-ocat3","m-obottle","m-mkind","m-mproduct"];
+function confirmClose(id){
+  if(FORM_MODALS.indexOf(id)>=0){ if(!confirm("登録作業を中止しますか？\n入力内容は破棄されます。")) return; }
+  g(id).classList.remove("open");
+}
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("[data-close]");
+  if(btn){ confirmClose(btn.dataset.close); return; }
+  if(e.target.classList.contains("mbg")){ var id=e.target.id; if(id) confirmClose(id); }
+});
+
+// 削除確認
+var confirmCb=null;
+g("confirm-cancel").addEventListener("click",function(){ g("confirm-bg").classList.remove("open"); });
+g("confirm-ok").addEventListener("click",function(){ if(confirmCb) confirmCb(); g("confirm-bg").classList.remove("open"); });
+function confirmDel(msg,cb){ g("confirm-msg").textContent=msg; confirmCb=cb; g("confirm-bg").classList.add("open"); }
+
+// ── 認証 ──────────────────────────────────────────────────────
+try {
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      g("login-screen").style.display="none";
+      g("app").style.display="block";
+      g("temail").textContent=user.email;
+      loadAll();
+    } else {
+      g("login-screen").style.display="flex";
+      g("app").style.display="none";
+    }
+  });
+} catch(e){ g("lerr").textContent="Firebase接続エラー: "+e.message; }
+g("lbtn").addEventListener("click",function(){
+  var email=gv("lemail"), pass=g("lpass").value;
+  g("lerr").textContent="";
+  if(!email||!pass){ g("lerr").textContent="メールアドレスとパスワードを入力してください"; return; }
+  g("lbtn").textContent="ログイン中...";
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){ g("lbtn").textContent="ログイン"; })
+    .catch(function(e){ g("lerr").textContent="ログイン失敗: "+e.message; g("lbtn").textContent="ログイン"; });
+});
+g("lpass").addEventListener("keydown",function(e){ if(e.key==="Enter") g("lbtn").click(); });
+g("btn-logout").addEventListener("click",function(){ auth.signOut(); });
+
+// ── タブナビゲーション ─────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    var page=this.dataset.page; if(!page) return;
+    document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+    document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
+    g("page-"+page).classList.add("active");
+    this.classList.add("active");
+  });
+});
+
+// ── キャッシュ ────────────────────────────────────────────────
+var cache={ocat1:[],ocat2:[],ocat3:[],obottles:[],mkinds:[],mproducts:[]};
+var editId={ocat1:null,ocat2:null,ocat3:null,obottle:null,mkind:null,mproduct:null};
+var sortState={};
+
+// ── 初期ロード ───────────────────────────────────────────────
+function loadAll(){
+  loadCol("ocat1","otherCat1",function(){ updateAllFilters(); });
+  loadCol("ocat2","otherCat2",function(){ updateAllFilters(); });
+  loadCol("ocat3","otherCat3",function(){ updateAllFilters(); });
+  loadCol("obottles","otherBottles",function(){ updateAllFilters(); });
+  loadCol("mkinds","miscKinds",function(){ updateMiscFilters(); });
+  loadCol("mproducts","miscProducts",function(){ updateMiscFilters(); });
+}
+
+function loadCol(key,col,cb){
+  db.collection(col).get()
+    .then(function(snap){
+      cache[key]=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      setCnt(key,cache[key].length);
+      render(key);
+      if(cb) cb();
+    })
+    .catch(function(e){ toast("読込失敗("+col+"): "+e.message,"err"); });
+}
+
+// ── フィルター更新 ────────────────────────────────────────────
+function updateAllFilters(){
+  // 大分類セレクト
+  var c1opts='<option value="">全大分類</option>'+
+    cache.ocat1.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(c){ return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>'; }).join("");
+  ["f-ocat2-cat1","f-ocat3-cat1","f-ob-cat1"].forEach(function(id){ var el=g(id); if(el){ var v=el.value; el.innerHTML=c1opts; el.value=v; }});
+
+  // 中分類セレクト（フィルター用 全件）
+  var c2opts='<option value="">全中分類</option>'+
+    cache.ocat2.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(c){ return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>'; }).join("");
+  ["f-ocat3-cat2","f-ob-cat2"].forEach(function(id){ var el=g(id); if(el){ var v=el.value; el.innerHTML=c2opts; el.value=v; }});
+
+  // 小分類セレクト（フィルター用 全件）
+  var c3opts='<option value="">全小分類</option>'+
+    cache.ocat3.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(c){ return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>'; }).join("");
+  var el3=g("f-ob-cat3"); if(el3){ var v=el3.value; el3.innerHTML=c3opts; el3.value=v; }
+
+  // 大分類フィルター変更でcat2を絞り込む
+  bindFilterChain();
+}
+
+function updateMiscFilters(){
+  var opts='<option value="">全種別</option>'+
+    cache.mkinds.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(k){ return '<option value="'+k.id+'">'+k.id+': '+(k.name||"")+'</option>'; }).join("");
+  var el=g("f-mp-kind"); if(el){ var v=el.value; el.innerHTML=opts; el.value=v; }
+}
+
+function bindFilterChain(){
+  // ocat3ページの大分類フィルター→中分類絞り込み
+  var fc1=g("f-ocat3-cat1"); if(fc1){ fc1.onchange=function(){
+    var cat1=this.value;
+    var c2el=g("f-ocat3-cat2");
+    var opts='<option value="">全中分類</option>'+
+      cache.ocat2.filter(function(c){return !cat1||c.id[0]===cat1;})
+      .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>';}).join("");
+    c2el.innerHTML=opts; render("ocat3");
+  };}
+  // obottlesページの大分類フィルター→中分類絞り込み
+  var ob1=g("f-ob-cat1"); if(ob1){ ob1.onchange=function(){
+    var cat1=this.value;
+    var c2el=g("f-ob-cat2");
+    var opts='<option value="">全中分類</option>'+
+      cache.ocat2.filter(function(c){return !cat1||c.id[0]===cat1;})
+      .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>';}).join("");
+    c2el.innerHTML=opts;
+    var c3el=g("f-ob-cat3");
+    c3el.innerHTML='<option value="">全小分類</option>'+
+      cache.ocat3.filter(function(c){return !cat1||c.id[0]===cat1;})
+      .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>';}).join("");
+    render("obottles");
+  };}
+  // obottlesページの中分類フィルター→小分類絞り込み
+  var ob2=g("f-ob-cat2"); if(ob2){ ob2.onchange=function(){
+    var cat2=this.value;
+    var cat1=gv("f-ob-cat1");
+    var c3el=g("f-ob-cat3");
+    var opts='<option value="">全小分類</option>'+
+      cache.ocat3.filter(function(c){return (!cat1||c.id[0]===cat1)&&(!cat2||c.id.slice(0,2)===cat2);})
+      .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+(c.name||"")+'</option>';}).join("");
+    c3el.innerHTML=opts; render("obottles");
+  };}
+}
+
+// フィルター入力バインド
+function addFilter(ids,key){
+  ids.forEach(function(id){
+    var el=g(id); if(!el) return;
+    el.addEventListener("input",function(){ render(key); });
+    el.addEventListener("change",function(){ render(key); });
+  });
+}
+addFilter(["s-ocat1"],"ocat1");
+addFilter(["s-ocat2","f-ocat2-cat1"],"ocat2");
+addFilter(["s-ocat3","f-ocat3-cat1","f-ocat3-cat2"],"ocat3");
+addFilter(["s-obottle","f-ob-cat1","f-ob-cat2","f-ob-cat3"],"obottles");
+addFilter(["s-mkind"],"mkinds");
+addFilter(["s-mproduct","f-mp-kind"],"mproducts");
+
+// ── ソート ────────────────────────────────────────────────────
+["ocat1","ocat2","ocat3","obottles","mkinds","mproducts"].forEach(function(key){
+  var btn=g("btn-sort-"+key); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState[key]={key:gv("sort-key-"+key),dir:gv("sort-dir-"+key)};
+    render(key);
+  });
+});
+function applySort(list,key){
+  var st=sortState[key]; if(!st) return list;
+  return list.slice().sort(function(a,b){
+    var av=a[st.key]!==undefined&&a[st.key]!==null?a[st.key]:"";
+    var bv=b[st.key]!==undefined&&b[st.key]!==null?b[st.key]:"";
+    var an=parseFloat(av),bn=parseFloat(bv);
+    var cmp=(!isNaN(an)&&!isNaN(bn))?(an-bn):String(av).localeCompare(String(bv),"ja");
+    return st.dir==="desc"?-cmp:cmp;
+  });
+}
+
+// ── テーブルレンダリング ──────────────────────────────────────
+function render(key){
+  var list=cache[key]?cache[key].slice():[];
+
+  if(key==="ocat1"){
+    var q=gv("s-ocat1").toLowerCase();
+    list=list.filter(function(r){ return !q||(r.name||"").toLowerCase().indexOf(q)>=0; });
+    list=applySort(list,key);
+    var tb=g("tb-ocat1"); if(!tb) return;
+    tb.innerHTML=list.length?list.map(function(r){
+      return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td><div class="acts">'
+        +'<button class="btn bs sm" data-edit="ocat1" data-id="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="otherCat1" data-key="ocat1" data-id="'+r.id+'" data-label="他酒大分類">削除</button>'
+        +'</div></td></tr>';
+    }).join(""):'<tr><td colspan="3" class="ec">データがありません</td></tr>';
+
+  } else if(key==="ocat2"){
+    var q=gv("s-ocat2").toLowerCase(), c1=gv("f-ocat2-cat1");
+    list=list.filter(function(r){
+      return (!q||(r.name||"").toLowerCase().indexOf(q)>=0)&&(!c1||r.id[0]===c1);
+    });
+    list=applySort(list,key);
+    var tb=g("tb-ocat2"); if(!tb) return;
+    tb.innerHTML=list.length?list.map(function(r){
+      var p=cache.ocat1.find(function(x){return x.id===r.id[0];});
+      return '<tr><td class="mono">'+r.id+'</td><td class="dim" style="font-size:11px">'+(p?p.name:r.id[0])+'</td><td>'+(r.name||"—")+'</td><td><div class="acts">'
+        +'<button class="btn bs sm" data-edit="ocat2" data-id="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="otherCat2" data-key="ocat2" data-id="'+r.id+'" data-label="他酒中分類">削除</button>'
+        +'</div></td></tr>';
+    }).join(""):'<tr><td colspan="4" class="ec">データがありません</td></tr>';
+
+  } else if(key==="ocat3"){
+    var q=gv("s-ocat3").toLowerCase(), c1=gv("f-ocat3-cat1"), c2=gv("f-ocat3-cat2");
+    list=list.filter(function(r){
+      return (!q||(r.name||"").toLowerCase().indexOf(q)>=0)&&(!c1||r.id[0]===c1)&&(!c2||r.id.slice(0,2)===c2);
+    });
+    list=applySort(list,key);
+    var tb=g("tb-ocat3"); if(!tb) return;
+    tb.innerHTML=list.length?list.map(function(r){
+      var p1=cache.ocat1.find(function(x){return x.id===r.id[0];});
+      var p2=cache.ocat2.find(function(x){return x.id===r.id.slice(0,2);});
+      return '<tr><td class="mono">'+r.id+'</td><td class="dim" style="font-size:11px">'+(p1?p1.name:r.id[0])+'</td><td class="dim" style="font-size:11px">'+(p2?p2.name:r.id.slice(0,2))+'</td><td>'+(r.name||"—")+'</td><td><div class="acts">'
+        +'<button class="btn bs sm" data-edit="ocat3" data-id="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="otherCat3" data-key="ocat3" data-id="'+r.id+'" data-label="他酒小分類">削除</button>'
+        +'</div></td></tr>';
+    }).join(""):'<tr><td colspan="5" class="ec">データがありません</td></tr>';
+
+  } else if(key==="obottles"){
+    var q=gv("s-obottle").toLowerCase(), c1=gv("f-ob-cat1"), c2=gv("f-ob-cat2"), c3=gv("f-ob-cat3");
+    list=list.filter(function(r){
+      return (!q||(r.bottleName||"").toLowerCase().indexOf(q)>=0)
+        &&(!c1||r.id[0]===c1)&&(!c2||r.id.slice(0,2)===c2)&&(!c3||r.id.slice(0,4)===c3);
+    });
+    list=applySort(list,key);
+    var tb=g("tb-obottles"); if(!tb) return;
+    tb.innerHTML=list.length?list.map(function(r){
+      var p3=cache.ocat3.find(function(x){return x.id===r.id.slice(0,4);});
+      var p2=cache.ocat2.find(function(x){return x.id===r.id.slice(0,2);});
+      var cat=(p2?p2.name:"")+(p3?" / "+p3.name:"");
+      return '<tr>'
+        +'<td class="mono" style="font-size:10px">'+r.id+'</td>'
+        +'<td>'+(r.bottleName||"—")+'</td>'
+        +'<td class="dim" style="font-size:11px">'+(cat||"—")+'</td>'
+        +'<td class="mono dim">'+(r.purchaseDate||"—")+'</td>'
+        +'<td class="mono dim">'+(r.volume!=null?r.volume+"ml":"—")+'</td>'
+        +'<td class="mono" style="text-align:right">'+(r.price10!=null?"¥"+Number(r.price10).toLocaleString():"—")+'</td>'
+        +'<td class="mono dim" style="text-align:right">'+(r.purchasePrice!=null?"¥"+Number(r.purchasePrice).toLocaleString():"—")+'</td>'
+        +'<td><div class="acts">'
+          +'<button class="btn bs sm" data-edit="obottle" data-id="'+r.id+'">編集</button>'
+          +'<button class="btn bs sm" data-copy="obottle" data-id="'+r.id+'">コピー</button>'
+          +'<button class="btn bd sm" data-del="otherBottles" data-key="obottles" data-id="'+r.id+'" data-label="他酒ボトル">削除</button>'
+        +'</div></td></tr>';
+    }).join(""):'<tr><td colspan="8" class="ec">データがありません</td></tr>';
+
+  } else if(key==="mkinds"){
+    var q=gv("s-mkind").toLowerCase();
+    list=list.filter(function(r){ return !q||(r.name||"").toLowerCase().indexOf(q)>=0; });
+    list=applySort(list,key);
+    var tb=g("tb-mkinds"); if(!tb) return;
+    tb.innerHTML=list.length?list.map(function(r){
+      return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td><div class="acts">'
+        +'<button class="btn bs sm" data-edit="mkind" data-id="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="miscKinds" data-key="mkinds" data-id="'+r.id+'" data-label="その他種別">削除</button>'
+        +'</div></td></tr>';
+    }).join(""):'<tr><td colspan="3" class="ec">データがありません</td></tr>';
+
+  } else if(key==="mproducts"){
+    var q=gv("s-mproduct").toLowerCase(), kd=gv("f-mp-kind");
+    list=list.filter(function(r){
+      return (!q||(r.name||"").toLowerCase().indexOf(q)>=0)&&(!kd||r.id[0]===kd);
+    });
+    list=applySort(list,key);
+    var tb=g("tb-mproducts"); if(!tb) return;
+    tb.innerHTML=list.length?list.map(function(r){
+      var k=cache.mkinds.find(function(x){return x.id===r.id[0];});
+      return '<tr>'
+        +'<td class="mono">'+r.id+'</td>'
+        +'<td class="dim" style="font-size:11px">'+(k?k.name:r.id[0])+'</td>'
+        +'<td>'+(r.name||"—")+'</td>'
+        +'<td class="mono dim" style="text-align:right">'+(r.qty!=null?r.qty:"1")+'</td>'
+        +'<td class="dim">'+(r.unit||"個")+'</td>'
+        +'<td class="mono" style="text-align:right">'+(r.unitPrice!=null?"¥"+Number(r.unitPrice).toLocaleString():"—")+'</td>'
+        +'<td><div class="acts">'
+          +'<button class="btn bs sm" data-edit="mproduct" data-id="'+r.id+'">編集</button>'
+          +'<button class="btn bd sm" data-del="miscProducts" data-key="mproducts" data-id="'+r.id+'" data-label="その他商品">削除</button>'
+        +'</div></td></tr>';
+    }).join(""):'<tr><td colspan="7" class="ec">データがありません</td></tr>';
+  }
+}
+
+// ── テーブルボタン委任 ────────────────────────────────────────
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  var edit=btn.dataset.edit, id=btn.dataset.id;
+  if(edit==="ocat1")    { openOcat1Modal(id); return; }
+  if(edit==="ocat2")    { openOcat2Modal(id); return; }
+  if(edit==="ocat3")    { openOcat3Modal(id); return; }
+  if(edit==="obottle")  { openObottleModal(id); return; }
+  if(edit==="mkind")    { openMkindModal(id); return; }
+  if(edit==="mproduct") { openMproductModal(id); return; }
+  if(btn.dataset.copy==="obottle"){ copyObottleModal(btn.dataset.id); return; }
+  if(btn.dataset.del){
+    var col=btn.dataset.del, key=btn.dataset.key, label=btn.dataset.label;
+    confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
+      db.collection(col).doc(id).delete()
+        .then(function(){
+          toast(label+"を削除しました");
+          loadCol(key,col,function(){ updateAllFilters(); });
+        })
+        .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
+    });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// 他酒大分類（otherCat1）
+// ════════════════════════════════════════════════════════════════
+g("btn-open-ocat1").addEventListener("click",function(){ openOcat1Modal(null); });
+function openOcat1Modal(id){
+  editId.ocat1=id; g("mt-ocat1").textContent=id?"大分類編集":"大分類登録";
+  var idEl=g("oc1-id");
+  if(id){ var r=cache.ocat1.find(function(x){return x.id===id;}); sv("oc1-id",r?r.id:""); sv("oc1-name",r?r.name:""); idEl.readOnly=true; idEl.style.background="var(--cream2)"; }
+  else  { sv("oc1-id",""); sv("oc1-name",""); idEl.readOnly=false; idEl.style.background=""; }
+  updateOcat1Key(); openM("m-ocat1");
+}
+g("oc1-id").addEventListener("input",updateOcat1Key);
+function updateOcat1Key(){
+  var id=gv("oc1-id");
+  g("kb-ocat1").innerHTML=id?'<span class="keypart kp-a">'+id+'</span><span class="klabel">otherCat1 ID</span>':'—<span class="klabel">otherCat1 ID</span>';
+}
+g("btn-save-ocat1").addEventListener("click",function(){
+  var id=editId.ocat1||gv("oc1-id"), name=gv("oc1-name");
+  if(!id||!/^\d$/.test(id)){ toast("ID（1桁数字）は必須です","err"); return; }
+  if(!name){ toast("大分類名は必須です","err"); return; }
+  if(!editId.ocat1&&cache.ocat1.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("otherCat1").doc(id).set({id:id,name:name},{merge:true})
+    .then(function(){ toast(editId.ocat1?"更新しました":"登録しました"); closeM("m-ocat1"); loadCol("ocat1","otherCat1",updateAllFilters); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ════════════════════════════════════════════════════════════════
+// 他酒中分類（otherCat2）
+// ════════════════════════════════════════════════════════════════
+g("btn-open-ocat2").addEventListener("click",function(){ openOcat2Modal(null); });
+function openOcat2Modal(id){
+  editId.ocat2=id; g("mt-ocat2").textContent=id?"中分類編集":"中分類登録";
+  // 大分類セレクトを更新
+  var c1sel=g("oc2-cat1");
+  c1sel.innerHTML='<option value="">選択...</option>'+
+    cache.ocat1.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+  var idEl=g("oc2-id");
+  if(id){ var r=cache.ocat2.find(function(x){return x.id===id;}); sv("oc2-cat1",id[0]); sv("oc2-id",id[1]); sv("oc2-name",r?r.name:""); c1sel.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)"; }
+  else  { sv("oc2-cat1",""); sv("oc2-id",""); sv("oc2-name",""); c1sel.disabled=false; idEl.readOnly=false; idEl.style.background=""; }
+  updateOcat2Key(); openM("m-ocat2");
+}
+["oc2-cat1","oc2-id"].forEach(function(fid){ var el=g(fid); if(el) el.addEventListener("change",updateOcat2Key); g(fid).addEventListener("input",updateOcat2Key); });
+function updateOcat2Key(){
+  var c1=gv("oc2-cat1"), c2=gv("oc2-id"); var id=c1+c2;
+  g("kb-ocat2").innerHTML=(c1&&c2)?'<span class="keypart kp-a">'+c1+'</span><span class="keypart kp-b">'+c2+'</span><span class="klabel">otherCat2 ID</span>':'—<span class="klabel">otherCat2 ID（2桁）</span>';
+}
+g("btn-save-ocat2").addEventListener("click",function(){
+  var c1=gv("oc2-cat1"), c2=gv("oc2-id"), name=gv("oc2-name");
+  if(!c1){ toast("大分類を選択してください","err"); return; }
+  if(!c2||!/^\d$/.test(c2)){ toast("中分類ID（1桁数字）は必須です","err"); return; }
+  if(!name){ toast("中分類名は必須です","err"); return; }
+  var id=c1+c2;
+  if(!editId.ocat2&&cache.ocat2.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("otherCat2").doc(id).set({id:id,cat1Id:c1,name:name},{merge:true})
+    .then(function(){ toast(editId.ocat2?"更新しました":"登録しました"); closeM("m-ocat2"); loadCol("ocat2","otherCat2",updateAllFilters); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ════════════════════════════════════════════════════════════════
+// 他酒小分類（otherCat3）
+// ════════════════════════════════════════════════════════════════
+g("btn-open-ocat3").addEventListener("click",function(){ openOcat3Modal(null); });
+function openOcat3Modal(id){
+  editId.ocat3=id; g("mt-ocat3").textContent=id?"小分類編集":"小分類登録";
+  var c1sel=g("oc3-cat1"), c2sel=g("oc3-cat2");
+  c1sel.innerHTML='<option value="">選択...</option>'+
+    cache.ocat1.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+  var idEl=g("oc3-id");
+  if(id){
+    var r=cache.ocat3.find(function(x){return x.id===id;});
+    sv("oc3-cat1",id[0]);
+    // 中分類を絞り込む
+    c2sel.innerHTML='<option value="">選択...</option>'+
+      cache.ocat2.filter(function(c){return c.id[0]===id[0];})
+      .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+    c2sel.disabled=false;
+    sv("oc3-cat2",id.slice(0,2)); sv("oc3-id",id.slice(2,4)); sv("oc3-name",r?r.name:"");
+    c1sel.disabled=true; c2sel.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)";
+  } else {
+    c2sel.innerHTML='<option value="">大分類を先に選択</option>'; c2sel.disabled=true;
+    sv("oc3-cat1",""); sv("oc3-cat2",""); sv("oc3-id",""); sv("oc3-name","");
+    c1sel.disabled=false; idEl.readOnly=false; idEl.style.background="";
+  }
+  updateOcat3Key(); openM("m-ocat3");
+}
+g("oc3-cat1").addEventListener("change",function(){
+  var cat1=this.value;
+  var c2sel=g("oc3-cat2");
+  c2sel.innerHTML='<option value="">選択...</option>'+
+    cache.ocat2.filter(function(c){return !cat1||c.id[0]===cat1;})
+    .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+  c2sel.disabled=!cat1; sv("oc3-cat2",""); updateOcat3Key();
+});
+["oc3-cat1","oc3-cat2","oc3-id"].forEach(function(fid){ var el=g(fid); if(el){ el.addEventListener("change",updateOcat3Key); el.addEventListener("input",updateOcat3Key); }});
+function updateOcat3Key(){
+  var c1=gv("oc3-cat1"),c2=gv("oc3-cat2"),c3=pad(gv("oc3-id"),2);
+  var id=(c2||c1)+(c3);
+  g("kb-ocat3").innerHTML=(c1&&c2&&c3.replace(/^0+/,""))?
+    '<span class="keypart kp-a">'+c1+'</span><span class="keypart kp-b">'+c2[1]+'</span><span class="keypart kp-c">'+c3+'</span><span class="klabel">otherCat3 ID</span>':
+    '—<span class="klabel">otherCat3 ID（4桁）</span>';
+}
+g("btn-save-ocat3").addEventListener("click",function(){
+  var c1=gv("oc3-cat1"),c2=gv("oc3-cat2"),c3=pad(gv("oc3-id"),2),name=gv("oc3-name");
+  if(!c1){ toast("大分類を選択してください","err"); return; }
+  if(!c2){ toast("中分類を選択してください","err"); return; }
+  if(!c3||c3==="00"){ toast("小分類ID（2桁）は必須です","err"); return; }
+  if(!name){ toast("小分類名は必須です","err"); return; }
+  var id=c2+c3;
+  if(!editId.ocat3&&cache.ocat3.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("otherCat3").doc(id).set({id:id,cat1Id:c1,cat2Id:c2,name:name},{merge:true})
+    .then(function(){ toast(editId.ocat3?"更新しました":"登録しました"); closeM("m-ocat3"); loadCol("ocat3","otherCat3",updateAllFilters); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ════════════════════════════════════════════════════════════════
+// 他酒ボトルデータ（otherBottles）
+// ════════════════════════════════════════════════════════════════
+g("btn-open-obottle").addEventListener("click",function(){ openObottleModal(null); });
+
+// モーダル内の大中小連動
+g("ob-cat1").addEventListener("change",function(){
+  var c1=this.value;
+  var c2sel=g("ob-cat2");
+  c2sel.innerHTML='<option value="">選択...</option>'+
+    cache.ocat2.filter(function(c){return !c1||c.id[0]===c1;})
+    .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+  c2sel.disabled=!c1;
+  var c3sel=g("ob-cat3"); c3sel.innerHTML='<option value="">先に中分類を選択</option>'; c3sel.disabled=true;
+  autoSetObottleSeq(); updateObottleKey();
+});
+g("ob-cat2").addEventListener("change",function(){
+  var c2=this.value;
+  var c3sel=g("ob-cat3");
+  c3sel.innerHTML='<option value="">選択...</option>'+
+    cache.ocat3.filter(function(c){return !c2||c.id.slice(0,2)===c2;})
+    .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+  c3sel.disabled=!c2;
+  autoSetObottleSeq(); updateObottleKey();
+});
+g("ob-cat3").addEventListener("change",function(){ autoSetObottleSeq(); updateObottleKey(); });
+
+function autoSetObottleSeq(){
+  var c3=gv("ob-cat3"); if(!c3||c3.length!==4) return;
+  var prefix=c3;
+  var maxSeq=0;
+  cache.obottles.forEach(function(b){ if(b.id&&b.id.slice(0,4)===prefix){ var s=parseInt(b.id.slice(4,7))||0; if(s>maxSeq) maxSeq=s; }});
+  var seqEl=g("ob-seq"); seqEl.readOnly=false; sv("ob-seq",String(maxSeq+1).padStart(3,"0")); seqEl.readOnly=true;
+  updateObottleKey();
+}
+function updateObottleKey(){
+  var c3=gv("ob-cat3"),seq=gv("ob-seq");
+  var id=c3+seq;
+  g("kb-obottle").innerHTML=(c3&&seq&&seq!=="000")?
+    '<span class="keypart kp-a">'+c3[0]+'</span><span class="keypart kp-b">'+c3[1]+'</span><span class="keypart kp-c">'+c3.slice(2,4)+'</span><span class="keypart kp-d">'+seq+'</span><span class="klabel">otherBottles ID</span>':
+    '—<span class="klabel">otherBottles ID（7桁）</span>';
+}
+
+function openObottleModal(id){
+  editId.obottle=id; g("mt-obottle").textContent=id?"他酒ボトル編集":"他酒ボトル登録";
+  // 大分類セレクト初期化
+  var c1sel=g("ob-cat1"),c2sel=g("ob-cat2"),c3sel=g("ob-cat3");
+  c1sel.innerHTML='<option value="">選択...</option>'+
+    cache.ocat1.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+
+  if(id){
+    var r=cache.obottles.find(function(x){return x.id===id;});
+    var c1=id[0],c2=id.slice(0,2),c3=id.slice(0,4),seq=id.slice(4,7);
+    sv("ob-cat1",c1);
+    c2sel.innerHTML='<option value="">選択...</option>'+cache.ocat2.filter(function(c){return c.id[0]===c1;}).map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+    c2sel.disabled=false; sv("ob-cat2",c2);
+    c3sel.innerHTML='<option value="">選択...</option>'+cache.ocat3.filter(function(c){return c.id.slice(0,2)===c2;}).map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+    c3sel.disabled=false; sv("ob-cat3",c3);
+    c1sel.disabled=true; c2sel.disabled=true; c3sel.disabled=true;
+    var seqEl=g("ob-seq"); seqEl.readOnly=false; sv("ob-seq",seq); seqEl.readOnly=true;
+    sv("ob-name",r?r.bottleName:"");
+    // 購入日分割
+    if(r&&r.purchaseDate){ var pd=r.purchaseDate.split("-"); sv("ob-buy-y",pd[0]); sv("ob-buy-m",pd[1]||""); sv("ob-buy-d",pd[2]||""); } else { sv("ob-buy-y",""); sv("ob-buy-m",""); sv("ob-buy-d",""); }
+    sv("ob-volume",r?r.volume:"750"); sv("ob-purchase-price",r?r.purchasePrice:""); sv("ob-price10",r?r.price10:"");
+    var memo=g("ob-memo"); if(memo) memo.value=r?r.memo||"":"";
+  } else {
+    c2sel.innerHTML='<option value="">先に大分類を選択</option>'; c2sel.disabled=true;
+    c3sel.innerHTML='<option value="">先に中分類を選択</option>'; c3sel.disabled=true;
+    c1sel.disabled=false;
+    sv("ob-cat1",""); sv("ob-cat2",""); sv("ob-cat3",""); sv("ob-seq","");
+    sv("ob-name","");
+    var td=todayStr().split("-"); sv("ob-buy-y",td[0]); sv("ob-buy-m",td[1]); sv("ob-buy-d",td[2]);
+    sv("ob-volume","750"); sv("ob-purchase-price",""); sv("ob-price10","");
+    var memo=g("ob-memo"); if(memo) memo.value="";
+    g("kb-obottle").innerHTML='—<span class="klabel">otherBottles ID（7桁）</span>';
+  }
+  updateObottleKey(); openM("m-obottle");
+}
+function copyObottleModal(id){
+  var r=cache.obottles.find(function(x){return x.id===id;});
+  openObottleModal(null);
+  // カテゴリ情報を引き継ぎ（連番だけ自動採番）
+  setTimeout(function(){
+    var c1=id[0],c2=id.slice(0,2),c3=id.slice(0,4);
+    var c1sel=g("ob-cat1"),c2sel=g("ob-cat2"),c3sel=g("ob-cat3");
+    c1sel.disabled=false; c2sel.disabled=false; c3sel.disabled=false;
+    sv("ob-cat1",c1);
+    c2sel.innerHTML='<option value="">選択...</option>'+cache.ocat2.filter(function(c){return c.id[0]===c1;}).map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+    sv("ob-cat2",c2);
+    c3sel.innerHTML='<option value="">選択...</option>'+cache.ocat3.filter(function(c){return c.id.slice(0,2)===c2;}).map(function(c){return '<option value="'+c.id+'">'+c.id+': '+c.name+'</option>';}).join("");
+    sv("ob-cat3",c3);
+    autoSetObottleSeq();
+    sv("ob-name",r?r.bottleName:"");
+    sv("ob-volume",r?r.volume:"750"); sv("ob-price10",r?r.price10:"");
+    var memo=g("ob-memo"); if(memo) memo.value=r?r.memo||"":"";
+    updateObottleKey();
+  },50);
+}
+g("btn-save-obottle").addEventListener("click",function(){
+  var c3=gv("ob-cat3"),seq=gv("ob-seq"),name=gv("ob-name");
+  if(!c3||c3.length!==4){ toast("小分類まで選択してください","err"); return; }
+  if(!seq||seq==="000"){ toast("連番を設定してください","err"); return; }
+  if(!name){ toast("ボトル名は必須です","err"); return; }
+  var id=editId.obottle||(c3+seq);
+  if(!editId.obottle&&cache.obottles.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+  // 購入日組み立て
+  var y=gv("ob-buy-y"),m=gv("ob-buy-m"),d=gv("ob-buy-d");
+  var buyDate=(y&&m&&d)?y+"-"+m.padStart(2,"0")+"-"+d.padStart(2,"0"):null;
+  var memo=g("ob-memo"); var memoVal=memo?memo.value||null:null;
+  db.collection("otherBottles").doc(id).set({
+    id:id,
+    cat1Id:id[0], cat2Id:id.slice(0,2), cat3Id:id.slice(0,4), seq:seq,
+    bottleName:name,
+    purchaseDate:buyDate,
+    volume:parseInt(gv("ob-volume"))||null,
+    purchasePrice:parseInt(gv("ob-purchase-price"))||null,
+    price10:parseInt(gv("ob-price10"))||null,
+    memo:memoVal
+  },{merge:true})
+  .then(function(){ toast(editId.obottle?"更新しました":"登録しました"); closeM("m-obottle"); loadCol("obottles","otherBottles",updateAllFilters); })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ════════════════════════════════════════════════════════════════
+// その他種別（miscKinds）
+// ════════════════════════════════════════════════════════════════
+g("btn-open-mkind").addEventListener("click",function(){ openMkindModal(null); });
+function openMkindModal(id){
+  editId.mkind=id; g("mt-mkind").textContent=id?"種別編集":"種別登録";
+  var idEl=g("mk-id");
+  if(id){ var r=cache.mkinds.find(function(x){return x.id===id;}); sv("mk-id",r?r.id:""); sv("mk-name",r?r.name:""); idEl.readOnly=true; idEl.style.background="var(--cream2)"; }
+  else  { sv("mk-id",""); sv("mk-name",""); idEl.readOnly=false; idEl.style.background=""; }
+  updateMkindKey(); openM("m-mkind");
+}
+g("mk-id").addEventListener("input",updateMkindKey);
+function updateMkindKey(){
+  var id=gv("mk-id");
+  g("kb-mkind").innerHTML=id?'<span class="keypart kp-a">'+id+'</span><span class="klabel">miscKinds ID</span>':'—<span class="klabel">miscKinds ID</span>';
+}
+g("btn-save-mkind").addEventListener("click",function(){
+  var id=editId.mkind||gv("mk-id"), name=gv("mk-name");
+  if(!id||!/^\d$/.test(id)){ toast("ID（1桁数字）は必須です","err"); return; }
+  if(!name){ toast("種別名は必須です","err"); return; }
+  if(!editId.mkind&&cache.mkinds.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("miscKinds").doc(id).set({id:id,name:name},{merge:true})
+    .then(function(){ toast(editId.mkind?"更新しました":"登録しました"); closeM("m-mkind"); loadCol("mkinds","miscKinds",updateMiscFilters); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// ════════════════════════════════════════════════════════════════
+// その他商品（miscProducts）
+// ════════════════════════════════════════════════════════════════
+g("btn-open-mproduct").addEventListener("click",function(){ openMproductModal(null); });
+function openMproductModal(id){
+  editId.mproduct=id; g("mt-mproduct").textContent=id?"商品編集":"商品登録";
+  var ksel=g("mp-kind");
+  ksel.innerHTML='<option value="">選択...</option>'+
+    cache.mkinds.sort(function(a,b){return a.id.localeCompare(b.id);})
+    .map(function(k){return '<option value="'+k.id+'">'+k.id+': '+k.name+'</option>';}).join("");
+  var idEl=g("mp-id");
+  if(id){
+    var r=cache.mproducts.find(function(x){return x.id===id;});
+    sv("mp-kind",id[0]); sv("mp-id",id.slice(1,3)); sv("mp-name",r?r.name:"");
+    sv("mp-qty",r&&r.qty!=null?r.qty:1); sv("mp-unit",r?r.unit||"個":"個"); sv("mp-price",r?r.unitPrice:"");
+    ksel.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)";
+  } else {
+    sv("mp-kind",""); sv("mp-id",""); sv("mp-name",""); sv("mp-qty",1); sv("mp-unit","個"); sv("mp-price","");
+    ksel.disabled=false; idEl.readOnly=false; idEl.style.background="";
+  }
+  updateMproductKey(); openM("m-mproduct");
+}
+["mp-kind","mp-id"].forEach(function(fid){ var el=g(fid); if(el){ el.addEventListener("change",updateMproductKey); el.addEventListener("input",updateMproductKey); }});
+function updateMproductKey(){
+  var k=gv("mp-kind"), pid=pad(gv("mp-id"),2);
+  g("kb-mproduct").innerHTML=(k&&pid.replace(/^0+/,""))?
+    '<span class="keypart kp-a">'+k+'</span><span class="keypart kp-c">'+pid+'</span><span class="klabel">miscProducts ID</span>':
+    '—<span class="klabel">miscProducts ID（3桁）</span>';
+}
+g("btn-save-mproduct").addEventListener("click",function(){
+  var k=gv("mp-kind"), pid=pad(gv("mp-id"),2), name=gv("mp-name"), price=gv("mp-price");
+  if(!k){ toast("種別を選択してください","err"); return; }
+  if(!pid||pid==="00"){ toast("商品ID（2桁）は必須です","err"); return; }
+  if(!name){ toast("商品名は必須です","err"); return; }
+  if(price===""){ toast("単価は必須です","err"); return; }
+  var id=k+pid;
+  if(!editId.mproduct&&cache.mproducts.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("miscProducts").doc(id).set({
+    id:id, kindId:k, name:name,
+    qty:parseInt(gv("mp-qty"))||1,
+    unit:gv("mp-unit")||"個",
+    unitPrice:parseInt(price)||0
+  },{merge:true})
+  .then(function(){ toast(editId.mproduct?"更新しました":"登録しました"); closeM("m-mproduct"); loadCol("mproducts","miscProducts",updateMiscFilters); })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+</script>
+</body>
+</html>
