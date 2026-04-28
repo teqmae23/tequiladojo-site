@@ -483,8 +483,10 @@ function loadTodayVisits(){
   db.collection('visits').where('visitDate','==',today).get()
     .then(function(snap){
       var all = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-      // チェックアウト済みを除外（checkoutTimeが設定されていない来場者のみ）
-      state.todayVisits = all.filter(function(v){ return !v.checkoutTime; });
+      // チェックアウト済みを除外（ただし既に選択済みのIDは残す）
+      state.todayVisits = all.filter(function(v){
+        return !v.checkoutTime || state.selectedVisitIds.indexOf(v.id)>=0;
+      });
       state.todayVisits.sort(function(a,b){ return (a.visitTime||'').localeCompare(b.visitTime||''); });
       renderVisitorList();
     })
@@ -553,10 +555,10 @@ function goStep(n){
   if(n===1){
     var names = state.selectedVisitIds.map(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
-      if(!v) return '';
-      var mem = v.memberId?master.members.find(function(m){ return m.id===v.memberId||m.memberId===v.memberId; }):null;
-      return mem?(mem.name||v.memberId):(v.memberId||'非会員');
-    }).filter(Boolean);
+      var memberId = v ? v.memberId : null;
+      var mem = memberId ? master.members.find(function(m){ return m.id===memberId||m.memberId===memberId; }) : null;
+      return mem ? (mem.name||memberId) : (memberId||vid);
+    });
     g('items-desc').textContent = '対象: '+names.join('、');
     renderItemList();
   }
@@ -645,12 +647,22 @@ function renderConfirm(){
   var el = g('confirm-content');
   var html = '';
 
+  if(!state.selectedVisitIds.length){
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink3);font-size:13px">来場者が選択されていません</div>';
+    return;
+  }
+  if(!state.items.length){
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink3);font-size:13px">商品が追加されていません</div>';
+    return;
+  }
+
+  var total = state.items.reduce(function(s,it){ return s+(parseFloat(it.qty)||1)*(parseFloat(it.price)||0); },0);
+
   state.selectedVisitIds.forEach(function(vid){
     var v = state.todayVisits.find(function(x){ return x.id===vid; });
-    if(!v) return;
-    var mem = v.memberId?master.members.find(function(m){ return m.id===v.memberId||m.memberId===v.memberId; }):null;
-    var name = mem?(mem.name||v.memberId):(v.memberId||'非会員');
-    var total = state.items.reduce(function(s,it){ return s+(it.qty||1)*(it.price||0); },0);
+    var memberId = v ? (v.memberId||null) : null;
+    var mem = memberId ? master.members.find(function(m){ return m.id===memberId||m.memberId===memberId; }) : null;
+    var name = mem ? (mem.name||memberId) : (memberId||vid||'非会員');
 
     html += '<div class="confirm-visitor">'
       +'<div class="confirm-visitor-head">'
@@ -661,9 +673,9 @@ function renderConfirm(){
 
     state.items.forEach(function(item,i){
       html += '<div class="confirm-item">'
-        +'<div>'
-          +'<div class="confirm-item-name">'+escHtml(item.productName)+'</div>'
-          +'<div class="confirm-item-detail">'+item.qty+item.unit+' × '+item.price+'円</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div class="confirm-item-name">'+escHtml(item.productName||'—')+'</div>'
+          +'<div class="confirm-item-detail">'+(item.qty||1)+(item.unit||'')+'  × '+(item.price||0)+'円</div>'
         +'</div>'
         +'<div class="confirm-item-actions">'
           +'<button class="confirm-item-edit" data-edit-item="'+i+'">編集</button>'
@@ -675,13 +687,12 @@ function renderConfirm(){
     html += '<button class="confirm-add-item" data-add-visitor="'+vid+'">＋ 商品を追加</button>';
     html += '</div>';// confirm-items
     html += '<div class="confirm-total">'
-      +'<span class="confirm-total-label">合計</span>'
+      +'<span class="confirm-total-label">合計（'+state.items.length+'品）</span>'
       +'<span class="confirm-total-amount">¥'+total.toLocaleString()+'</span>'
     +'</div>';
     html += '</div>';// confirm-visitor
   });
 
-  // 来場者追加ボタン
   html += '<button class="confirm-visitor-add" id="conf-add-visitor">＋ 来場者を追加</button>';
 
   el.innerHTML = html;
