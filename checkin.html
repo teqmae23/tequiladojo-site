@@ -449,6 +449,9 @@ function renderVisitorList(){
   el.querySelectorAll('[data-checkout]').forEach(function(btn){
     btn.addEventListener('click',function(){ openCheckoutModal(btn.dataset.checkout); });
   });
+  el.querySelectorAll('[data-refresh-visit]').forEach(function(btn){
+    btn.addEventListener('click',function(){ refreshSingleVisit(btn.dataset.refreshVisit, btn); });
+  });
 }
 
 function renderVisCard(v, isDone){
@@ -457,9 +460,7 @@ function renderVisCard(v, isDone){
   var orders=getVisitOrders(v.id);
   var totalAmt=calcAmount(orders);
   var totalTq=calcTequila(orders);
-  // キャッシュ値があればそちらを優先
-  if(v.amount!=null) totalAmt=v.amount;
-  if(v.tequilaAmount!=null) totalTq=v.tequilaAmount;
+  var orderCount=orders.length;
 
   var rankBadge=mem&&mem.rank?'<span class="badge bg-gold">'+escHtml(mem.rank)+'</span>':'';
   var statusBadge=isDone
@@ -475,14 +476,44 @@ function renderVisCard(v, isDone){
     +'<div class="vis-meta">'
       +'<span>来店: '+fmtHHMM(v.visitTime||'')+'</span>'
       +'<span class="vis-key">'+v.id+'</span>'
-      +(orders.length?'<span>注文 '+orders.length+'品</span>':'')
+      +'<span>注文 '+orderCount+'品</span>'
     +'</div>'
     +'<div class="vis-stats">'
       +'<div class="vis-stat"><div class="vis-stat-label">テキーラ量</div><div class="vis-stat-val">'+totalTq+' ml</div></div>'
       +'<div class="vis-stat"><div class="vis-stat-label">合計金額</div><div class="vis-stat-val">¥'+totalAmt.toLocaleString()+'</div></div>'
     +'</div>'
-    +(!isDone?'<div class="vis-actions"><button class="btn bt sm" data-checkout="'+v.id+'">🧾 退店・お会計</button></div>':'')
+    +'<div class="vis-actions">'
+      +'<button class="btn bs sm" data-refresh-visit="'+v.id+'">🔄 更新</button>'
+      +(!isDone?'<button class="btn bt sm" data-checkout="'+v.id+'">🧾 退店・お会計</button>':'')
+    +'</div>'
     +'</div>';
+}
+
+// ── 個別更新 ───────────────────────────────────────────────────
+function refreshSingleVisit(visitKey, btn){
+  var orig=btn?btn.textContent:'';
+  if(btn){ btn.textContent='…'; btn.disabled=true; }
+  var today=todayStr6();
+  // 注文データを再取得してこの来場者の集計を更新
+  db.collection('orders').get().then(function(snap){
+    cache.orders=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+      .filter(function(o){ return o.orderDate===today; });
+    var orders=getVisitOrders(visitKey);
+    var totalAmt=calcAmount(orders);
+    var totalTq=calcTequila(orders);
+    return db.collection('visits').doc(visitKey).update({
+      amount: totalAmt,
+      tequilaAmount: totalTq
+    }).then(function(){
+      var v=cache.visits.find(function(x){ return x.id===visitKey; });
+      if(v){ v.amount=totalAmt; v.tequilaAmount=totalTq; }
+      renderVisitorList();
+      toast('更新しました（テキーラ'+totalTq+'ml / ¥'+totalAmt.toLocaleString()+'）');
+    });
+  }).catch(function(e){
+    if(btn){ btn.textContent=orig; btn.disabled=false; }
+    toast('更新失敗: '+e.message,'err');
+  });
 }
 
 // ── 来店登録 ───────────────────────────────────────────────────
@@ -567,10 +598,23 @@ function openCheckoutModal(visitKey){
   var name=mem?(mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
   g('mt-checkout').textContent='退店 / お会計 — '+name;
 
-  // 来場者情報
+  // 来場者情報（来店時間・在店時間も表示）
+  var now=new Date();
+  var nowMins=now.getHours()*60+now.getMinutes();
+  var arrivalStr=v.visitTime||'';
+  var durationStr='';
+  if(arrivalStr.length===4){
+    var ah=parseInt(arrivalStr.slice(0,2)),am=parseInt(arrivalStr.slice(2,4));
+    var dur=nowMins-(ah*60+am);
+    if(dur>0) durationStr='（在店'+Math.floor(dur/60)+'時間'+( dur%60)+'分）';
+  }
   g('checkout-visitor-info').innerHTML=
-    '<div style="font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px">'+escHtml(name)+'</div>'
-    +'<div style="font-size:11px;color:var(--ink3)">来店: '+fmtHHMM(v.visitTime||'')+'  キー: '+visitKey+'</div>';
+    '<div style="font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px">'+escHtml(name)+'</div>'
+    +'<div style="display:flex;gap:12px;font-size:11px;color:var(--ink3);flex-wrap:wrap">'
+      +'<span>来店: '+fmtHHMM(arrivalStr)+'</span>'
+      +'<span style="color:var(--ink2);font-weight:500">'+durationStr+'</span>'
+      +'<span style="margin-left:auto;font-family:var(--mono)">'+visitKey+'</span>'
+    +'</div>';
 
   // 注文リストをFirestoreから最新取得
   g('checkout-order-list').innerHTML='<div class="loading">注文を読み込み中...</div>';
@@ -593,7 +637,7 @@ function openCheckoutModal(visitKey){
     var TYPE_BG={'tequila':'background:#fdf0d0;color:#7a5610','other':'background:#E6F1FB;color:#0C447C','misc':'background:#e0f0eb;color:#1a6e58'};
     var ol=g('checkout-order-list');
     if(!orders.length){
-      ol.innerHTML='<div style="font-size:12px;color:var(--ink3);padding:8px 0;text-align:center">注文記録なし</div>';
+      ol.innerHTML='<div style="font-size:12px;color:var(--ink3);padding:12px;text-align:center;background:var(--cream2);border-radius:var(--r)">注文記録なし</div>';
     } else {
       orders.sort(function(a,b){ return (a.orderTime||'').localeCompare(b.orderTime||''); });
       ol.innerHTML=orders.map(function(o){

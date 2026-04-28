@@ -129,6 +129,7 @@ button{cursor:pointer;font-family:var(--sans);border:none}
 .confirm-visitor-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--ink);border-radius:var(--r) var(--r) 0 0}
 .confirm-visitor-name{color:var(--gold-l);font-size:15px;font-weight:500;font-family:var(--serif)}
 .confirm-visitor-edit{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);padding:4px 10px;border-radius:var(--r);font-size:11px}
+.confirm-add-item-head{background:rgba(200,146,30,.25);border:1px solid rgba(200,146,30,.4);color:var(--gold-l);padding:4px 10px;border-radius:var(--r);font-size:11px}
 .confirm-items{border:1px solid var(--border2);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
 .confirm-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px}
 .confirm-item:last-child{border-bottom:none}
@@ -691,14 +692,14 @@ function _drawConfirm(el){
     var mid = v?(v.memberId||null):null;
     var mem = mid?master.members.find(function(m){ return m.id===mid||m.memberId===mid; }):null;
     var name = mem?(mem.name||mid):(mid||'非会員');
-    html += '<div class="confirm-visitor"><div class="confirm-visitor-head"><div class="confirm-visitor-name">'+escHtml(name)+'</div><button class="confirm-visitor-edit" data-edit-visitor="'+vid+'">変更</button></div><div class="confirm-items">';
+    html += '<div class="confirm-visitor"><div class="confirm-visitor-head"><div class="confirm-visitor-name">'+escHtml(name)+'</div><div style="display:flex;gap:6px;flex-shrink:0"><button class="confirm-add-item-head" data-add-visitor="'+vid+'">＋ 商品追加</button><button class="confirm-visitor-edit" data-edit-visitor="'+vid+'">変更</button></div></div><div class="confirm-items">';
     state.items.forEach(function(item,i){
       var amtStr = (item.type==='tequila'||item.type==='other')
         ? item.qty+(item.unit||'ml')+' × '+item.price+'円/10ml = '+calcItemAmount(item)+'円'
         : item.qty+(item.unit||'個')+' × '+item.price+'円 = '+calcItemAmount(item)+'円';
       html += '<div class="confirm-item"><div><div class="confirm-item-name">'+escHtml(item.productName||'—')+'</div><div class="confirm-item-detail">'+amtStr+'</div></div><div class="confirm-item-actions"><button class="confirm-item-edit" data-edit-item="'+i+'">編集</button><button class="confirm-item-del" data-del-item="'+i+'">削除</button></div></div>';
     });
-    html += '<button class="confirm-add-item" data-add-visitor="'+vid+'">＋ 商品を追加</button></div>';
+    html += '</div>';
     html += '<div class="confirm-total"><span class="confirm-total-label">合計（'+state.items.length+'品）</span><span class="confirm-total-amount">¥'+total.toLocaleString()+'</span></div></div>';
   });
   html += '<button class="confirm-visitor-add" id="conf-add-visitor">＋ 来場者を追加</button>';
