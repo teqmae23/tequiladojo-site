@@ -122,14 +122,6 @@ button{cursor:pointer;font-family:var(--sans);border:none}
 .btn-full{width:100%}
 .btn-add-item{width:100%;padding:14px;border:2px dashed var(--border2);border-radius:var(--rl);background:none;color:var(--ink3);font-size:14px;margin-bottom:8px}
 .btn-add-item:hover{border-color:var(--gold);color:var(--gold-d);background:#fffbf2}
-.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
-.form-grid-2 .fg{margin-bottom:0}
-.nom-shortcuts{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
-.nom-btn{padding:4px 10px;border:1px solid var(--border2);border-radius:var(--r);background:var(--cream2);color:var(--ink2);font-size:11px;font-family:var(--mono);cursor:pointer}
-.nom-btn:hover{background:var(--gold-d);color:var(--cream);border-color:var(--gold-d)}
-.btn-add-set{width:100%;padding:14px;border:2px dashed #185FA5;border-radius:var(--rl);background:none;color:#185FA5;font-size:14px;margin-bottom:8px}
-.btn-add-set:hover{background:#E6F1FB}
-
 
 /* ── 確認画面 ── */
 .confirm-visitor{margin-bottom:20px}
@@ -263,10 +255,7 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
     <div class="sec-title">商品を選択</div>
     <div class="sec-desc" id="items-desc"></div>
     <div class="item-list" id="item-list"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="btn-add-item" id="btn-add-item">＋ 単品商品を追加</button>
-      <button class="btn-add-set" id="btn-add-set">🎁 セット商品を追加</button>
-    </div>
+    <button class="btn-add-item" id="btn-add-item">＋ 商品を追加</button>
   </div>
 
   <!-- ── STEP 3: 最終確認 ── -->
@@ -296,36 +285,6 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
 
 </div>
 
-<!-- ── セット商品選択モーダル ── -->
-<div class="mbg" id="m-set">
-  <div class="modal">
-    <div class="modal-head">
-      <div class="modal-title">セット商品を追加</div>
-      <button class="modal-x" id="m-set-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="fg">
-        <label class="fl">セット種別</label>
-        <div style="display:flex;gap:6px;margin-bottom:8px">
-          <button class="nom-btn" data-settype="0">0: 通常</button>
-          <button class="nom-btn" data-settype="1">1: 段位認定</button>
-          <button class="nom-btn" data-settype="2">2: イベント</button>
-        </div>
-        <select class="fs" id="set-select"><option value="">— セットを選択 —</option></select>
-      </div>
-      <div id="set-preview" style="display:none;background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-top:8px">
-        <div style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">セット内容</div>
-        <div id="set-preview-items" style="display:flex;flex-direction:column;gap:4px"></div>
-        <div id="set-preview-memo" style="font-size:11px;color:var(--ink3);margin-top:8px"></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn bs" style="flex:1" id="m-set-cancel">キャンセル</button>
-      <button class="btn bp" style="flex:2" id="m-set-save">セットを追加</button>
-    </div>
-  </div>
-</div>
-
 <!-- ── 商品追加・編集モーダル ── -->
 <div class="mbg" id="m-item">
   <div class="modal">
@@ -347,56 +306,69 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
 
       <!-- テキーラ選択フォーム -->
       <div id="form-tequila">
-        <div class="fg" style="margin-bottom:6px">
-          <label class="fl">NOM番号（よく使うNOM）</label>
-          <div class="nom-shortcuts">
-            <button class="nom-btn" data-nom="1123">1123</button>
-            <button class="nom-btn" data-nom="1579">1579</button>
-            <button class="nom-btn" data-nom="1414">1414</button>
-            <button class="nom-btn" data-nom="1545">1545</button>
-            <button class="nom-btn" data-nom="1139">1139</button>
-            <button class="nom-btn" data-nom="1474">1474</button>
-          </div>
-          <select class="fs" id="t-nom"><option value="">— NOMを選択 —</option></select>
+        <div class="fg">
+          <label class="fl">NOM番号</label>
+          <select class="fs" id="t-nom"><option value="">— 選択 —</option></select>
         </div>
-        <div class="form-grid-2">
-          <div class="fg"><label class="fl">ブランド</label><select class="fs" id="t-brand" disabled><option value="">— 先にNOMを選択 —</option></select></div>
-          <div class="fg"><label class="fl">クラス</label><select class="fs" id="t-class" disabled><option value="">— 先にブランドを選択 —</option></select></div>
+        <div class="fg">
+          <label class="fl">ブランド</label>
+          <select class="fs" id="t-brand" disabled><option value="">— 先にNOMを選択 —</option></select>
         </div>
-        <div class="fg" style="margin-bottom:6px"><label class="fl">ボトル</label><select class="fs" id="t-bdata" disabled><option value="">— 先にクラスを選択 —</option></select></div>
+        <div class="fg">
+          <label class="fl">クラス</label>
+          <select class="fs" id="t-class" disabled><option value="">— 先にブランドを選択 —</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">ボトル</label>
+          <select class="fs" id="t-bdata" disabled><option value="">— 先にクラスを選択 —</option></select>
+        </div>
       </div>
 
       <!-- 他酒選択フォーム -->
       <div id="form-other" style="display:none">
-        <div class="form-grid-2">
-          <div class="fg"><label class="fl">大分類</label><select class="fs" id="o-cat1"><option value="">— 選択 —</option></select></div>
-          <div class="fg"><label class="fl">中分類</label><select class="fs" id="o-cat2" disabled><option value="">— 先に大分類を選択 —</option></select></div>
-          <div class="fg"><label class="fl">小分類</label><select class="fs" id="o-cat3" disabled><option value="">— 先に中分類を選択 —</option></select></div>
-          <div class="fg"><label class="fl">ボトル</label><select class="fs" id="o-bottle" disabled><option value="">— 先に小分類を選択 —</option></select></div>
+        <div class="fg">
+          <label class="fl">大分類</label>
+          <select class="fs" id="o-cat1"><option value="">— 選択 —</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">中分類</label>
+          <select class="fs" id="o-cat2" disabled><option value="">— 先に大分類を選択 —</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">小分類</label>
+          <select class="fs" id="o-cat3" disabled><option value="">— 先に中分類を選択 —</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">ボトル</label>
+          <select class="fs" id="o-bottle" disabled><option value="">— 先に小分類を選択 —</option></select>
         </div>
       </div>
 
       <!-- その他選択フォーム -->
       <div id="form-misc" style="display:none">
-        <div class="form-grid-2">
-          <div class="fg"><label class="fl">種別</label><select class="fs" id="m-kind"><option value="">— 選択 —</option></select></div>
-          <div class="fg"><label class="fl">商品</label><select class="fs" id="m-product" disabled><option value="">— 先に種別を選択 —</option></select></div>
+        <div class="fg">
+          <label class="fl">種別</label>
+          <select class="fs" id="m-kind"><option value="">— 選択 —</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">商品</label>
+          <select class="fs" id="m-product" disabled><option value="">— 先に種別を選択 —</option></select>
         </div>
       </div>
 
       <!-- 数量・金額（共通） -->
       <div id="qty-price-row" style="display:none">
-        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:4px">
-          <div class="fg" style="width:80px;flex-shrink:0;margin-bottom:0">
-            <label class="fl" id="qty-label">数量(ml)</label>
-            <input class="fi" type="number" id="item-qty" min="1" style="text-align:right;padding:8px 6px">
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div class="fg" style="width:90px;flex-shrink:0">
+            <label class="fl" id="qty-label">数量 (ml)</label>
+            <input class="fi" type="number" id="item-qty" min="1" style="text-align:right">
           </div>
-          <div class="fg" style="flex:1;margin-bottom:0">
-            <label class="fl">金額(円)</label>
-            <input class="fi" type="number" id="item-price" min="0" style="text-align:right;padding:8px 6px" placeholder="0">
+          <div class="fg" style="flex:1">
+            <label class="fl">金額 (円)</label>
+            <input class="fi" type="number" id="item-price" min="0" style="text-align:right" placeholder="0">
           </div>
-          <div id="item-price-hint" style="font-size:10px;color:var(--ink3);padding-bottom:10px;flex-shrink:0;max-width:110px;line-height:1.4;text-align:right"></div>
         </div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:-8px;margin-bottom:12px" id="item-price-hint"></div>
       </div>
 
     </div>
@@ -464,7 +436,7 @@ g('btn-logout').addEventListener('click',function(){ auth.signOut(); });
 var master = {
   members:[], distilleries:[], brands:[], classes:[], bottles:[], bottleData:[],
   otherCat1:[], otherCat2:[], otherCat3:[], otherBottles:[],
-  miscKinds:[], miscProducts:[], setProducts:[]
+  miscKinds:[], miscProducts:[]
 };
 var masterReady = false;
 
@@ -481,8 +453,7 @@ function loadMasterData(){
     db.collection('otherCat3').get().then(function(s){ master.otherCat3=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
     db.collection('otherBottles').get().then(function(s){ master.otherBottles=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
     db.collection('miscKinds').get().then(function(s){ master.miscKinds=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
-    db.collection('miscProducts').get().then(function(s){ master.miscProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
-    db.collection('setProducts').get().then(function(s){ master.setProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){})
+    db.collection('miscProducts').get().then(function(s){ master.miscProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){})
   ];
   Promise.all(cols).then(function(){
     masterReady = true;
@@ -550,6 +521,15 @@ function renderVisitorList(){
   });
 }
 
+// 商品種別に応じた実額計算
+function calcItemAmount(item){
+  var qty=parseFloat(item.qty)||0;
+  var price=parseFloat(item.price)||0;
+  if(item.type==='tequila'||item.type==='other'){
+    return Math.round(price*qty/10);
+  }
+  return Math.round(price*qty);
+}
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ═══════════════════════════════════════════════════════════════
@@ -578,10 +558,10 @@ function goStep(n){
   if(n===1){
     var names = state.selectedVisitIds.map(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
-      var mid = v?(v.memberId||null):null;
-      var mem = mid?master.members.find(function(m){ return m.id===mid||m.memberId===mid; }):null;
-      return mem?(mem.name||mid):(mid||'非会員');
-    });
+      if(!v) return '';
+      var mem = v.memberId?master.members.find(function(m){ return m.id===v.memberId||m.memberId===v.memberId; }):null;
+      return mem?(mem.name||v.memberId):(v.memberId||'非会員');
+    }).filter(Boolean);
     g('items-desc').textContent = '対象: '+names.join('、');
     renderItemList();
   }
@@ -623,7 +603,7 @@ function renderItemList(){
   var el = g('item-list');
   if(!state.items.length){ el.innerHTML='<div class="empty">まだ商品が追加されていません</div>'; return; }
   el.innerHTML = state.items.map(function(item,i){
-    var totalAmt = (item.qty||1) * (item.price||0);
+    var totalAmt = calcItemAmount(item);
     return '<div class="item-row">'
       +'<div class="item-row-head">'+itemTypeBadge(item.type)
         +'<button class="item-del" data-del-idx="'+i+'">削除</button>'
@@ -665,6 +645,11 @@ g('btn-add-item').addEventListener('click',function(){ openItemModal(-1); });
 // ═══════════════════════════════════════════════════════════════
 // 確認画面（STEP3）
 // ═══════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════
+// 確認画面
+// ═══════════════════════════════════════════════════════════════
 function renderConfirm(){
   var el = g('confirm-content');
   if(!state.selectedVisitIds.length){ el.innerHTML='<div style="padding:24px;text-align:center;color:var(--ink3)">来場者が選択されていません</div>'; return; }
@@ -680,18 +665,21 @@ function renderConfirm(){
 }
 function _drawConfirm(el){
   var html = '';
-  var total = state.items.reduce(function(s,it){ return s+(parseFloat(it.qty)||1)*(parseFloat(it.price)||0); },0);
+  var total = state.items.reduce(function(s,it){ return s+calcItemAmount(it); },0);
   state.selectedVisitIds.forEach(function(vid){
     var v = state.todayVisits.find(function(x){ return x.id===vid; });
     var mid = v?(v.memberId||null):null;
     var mem = mid?master.members.find(function(m){ return m.id===mid||m.memberId===mid; }):null;
     var name = mem?(mem.name||mid):(mid||'非会員');
-    html += '<div class="confirm-visitor">'+'<div class="confirm-visitor-head">'+'<div class="confirm-visitor-name">'+escHtml(name)+'</div>'+'<button class="confirm-visitor-edit" data-edit-visitor="'+vid+'">変更</button>'+'</div>'+'<div class="confirm-items">';
+    html += '<div class="confirm-visitor"><div class="confirm-visitor-head"><div class="confirm-visitor-name">'+escHtml(name)+'</div><button class="confirm-visitor-edit" data-edit-visitor="'+vid+'">変更</button></div><div class="confirm-items">';
     state.items.forEach(function(item,i){
-      html += '<div class="confirm-item">'+'<div>'+'<div class="confirm-item-name">'+escHtml(item.productName||'—')+'</div>'+'<div class="confirm-item-detail">'+(item.qty||1)+' '+( item.unit||'ml')+' × '+(item.price||0)+'円</div>'+'</div>'+'<div class="confirm-item-actions">'+'<button class="confirm-item-edit" data-edit-item="'+i+'">編集</button>'+'<button class="confirm-item-del" data-del-item="'+i+'">削除</button>'+'</div>'+'</div>';
+      var amtStr = item.type==='tequila'||item.type==='other'
+        ? item.qty+(item.unit||'ml')+' × '+item.price+'円/10ml = '+calcItemAmount(item)+'円'
+        : item.qty+(item.unit||'個')+' × '+item.price+'円 = '+calcItemAmount(item)+'円';
+      html += '<div class="confirm-item"><div><div class="confirm-item-name">'+escHtml(item.productName||'—')+'</div><div class="confirm-item-detail">'+amtStr+'</div></div><div class="confirm-item-actions"><button class="confirm-item-edit" data-edit-item="'+i+'">編集</button><button class="confirm-item-del" data-del-item="'+i+'">削除</button></div></div>';
     });
-    html += '<button class="confirm-add-item" data-add-visitor="'+vid+'">＋ 商品を追加</button>'+'</div>';
-    html += '<div class="confirm-total">'+'<span class="confirm-total-label">合計（'+state.items.length+'品）</span>'+'<span class="confirm-total-amount">¥'+total.toLocaleString()+'</span>'+'</div>'+'</div>';
+    html += '<button class="confirm-add-item" data-add-visitor="'+vid+'">＋ 商品を追加</button></div>';
+    html += '<div class="confirm-total"><span class="confirm-total-label">合計（'+state.items.length+'品）</span><span class="confirm-total-amount">¥'+total.toLocaleString()+'</span></div></div>';
   });
   html += '<button class="confirm-visitor-add" id="conf-add-visitor">＋ 来場者を追加</button>';
   el.innerHTML = html;
@@ -918,7 +906,7 @@ g('t-bdata').addEventListener('change',function(){
   g('qty-price-row').style.display='';
   sv('item-qty',10);
   sv('item-price',bd.price||0);
-  g('item-price-hint').textContent = '単価 '+(bd.price||'—')+'円 × '+gv('item-qty')+'ml÷10 = '+Math.round((bd.price||0)*(parseFloat(gv('item-qty'))||10)/10)+'円（残: '+(bd.remaining!=null?bd.remaining+'ml':'不明')+'）';
+  g('item-price-hint').textContent = '10ml単価: '+(bd.price||'—')+'円（残: '+(bd.remaining!=null?bd.remaining+'ml':'不明')+'）';
   updateTequilaPrice();
 });
 
@@ -999,8 +987,8 @@ g('o-bottle').addEventListener('change',function(){
   g('qty-price-row').style.display='';
   sv('item-qty',10);
   var price10=b.price10||b.pricePerTen||b.unitPrice||0;
-  sv('item-price',Math.round(price10*(parseFloat(gv('item-qty'))||10)/10));
-  g('item-price-hint').textContent='単価 '+price10+'円 × '+gv('item-qty')+'ml÷10 = '+Math.round(price10*(parseFloat(gv('item-qty'))||10)/10)+'円';
+  sv('item-price',price10);
+  g('item-price-hint').textContent='10ml単価: '+price10+'円（'+escHtml(b.bottleName||'')+'）';
   updateOtherPrice();
 });
 
@@ -1010,7 +998,7 @@ function updateOtherPrice(){
   if(!b) return;
   var price10=b.price10||b.pricePerTen||b.unitPrice||0;
   var qty=parseFloat(gv('item-qty'))||10;
-  sv('item-price',Math.round(price10*qty/10));  // 10ml単価×数量÷10
+  sv('item-price',Math.round(price10*qty/10));
 }
 
 // ─── その他選択チェーン ──────────────────────────────────────
@@ -1120,84 +1108,6 @@ function restoreItemForm(item){
 // 初期表示
 // ═══════════════════════════════════════════════════════════════
 goStep(0);
-// ── NOMショートカット ─────────────────────────────────────
-document.querySelectorAll('.nom-btn[data-nom]').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    var nom=this.dataset.nom;
-    var sel=g('t-nom'); if(!sel) return;
-    sel.value=nom;
-    sel.dispatchEvent(new Event('change'));
-  });
-});
-
-// ── セット商品モーダル ─────────────────────────────────────
-var SET_TYPE_LABEL={0:'通常',1:'段位認定',2:'イベント'};
-var currentSetType='0';
-
-function openSetModal(){
-  currentSetType='0';
-  renderSetSelect();
-  g('set-preview').style.display='none';
-  g('m-set').classList.add('open');
-}
-function renderSetSelect(){
-  var sel=g('set-select'); if(!sel) return;
-  var filtered=master.setProducts.filter(function(s){ return String(s.setType||s.id[0]||'0')===currentSetType; });
-  filtered.sort(function(a,b){ return (a.id||'').localeCompare(b.id||''); });
-  sel.innerHTML='<option value="">— セットを選択 —</option>'+
-    filtered.map(function(s){
-      var label=s.id+' '+(s.memo||'セット'+s.id);
-      return '<option value="'+s.id+'">'+label+'</option>';
-    }).join('');
-  sel.value='';
-  g('set-preview').style.display='none';
-}
-document.querySelectorAll('[data-settype]').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    currentSetType=this.dataset.settype;
-    document.querySelectorAll('[data-settype]').forEach(function(b){ b.style.background=''; b.style.color=''; });
-    this.style.background='var(--gold-d)'; this.style.color='var(--cream)';
-    renderSetSelect();
-  });
-});
-var setSelEl=g('set-select');
-if(setSelEl) setSelEl.addEventListener('change',function(){
-  var id=this.value;
-  var preview=g('set-preview'), previewItems=g('set-preview-items'), previewMemo=g('set-preview-memo');
-  if(!id||!preview){ if(preview) preview.style.display='none'; return; }
-  var s=master.setProducts.find(function(x){ return x.id===id; });
-  if(!s){ preview.style.display='none'; return; }
-  var itemIds=[s.item01,s.item02,s.item03,s.item04,s.item05,s.item06,s.item07,s.item08].filter(Boolean);
-  previewItems.innerHTML=itemIds.map(function(pid){
-    var p=master.miscProducts.find(function(x){ return x.id===pid; });
-    return '<div style="font-size:12px;color:var(--ink2)">・'+(p?p.name:pid)+(p?' （'+(p.unitPrice||0)+'円）':'')+'</div>';
-  }).join('');
-  previewMemo.textContent=s.memo||'';
-  preview.style.display='';
-});
-var mSetClose=g('m-set-close'); if(mSetClose) mSetClose.addEventListener('click',function(){ g('m-set').classList.remove('open'); });
-var mSetCancel=g('m-set-cancel'); if(mSetCancel) mSetCancel.addEventListener('click',function(){ g('m-set').classList.remove('open'); });
-var mSetSave=g('m-set-save');
-if(mSetSave) mSetSave.addEventListener('click',function(){
-  var id=gv('set-select');
-  if(!id){ toast('セットを選択してください','err'); return; }
-  var s=master.setProducts.find(function(x){ return x.id===id; });
-  if(!s){ toast('セットデータが見つかりません','err'); return; }
-  var itemIds=[s.item01,s.item02,s.item03,s.item04,s.item05,s.item06,s.item07,s.item08].filter(Boolean);
-  var addedCount=0;
-  itemIds.forEach(function(pid){
-    var p=master.miscProducts.find(function(x){ return x.id===pid; });
-    if(!p) return;
-    state.items.push({type:'misc',productCode:pid,productName:p.name||pid,qty:p.qty||1,unit:p.unit||'個',price:p.unitPrice||0,detail:'セット: '+id});
-    addedCount++;
-  });
-  g('m-set').classList.remove('open');
-  if(addedCount) toast(addedCount+'品をセットとして追加しました'); else toast('セット内に商品が見つかりませんでした','inf');
-  renderItemList();
-});
-var btnAddSet=g('btn-add-set');
-if(btnAddSet) btnAddSet.addEventListener('click',function(){ openSetModal(); });
-
 </script>
 </body>
 </html>
