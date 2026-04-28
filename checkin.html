@@ -225,6 +225,34 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
   </div>
 </div>
 
+<!-- 注文一覧モーダル -->
+<div class="mbg" id="m-orders">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="mt-orders">注文一覧</div>
+      <button class="modal-x" id="m-orders-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="checkout-order-list" id="orders-list">
+        <div class="loading">読み込み中...</div>
+      </div>
+      <div class="checkout-summary" style="margin-top:8px">
+        <div>
+          <div class="cs-label">合計金額</div>
+          <div class="cs-value" id="orders-total">¥0</div>
+        </div>
+        <div style="text-align:right">
+          <div class="cs-label">テキーラ量</div>
+          <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--gold-l)" id="orders-tequila">0 ml</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn bs btn-full" id="m-orders-close2">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- 退店（お会計）モーダル -->
 <div class="mbg" id="m-checkout">
   <div class="modal">
@@ -452,6 +480,9 @@ function renderVisitorList(){
   el.querySelectorAll('[data-refresh-visit]').forEach(function(btn){
     btn.addEventListener('click',function(){ refreshSingleVisit(btn.dataset.refreshVisit, btn); });
   });
+  el.querySelectorAll('[data-orders-visit]').forEach(function(btn){
+    btn.addEventListener('click',function(){ openOrdersModal(btn.dataset.ordersVisit, btn.dataset.ordersName); });
+  });
 }
 
 function renderVisCard(v, isDone){
@@ -467,10 +498,12 @@ function renderVisCard(v, isDone){
     ?'<span class="badge bg-gray">退店 '+fmtHHMM(v.checkoutTime)+'</span>'
     :'<span class="badge bg-teal">在店中</span>';
 
-  // 行1: 名前 / 来店時間・注文数 / バッジ
+  // 行1: 名前 / 来店ID・顧客ID / 来店時間・注文数 / バッジ
   var row1='<div class="vis-row1">'
     +'<div class="vis-name">'+escHtml(name)+'</div>'
     +'<div class="vis-meta-inline">'
+      +'<span class="vis-key">'+v.id+'</span>'
+      +(v.memberId?'<span class="vis-key">'+escHtml(v.memberId)+'</span>':'')
       +'<span>来店: '+fmtHHMM(v.visitTime||'—')+'</span>'
       +'<span>注文 '+orderCount+'品</span>'
     +'</div>'
@@ -478,17 +511,66 @@ function renderVisCard(v, isDone){
     +statusBadge
     +'</div>';
 
-  // 行2: テキーラ量 / 合計金額 / ボタン
+  // 行2: テキーラ量 / 合計金額 / ボタン群
   var row2='<div class="vis-row2">'
     +'<div class="vis-stat-inline"><span class="vis-stat-label">テキーラ</span><span class="vis-stat-val">'+totalTq+' ml</span></div>'
     +'<div class="vis-stat-inline"><span class="vis-stat-label">合計</span><span class="vis-stat-val">¥'+totalAmt.toLocaleString()+'</span></div>'
     +'<div class="vis-actions">'
       +'<button class="btn bs sm" data-refresh-visit="'+v.id+'">🔄</button>'
+      +'<button class="btn bs sm" data-orders-visit="'+v.id+'" data-orders-name="'+escHtml(name)+'">📋 注文</button>'
       +(!isDone?'<button class="btn bt sm" data-checkout="'+v.id+'">🧾 お会計</button>':'')
     +'</div>'
     +'</div>';
 
   return '<div class="vis-card">'+row1+row2+'</div>';
+}
+
+// ── 注文一覧モーダル ───────────────────────────────────────────
+g('m-orders-close').addEventListener('click',function(){ closeM('m-orders'); });
+g('m-orders-close2').addEventListener('click',function(){ closeM('m-orders'); });
+
+function openOrdersModal(visitKey, visitorName){
+  g('mt-orders').textContent='注文一覧 — '+(visitorName||visitKey);
+  g('orders-list').innerHTML='<div class="loading">読み込み中...</div>';
+  g('orders-total').textContent='¥0';
+  g('orders-tequila').textContent='0 ml';
+  openM('m-orders');
+
+  db.collection('orders').get().then(function(snap){
+    var orders=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+      .filter(function(o){ return o.visitKey===visitKey||o.visitId===visitKey; });
+
+    // キャッシュ更新
+    cache.orders=cache.orders.filter(function(o){ return o.visitKey!==visitKey&&o.visitId!==visitKey; }).concat(orders);
+
+    var totalAmt=calcAmount(orders);
+    var totalTq=calcTequila(orders);
+
+    var TYPE_LABEL={'tequila':'テキーラ','other':'他酒','misc':'その他'};
+    var TYPE_BG={'tequila':'background:#fdf0d0;color:#7a5610','other':'background:#E6F1FB;color:#0C447C','misc':'background:#e0f0eb;color:#1a6e58'};
+    var ol=g('orders-list');
+    if(!orders.length){
+      ol.innerHTML='<div style="font-size:12px;color:var(--ink3);padding:12px;text-align:center;background:var(--cream2);border-radius:var(--r)">注文記録なし</div>';
+    } else {
+      orders.sort(function(a,b){ return (a.orderTime||'').localeCompare(b.orderTime||''); });
+      ol.innerHTML=orders.map(function(o){
+        var lbl=TYPE_LABEL[o.productType]||o.productType||'—';
+        var bg=TYPE_BG[o.productType]||'background:var(--cream2);color:var(--ink3)';
+        var qty=(o.qty||0)+(o.unit||'ml');
+        var amt=(o.productType==='tequila'||o.productType==='other')
+          ? Math.round((o.unitPrice||0)*(o.qty||0)/10)
+          : Math.round((o.unitPrice||0)*(o.qty||0));
+        return '<div class="checkout-order-row">'
+          +'<span class="co-type" style="'+bg+'">'+escHtml(lbl)+'</span>'
+          +'<span class="co-name">'+escHtml(o.productName||'—')+'</span>'
+          +'<span class="co-qty">'+escHtml(qty)+'</span>'
+          +'<span class="co-price">¥'+amt.toLocaleString()+'</span>'
+        +'</div>';
+      }).join('');
+    }
+    g('orders-total').textContent='¥'+totalAmt.toLocaleString();
+    g('orders-tequila').textContent=totalTq+' ml';
+  }).catch(function(e){ toast('注文読込失敗: '+e.message,'err'); });
 }
 
 // ── 個別更新 ───────────────────────────────────────────────────
