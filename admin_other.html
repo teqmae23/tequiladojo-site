@@ -67,7 +67,7 @@ function renderSsetItemsList(){
       '<span style="font-size:10px;color:var(--ink3);font-family:var(--mono);flex-shrink:0">'+(i+1)+'</span>'+
       '<span style="font-size:10px;color:var(--ink3);font-family:var(--mono);flex-shrink:0">['+escHtml(item.id)+']</span>'+
       '<span style="flex:1;font-size:13px;color:var(--ink2)">'+escHtml(item.name)+'</span>'+
-      '<span style="font-size:11px;color:var(--ink3);flex-shrink:0">'+( item.unitPrice!=null?"¥"+Number(item.unitPrice).toLocaleString()+"")+"</span>"+
+      '<span style="font-size:11px;color:var(--ink3);flex-shrink:0">'+(item.unitPrice!=null?"¥"+Number(item.unitPrice).toLocaleString():"")+"</span>"+
       '<button class="btn bd sm" data-sset-del="'+i+'">✕</button>'+
     '</div>';
   }).join("");
@@ -1425,7 +1425,7 @@ function renderSsetItemsList(){
       '<span style="font-size:10px;color:var(--ink3);font-family:var(--mono);flex-shrink:0">'+(i+1)+'</span>'+
       '<span style="font-size:10px;color:var(--ink3);font-family:var(--mono);flex-shrink:0">['+escHtml(item.id)+']</span>'+
       '<span style="flex:1;font-size:13px;color:var(--ink2)">'+escHtml(item.name)+'</span>'+
-      '<span style="font-size:11px;color:var(--ink3);flex-shrink:0">'+( item.unitPrice!=null?"¥"+Number(item.unitPrice).toLocaleString()+"")+"</span>"+
+      '<span style="font-size:11px;color:var(--ink3);flex-shrink:0">'+(item.unitPrice!=null?"¥"+Number(item.unitPrice).toLocaleString():"")+"</span>"+
       '<button class="btn bd sm" data-sset-del="'+i+'">✕</button>'+
     '</div>';
   }).join("");
