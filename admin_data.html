@@ -263,7 +263,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
     <!-- 来店データページ -->
     <div class="page" id="page-visits">
       <div class="phead">
-        <div><div class="ptitle">来店データ</div><div class="pdesc">キー: 日付6+時間4+グループ2+連番1 = 13桁</div></div>
+        <div><div class="ptitle">来店データ</div><div class="pdesc">visitKey = 日付6桁（YYMMDD）+ 通番2桁 = 8桁</div></div>
         <button class="btn bp" id="btn-open-visit">＋ 来店登録</button>
       </div>
       <div class="card">
@@ -500,14 +500,12 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
   <div class="modal modal-lg">
     <div class="mhead"><div class="mtitle" id="mt-visit">来店登録</div><button class="mx" data-close="m-visit">✕</button></div>
     <div class="mbody">
-      <div class="keybox" id="kb-visit">—<span class="klabel">来店ID</span></div>
-      <input type="hidden" id="vis-date"><input type="hidden" id="vis-time">
-      <input type="hidden" id="vis-group"><input type="hidden" id="vis-seq">
+      <div class="keybox" id="kb-visit">—<span class="klabel">visitKey（YYMMDD+通番2桁）</span></div>
+      <input type="hidden" id="vis-date">
       <div style="display:flex;gap:20px;align-items:baseline;margin-bottom:12px;padding:8px 0;border-bottom:1px solid var(--border)">
         <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">日付</span><span id="vis-date-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
-        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">時間</span><span id="vis-time-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
-        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">グループ</span><span id="vis-group-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
-        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">GNo.</span><span id="vis-seq-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
+        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">来店時間</span><input class="fi mono" id="vis-time-input" maxlength="4" placeholder="1830" style="width:70px;padding:4px 8px;font-size:14px"></div>
+        <div><span style="font-size:11px;color:var(--ink3);margin-right:4px">通番</span><span id="vis-seq-disp" style="font-size:14px;font-weight:500;color:var(--ink)"></span></div>
       </div>
       <hr class="fsep">
       <div class="fg">
@@ -1002,7 +1000,20 @@ addFilter(["s-vis","f-vis-date"],"visits");
 
 var _bovBtn=g("btn-open-visit"); if(_bovBtn) _bovBtn.addEventListener("click",function(){ openVisitModal(null); });
 
-function makeVisitId(date,time,group,seq){ return date+time+group+seq; }
+// visitKey = YYMMDD + 通番2桁
+function makeVisitKey(date, seq){ return date + String(seq).padStart(2,"0"); }
+
+function autoVisitSeq(date, cb){
+  // その日の最大通番+1を返す
+  var maxSeq = 0;
+  cache.visits.forEach(function(v){
+    if((v.visitDate||v.id.slice(0,6))===date){
+      var s = parseInt(v.id.slice(6,8))||0;
+      if(s > maxSeq) maxSeq = s;
+    }
+  });
+  cb(maxSeq + 1);
+}
 
 function setVisitFields(r){
   sv("vis-member",r?r.memberId||"":"");
@@ -1011,29 +1022,22 @@ function setVisitFields(r){
   sv("vis-payment",r?r.payment||"0":"0");
   sv("vis-receipt",r?r.receiptIssued||"0":"0");
   sv("vis-out",r?r.checkoutTime||"":"");
+  var ti=g("vis-time-input"); if(ti) ti.value=r?r.visitTime||"":"";
 }
 
-function updateVisitKeyBox(){
-  var id=makeVisitId(gv("vis-date"),gv("vis-time"),gv("vis-group"),gv("vis-seq"));
-  g("kb-visit").innerHTML='<span class="keypart kp-nom">'+id+'</span><span class="klabel">来店ID</span>';
-  updateVisDateTimeDisp();
+function updateVisitKeyBox(seq){
+  var date=gv("vis-date");
+  var id=makeVisitKey(date, seq||0);
+  g("kb-visit").innerHTML='<span class="keypart kp-nom">'+date+'</span><span class="keypart kp-seq">'+String(seq||0).padStart(2,"0")+'</span><span class="klabel">visitKey</span>';
+  var dd=g("vis-date-disp");
+  if(dd){
+    var yy="20"+date.slice(0,2),mm=date.slice(2,4),dk=date.slice(4,6);
+    try{ var dobj=new Date(parseInt(yy),parseInt(mm)-1,parseInt(dk)); var wdays=["日","月","火","水","木","金","土"]; dd.textContent=yy+"年"+mm+"月"+dk+"日（"+wdays[dobj.getDay()]+"）"; }catch(e){ dd.textContent=date; }
+  }
+  var sd=g("vis-seq-disp"); if(sd) sd.textContent=String(seq||0).padStart(2,"0");
 }
-["vis-date","vis-time","vis-group","vis-seq"].forEach(function(fid){
-  var el=g(fid); if(el) el.oninput=updateVisitKeyBox;
-});
 
-function formatVisDate(yymmdd){
-  if(!yymmdd||yymmdd.length<6) return "";
-  var yy="20"+yymmdd.slice(0,2),mm=yymmdd.slice(2,4),dd=yymmdd.slice(4,6);
-  try{ var d=new Date(parseInt(yy),parseInt(mm)-1,parseInt(dd)); var wdays=["日","月","火","水","木","金","土"]; return yy+"年"+mm+"月"+dd+"日（"+wdays[d.getDay()]+"）"; }catch(e){ return yymmdd; }
-}
-function updateVisDateTimeDisp(){
-  var date=gv("vis-date"),time=gv("vis-time"),group=gv("vis-group"),seq=gv("vis-seq");
-  var dd=g("vis-date-disp"); if(dd) dd.textContent=formatVisDate(date);
-  var td=g("vis-time-disp"); if(td) td.textContent=fmtHHMM(time);
-  var gd=g("vis-group-disp"); if(gd) gd.textContent=group||"";
-  var sd=g("vis-seq-disp"); if(sd) sd.textContent=seq||"";
-}
+var _currentVisitSeq = 1;
 
 function openVisitModal(id){
   editId.visit=id;
@@ -1042,19 +1046,21 @@ function openVisitModal(id){
   var foot=g("visit-modal-foot");
   if(foot) foot.innerHTML='<button class="btn bg2" id="btn-cancel-visit">キャンセル</button><button class="btn bp" id="btn-save-visit">登録</button>';
   bindVisitModalButtons();
-  var keyEls=["vis-date","vis-time","vis-group","vis-seq"];
   if(id){
     var r=cache.visits.find(function(v){return v.id===id;});
-    sv("vis-date",id.slice(0,6)); sv("vis-time",id.slice(6,10));
-    sv("vis-group",id.slice(10,12)); sv("vis-seq",id.slice(12,13));
+    sv("vis-date",id.slice(0,6));
+    _currentVisitSeq=parseInt(id.slice(6,8))||1;
     setVisitFields(r);
+    updateVisitKeyBox(_currentVisitSeq);
   } else {
-    sv("vis-date",todayStr6()); sv("vis-time",nowStr().slice(0,4));
-    sv("vis-group","01"); sv("vis-seq","1");
+    var today=todayStr6();
+    sv("vis-date",today);
     setVisitFields(null);
+    autoVisitSeq(today, function(seq){
+      _currentVisitSeq=seq;
+      updateVisitKeyBox(seq);
+    });
   }
-  keyEls.forEach(function(f){ var el=g(f); if(el){ el.readOnly=true; el.style.background="var(--cream2)"; }});
-  updateVisitKeyBox();
   openM("m-visit");
 }
 
@@ -1076,10 +1082,9 @@ function bindVisitModalButtons(){
 }
 
 function doSaveVisit(onSuccess){
-  var date=gv("vis-date"),time=gv("vis-time"),group=gv("vis-group"),seq=gv("vis-seq");
-  if(date.length!==6||time.length!==4||group.length!==2||seq.length!==1){
-    toast("日付6桁・時間4桁・グループ2桁・連番1桁は必須です","err"); return;
-  }
+  var date=gv("vis-date");
+  var timeInput=g("vis-time-input"); var time=timeInput?timeInput.value.trim():"";
+  if(date.length!==6){ toast("日付（6桁）は必須です","err"); return; }
   var inputMemberId=(gv("vis-member")||"").trim();
   if(inputMemberId){
     var chkM=null;
@@ -1088,11 +1093,12 @@ function doSaveVisit(onSuccess){
     }
     if(!chkM){ toast("会員ID「"+inputMemberId+"」は登録されていません","err"); return; }
   }
-  var id=makeVisitId(date,time,group,seq);
-  if(!editId.visit&&cache.visits.some(function(v){return v.id===id;})){ toast("キー重複: 来店ID「"+id+"」は既に存在します","err"); return; }
+  var seq=editId.visit?parseInt(editId.visit.slice(6,8)):_currentVisitSeq;
+  var id=editId.visit||makeVisitKey(date,seq);
+  if(!editId.visit&&cache.visits.some(function(v){return v.id===id;})){ toast("キー重複: visitKey「"+id+"」は既に存在します","err"); return; }
   db.collection("visits").doc(id).set({
-    visitId:id, visitDate:date, visitTime:time,
-    groupId:group, seqNo:seq,
+    visitKey:id, visitDate:date, visitTime:time||null,
+    seq:seq,
     memberId:gv("vis-member")||null,
     tequilaAmount:gv("vis-tequila")!==""?parseFloat(gv("vis-tequila")):null,
     amount:gv("vis-amount")!==""?parseInt(gv("vis-amount")):null,
