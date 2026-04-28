@@ -276,7 +276,7 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
   </div>
 
   <!-- フッターナビ -->
-  <div class="foot-wrap">
+  <div class="foot-wrap" id="foot-wrap">
     <div class="foot-nav" id="foot-nav">
       <button class="btn bs" style="flex:1" id="btn-prev">← 戻る</button>
       <button class="btn bp" style="flex:2" id="btn-next">次へ →</button>
@@ -543,11 +543,9 @@ function goStep(n){
 
   // フッターボタン
   var fp=g('btn-prev'), fn=g('btn-next'), fw=g('foot-wrap');
-  fw.style.display = n===3?'none':'block';
-  fp.style.display = n===0?'none':'';
-  if(n===2) fn.textContent='注文確定 ✓';
-  else if(n===0) fn.textContent='次へ →';
-  else fn.textContent='次へ →';
+  if(fw) fw.style.display = n===3?'none':'block';
+  if(fp) fp.style.display = n===0?'none':'';
+  if(fn){ if(n===2) fn.textContent='注文確定 ✓'; else fn.textContent='次へ →'; }
 
   if(n===1){
     var names = state.selectedVisitIds.map(function(vid){
