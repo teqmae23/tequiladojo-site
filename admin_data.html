@@ -226,6 +226,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <button class="tab active" data-page="sessions">営業データ <span class="cnt" id="cnt-sessions">—</span></button>
       <button class="tab" data-page="visits">来店データ <span class="cnt" id="cnt-visits">—</span></button>
       <button class="tab" data-page="reservations">予約 <span class="cnt" id="cnt-reservations">—</span></button>
+      <button class="tab" data-page="orders">注文データ <span class="cnt" id="cnt-orders">—</span></button>
       <button class="tab" data-page="calendar">カレンダー</button>
     </div>
     <div class="tuser">
@@ -311,6 +312,52 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           <colgroup><col style="width:90px"><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:90px"><col style="width:50px"><col style="width:50px"><col><col style="width:110px"></colgroup>
           <thead><tr><th>予約ID</th><th>予約日</th><th>開始時間</th><th>終了時間</th><th>顧客コード</th><th>人数</th><th>貸切</th><th>備考</th><th>✏️ レコード操作</th></tr></thead>
           <tbody id="tb-reservations"><tr><td colspan="8" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 注文データページ -->
+    <div class="page" id="page-orders">
+      <div class="phead">
+        <div><div class="ptitle">注文データ</div><div class="pdesc">orderId = 日付6桁 + 連番3桁（例: 250401001）</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn bs" id="btn-export-orders" style="font-size:11px">CSV ダウンロード</button>
+          <button class="btn bp" id="btn-open-order">＋ 注文登録</button>
+        </div>
+      </div>
+      <!-- 集計カード -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">総注文数</div><div style="font-size:24px;font-weight:500" id="ord-stat-count">—</div></div>
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">本日の注文</div><div style="font-size:24px;font-weight:500" id="ord-stat-today">—</div></div>
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">テキーラ</div><div style="font-size:24px;font-weight:500" id="ord-stat-tequila">—</div></div>
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">他酒</div><div style="font-size:24px;font-weight:500" id="ord-stat-other">—</div></div>
+        <div class="card" style="padding:14px 16px"><div style="font-size:11px;color:var(--ink3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">その他</div><div style="font-size:24px;font-weight:500" id="ord-stat-misc">—</div></div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox" style="max-width:180px"><input type="text" id="s-ord" placeholder="注文ID・商品名で検索..."></div>
+          <input type="date" id="f-ord-date" class="fsel" style="width:140px">
+          <select class="fsel" id="f-ord-type">
+            <option value="">全種別</option>
+            <option value="tequila">テキーラ</option>
+            <option value="other">他酒</option>
+            <option value="misc">その他</option>
+          </select>
+          <select class="fsel" id="f-ord-blind">
+            <option value="">全ブラインド</option>
+            <option value="0">通常</option>
+            <option value="1">ブラインド</option>
+          </select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-orders" class="fsel"><option value="id">注文ID</option><option value="orderDate">日付</option><option value="orderTime">時間</option><option value="customerId">顧客ID</option><option value="productType">種別</option><option value="qty">数量</option><option value="unitPrice">単価</option></select>
+            <select id="sort-dir-orders" class="fsel"><option value="desc">降順 ▼</option><option value="asc">昇順 ▲</option></select>
+            <button class="btn bs" id="btn-sort-orders">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-orders">
+          <colgroup><col style="width:100px"><col style="width:50px"><col style="width:50px"><col style="width:80px"><col style="width:60px"><col><col style="width:44px"><col style="width:50px"><col style="width:60px"><col style="width:36px"><col style="width:100px"></colgroup>
+          <thead><tr><th>注文ID</th><th>日付</th><th>時間</th><th>顧客ID</th><th>種別</th><th>商品名</th><th>数量</th><th>単位</th><th>単価</th><th>盲</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-orders"><tr><td colspan="11" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -513,6 +560,52 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
   </div>
 </div>
 
+<!-- 注文データモーダル -->
+<div class="mbg" id="m-order">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-order">注文登録</div><button class="mx" data-close="m-order">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-order">—<span class="klabel">orderId（日付6桁+連番3桁）</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">注文日（YYMMDD）<span class="req">*</span></label><input class="fi mono" id="ord-date" maxlength="6" placeholder="250401"></div>
+        <div class="fg"><label class="fl">連番（3桁）<span class="req">*</span></label><input class="fi mono" id="ord-seq" maxlength="3" placeholder="001"></div>
+        <div class="fg"><label class="fl">注文時間（HHMM）</label><input class="fi mono" id="ord-time" maxlength="4" placeholder="1930"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">顧客ID（memberId）</label><input class="fi mono" id="ord-customer" maxlength="6" placeholder="250001"></div>
+        <div class="fg"><label class="fl">来店ID（visitId）</label><input class="fi mono" id="ord-visit" maxlength="13" placeholder="2504011830011"></div>
+      </div>
+      <hr class="fsep">
+      <div class="frow">
+        <div class="fg"><label class="fl">商品種別<span class="req">*</span></label>
+          <select class="fs" id="ord-type">
+            <option value="tequila">テキーラ</option>
+            <option value="other">他酒</option>
+            <option value="misc">その他</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">商品コード</label><input class="fi mono" id="ord-product-code" placeholder="ボトルID等"></div>
+      </div>
+      <div class="fg"><label class="fl">商品名</label><input class="fi" id="ord-product-name" placeholder="商品名"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">数量<span class="req">*</span></label><input class="fi" id="ord-qty" type="number" min="1" placeholder="10"></div>
+        <div class="fg"><label class="fl">単位</label><input class="fi" id="ord-unit" maxlength="10" placeholder="ml"></div>
+        <div class="fg"><label class="fl">単価（円）</label><input class="fi" id="ord-unit-price" type="number" min="0" placeholder="0"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">セットID（2桁）</label><input class="fi mono" id="ord-set-id" maxlength="2" placeholder="01"></div>
+        <div class="fg"><label class="fl">ブラインド</label>
+          <select class="fs" id="ord-blind">
+            <option value="0">0: 通常</option>
+            <option value="1">1: ブラインド</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-order">キャンセル</button><button class="btn bp" id="btn-save-order">保存</button></div>
+  </div>
+</div>
+
 <!-- 削除確認 -->
 <div class="cbg" id="confirm-bg">
   <div class="ccard">
@@ -546,7 +639,7 @@ function openM(id)  { g(id).classList.add("open"); }
 function closeM(id) { g(id).classList.remove("open"); }
 function setCnt(col,n){ var el=g("cnt-"+col); if(el) el.textContent=n; }
 
-var FORM_MODALS=["m-session","m-visit","m-reservation","m-schedule"];
+var FORM_MODALS=["m-session","m-visit","m-reservation","m-schedule","m-order"];
 function isFormModal(id){ return FORM_MODALS.indexOf(id)>=0; }
 function confirmClose(id){
   if(isFormModal(id)){ if(!confirm("登録作業を中止しますか？\n入力内容は破棄されます。")) return; }
@@ -613,11 +706,11 @@ document.querySelectorAll(".tab").forEach(function(tab){
 });
 
 // ── キャッシュ・ソート ─────────────────────────────────────────
-var cache = { sessions:[], visits:[], reservations:[], members:[], layouts:[] };
-var editId = { session:null, visit:null, reservation:null };
+var cache = { sessions:[], visits:[], reservations:[], orders:[], members:[], layouts:[] };
+var editId = { session:null, visit:null, reservation:null, order:null };
 var sortState = {};
 
-var SORT_COLS = ["sessions","visits","reservations"];
+var SORT_COLS = ["sessions","visits","reservations","orders"];
 SORT_COLS.forEach(function(col){
   var btn=g("btn-sort-"+col); if(!btn) return;
   btn.addEventListener("click",function(){
@@ -642,6 +735,7 @@ function renderCol(col){
   if(col==="sessions") renderSessions();
   else if(col==="visits") renderVisits();
   else if(col==="reservations") renderReservations();
+  else if(col==="orders") renderOrders();
 }
 
 function addFilter(ids,col){
@@ -683,6 +777,7 @@ function loadLayouts(){
 document.querySelector('[data-page="sessions"]').addEventListener("click",function(){ loadSessions(); updateSesLayoutFilter(); });
 document.querySelector('[data-page="visits"]').addEventListener("click",function(){ loadVisits(); });
 document.querySelector('[data-page="reservations"]').addEventListener("click",function(){ loadReservations(); });
+document.querySelector('[data-page="orders"]').addEventListener("click",function(){ loadOrders(); });
 document.querySelector('[data-page="calendar"]').addEventListener("click",function(){
   calRenderLegend();
   calFetchHolidays(function(){ calRenderMonth(); calUpdateNavButtons(); });
@@ -695,6 +790,7 @@ document.addEventListener("click",function(e){
   if(btn.dataset.editVisit)  { openVisitModal(btn.dataset.editVisit);   return; }
   if(btn.dataset.copyVisit)  { copyVisitModal(btn.dataset.copyVisit);   return; }
   if(btn.dataset.editReservation){ openReservationModal(btn.dataset.editReservation); return; }
+  if(btn.dataset.editOrder)  { openOrderModal(btn.dataset.editOrder); return; }
   if(btn.dataset.del){
     var col=btn.dataset.del,id=btn.dataset.delId,label=btn.dataset.delLabel;
     confirmDel("「"+id+"」の"+label+"データを削除しますか？",function(){
@@ -704,6 +800,7 @@ document.addEventListener("click",function(e){
           if(col==="sessions") loadSessions();
           else if(col==="visits") loadVisits();
           else if(col==="reservations"){ var delRsv=cache.reservations.find(function(r){return r.id===id;}); if(delRsv&&delRsv.reservationDate) autoPublishCalForMonth(delRsv.reservationDate,"予約削除"); loadReservations(); }
+          else if(col==="orders") loadOrders();
         })
         .catch(function(e){ toast("削除失敗: "+e.message,"err"); });
     });
@@ -1767,6 +1864,183 @@ function autoPublishCalForMonth(yymmdd,statusMsg){
     });
   });
 })();
+
+// ════════════════════════════════════════════════════════════════
+// 注文データ
+// ════════════════════════════════════════════════════════════════
+setCnt("orders","—");
+
+var TYPE_LABEL={"tequila":"テキーラ","other":"他酒","misc":"その他"};
+var TYPE_BADGE_CLS={"tequila":"bg-gold","other":"bg-blue","misc":"bg-teal"};
+
+function loadOrders(){
+  db.collection("orders").get()
+    .then(function(snap){
+      cache.orders=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+      setCnt("orders",cache.orders.length);
+      renderOrders();
+      ordUpdateStats();
+    })
+    .catch(function(e){ toast("読込失敗(orders): "+e.message,"err"); });
+}
+
+function ordUpdateStats(){
+  var today=todayStr6();
+  var todayCount =cache.orders.filter(function(r){return r.orderDate===today;}).length;
+  var tqCount    =cache.orders.filter(function(r){return r.productType==="tequila";}).length;
+  var otCount    =cache.orders.filter(function(r){return r.productType==="other";}).length;
+  var msCount    =cache.orders.filter(function(r){return r.productType==="misc";}).length;
+  var els={"ord-stat-count":cache.orders.length,"ord-stat-today":todayCount,"ord-stat-tequila":tqCount,"ord-stat-other":otCount,"ord-stat-misc":msCount};
+  Object.keys(els).forEach(function(k){ var el=g(k); if(el) el.textContent=els[k]; });
+}
+
+function renderOrders(){
+  var list=cache.orders.slice();
+  var q=(g("s-ord")||{value:""}).value.toLowerCase();
+  var dateF=gv("f-ord-date"), typeF=gv("f-ord-type"), blindF=gv("f-ord-blind");
+  list=list.filter(function(r){
+    if(q&&(r.id||"").indexOf(q)<0&&(r.productName||"").toLowerCase().indexOf(q)<0&&(r.customerId||"").indexOf(q)<0) return false;
+    if(dateF){ var yy=dateF.slice(2,4),mm=dateF.slice(5,7),dd=dateF.slice(8,10); if(r.orderDate!==yy+mm+dd) return false; }
+    if(typeF&&r.productType!==typeF) return false;
+    if(blindF&&String(r.blindId||0)!==blindF) return false;
+    return true;
+  });
+  list=applySortToList(list,"orders");
+  var tb=g("tb-orders");
+  if(!list.length){ tb.innerHTML='<tr><td colspan="11" class="ec">データがありません</td></tr>'; return; }
+  tb.innerHTML=list.map(function(r){
+    var lbl=TYPE_LABEL[r.productType];
+    var typeBadge=lbl?'<span class="badge '+(TYPE_BADGE_CLS[r.productType]||"bg-gray")+'">'+lbl+'</span>':'<span class="dim">—</span>';
+    var blindBadge=(r.blindId===1||r.blindId==="1")?'<span class="badge bg-red">盲</span>':'';
+    return '<tr>'
+      +'<td class="mono" style="font-size:10px">'+r.id+'</td>'
+      +'<td class="mono dim">'+fmtDate(r.orderDate||"")+'</td>'
+      +'<td class="mono dim">'+fmtHHMM(r.orderTime||"")+'</td>'
+      +'<td class="mono dim" style="font-size:11px">'+(r.customerId||"—")+'</td>'
+      +'<td>'+typeBadge+'</td>'
+      +'<td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.productName||"—")+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+(r.qty!=null?r.qty:"—")+'</td>'
+      +'<td class="dim" style="font-size:11px">'+(r.unit||"—")+'</td>'
+      +'<td class="mono" style="text-align:right">'+(r.unitPrice!=null?"¥"+Number(r.unitPrice).toLocaleString():"—")+'</td>'
+      +'<td style="text-align:center">'+blindBadge+'</td>'
+      +'<td><div class="acts">'
+        +'<button class="btn bs sm" data-edit-order="'+r.id+'">編集</button>'
+        +'<button class="btn bd sm" data-del="orders" data-del-id="'+r.id+'" data-del-label="注文データ">削除</button>'
+      +'</div></td></tr>';
+  }).join("");
+}
+
+// フィルター・ソート・CSV
+(function(){
+  ["s-ord","f-ord-date","f-ord-type","f-ord-blind"].forEach(function(id){
+    var el=g(id); if(!el) return;
+    el.addEventListener("input",renderOrders);
+    el.addEventListener("change",renderOrders);
+  });
+  var expBtn=g("btn-export-orders");
+  if(expBtn) expBtn.addEventListener("click",function(){
+    if(!cache.orders.length){ toast("データがありません","inf"); return; }
+    var csv="\uFEFF注文ID,注文日,注文時間,顧客ID,来店ID,商品種別,商品コード,商品名,数量,単位,単価,セットID,ブラインド\n"+
+      cache.orders.map(function(r){
+        return [r.id,r.orderDate||"",r.orderTime||"",r.customerId||"",r.visitId||"",
+                r.productType||"",(r.productCode||"").replace(/,/g,"、"),
+                (r.productName||"").replace(/,/g,"、"),
+                r.qty!=null?r.qty:"",r.unit||"",r.unitPrice!=null?r.unitPrice:"",
+                r.setId||"",r.blindId||0].join(",");
+      }).join("\n");
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url;
+    a.download="orders_"+new Date().toISOString().slice(0,10)+".csv";
+    a.click(); URL.revokeObjectURL(url);
+  });
+  var openBtn=g("btn-open-order");
+  if(openBtn) openBtn.addEventListener("click",function(){ openOrderModal(null); });
+})();
+
+function updateOrderKey(){
+  var d=gv("ord-date"), s=gv("ord-seq"), el=g("kb-order");
+  if(d.length===6&&s.length===3){
+    el.innerHTML='<span class="keypart kp-nom">'+d+'</span><span class="keypart kp-seq">'+s+'</span><span class="klabel">orderId</span>';
+  } else {
+    el.innerHTML='—<span class="klabel">orderId（日付6桁+連番3桁）</span>';
+  }
+}
+
+function autoSetOrderSeq(date){
+  if(!date||date.length!==6) return;
+  var maxSeq=0;
+  cache.orders.forEach(function(r){
+    if(r.orderDate===date){ var s=parseInt((r.id||"").slice(6))||0; if(s>maxSeq) maxSeq=s; }
+  });
+  sv("ord-seq",String(maxSeq+1).padStart(3,"0"));
+  updateOrderKey();
+}
+
+function openOrderModal(id){
+  editId.order=id;
+  g("mt-order").textContent=id?"注文データ編集":"注文登録";
+  var dEl=g("ord-date"), sEl=g("ord-seq");
+  if(id){
+    var r=cache.orders.find(function(x){return x.id===id;});
+    sv("ord-date",r?r.orderDate:""); sv("ord-seq",id.slice(6));
+    sv("ord-time",r?r.orderTime||"":"");
+    sv("ord-customer",r?r.customerId||"":""); sv("ord-visit",r?r.visitId||"":"");
+    sv("ord-type",r?r.productType||"tequila":"tequila");
+    sv("ord-product-code",r?r.productCode||"":""); sv("ord-product-name",r?r.productName||"":"");
+    sv("ord-qty",r&&r.qty!=null?r.qty:""); sv("ord-unit",r?r.unit||"ml":"ml");
+    sv("ord-unit-price",r&&r.unitPrice!=null?r.unitPrice:"");
+    sv("ord-set-id",r?r.setId||"01":"01"); sv("ord-blind",r?String(r.blindId||0):"0");
+    if(dEl){dEl.readOnly=true; dEl.style.background="var(--cream2)";}
+    if(sEl){sEl.readOnly=true; sEl.style.background="var(--cream2)";}
+  } else {
+    var today=todayStr6();
+    sv("ord-date",today);
+    sv("ord-time",(function(){var d=new Date();return String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0");})());
+    sv("ord-customer",""); sv("ord-visit","");
+    sv("ord-type","tequila"); sv("ord-product-code",""); sv("ord-product-name","");
+    sv("ord-qty",""); sv("ord-unit","ml"); sv("ord-unit-price","");
+    sv("ord-set-id","01"); sv("ord-blind","0");
+    if(dEl){dEl.readOnly=false; dEl.style.background="";}
+    if(sEl){sEl.readOnly=false; sEl.style.background="";}
+    autoSetOrderSeq(today);
+  }
+  updateOrderKey();
+  ["ord-date","ord-seq"].forEach(function(fid){
+    var el=g(fid); if(!el) return;
+    el.oninput=function(){
+      updateOrderKey();
+      if(fid==="ord-date"&&gv("ord-date").length===6) autoSetOrderSeq(gv("ord-date"));
+    };
+  });
+  openM("m-order");
+}
+
+var _bsoBtn=g("btn-save-order");
+if(_bsoBtn) _bsoBtn.addEventListener("click",function(){
+  var date=gv("ord-date"), seq=gv("ord-seq"), qty=gv("ord-qty");
+  if(!date||date.length!==6){ toast("注文日（6桁）は必須です","err"); return; }
+  if(!seq||seq.length!==3){ toast("連番（3桁）は必須です","err"); return; }
+  if(!qty){ toast("数量は必須です","err"); return; }
+  var id=date+seq;
+  if(!editId.order&&cache.orders.some(function(r){return r.id===id;})){ toast("注文ID「"+id+"」は既に存在します","err"); return; }
+  db.collection("orders").doc(id).set({
+    orderId:id, orderDate:date, seq:parseInt(seq)||0,
+    orderTime:gv("ord-time")||null,
+    customerId:gv("ord-customer")||null,
+    visitId:gv("ord-visit")||null,
+    productType:gv("ord-type")||"tequila",
+    productCode:gv("ord-product-code")||null,
+    productName:gv("ord-product-name")||null,
+    qty:parseFloat(qty)||null,
+    unit:gv("ord-unit")||"ml",
+    unitPrice:gv("ord-unit-price")!==""?parseInt(gv("ord-unit-price")):null,
+    setId:gv("ord-set-id")||"01",
+    blindId:parseInt(gv("ord-blind"))||0
+  },{merge:true})
+  .then(function(){ toast(editId.order?"注文データを更新しました":"注文データを登録しました"); closeM("m-order"); loadOrders(); })
+  .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
 
 </script>
 </body>
