@@ -97,22 +97,21 @@ button{cursor:pointer;font-family:var(--sans);border:none}
 
 /* ── 商品行 ── */
 .item-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.item-row{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:9px 12px;display:flex;align-items:center;gap:8px}
-.item-row-head{display:none}
-.item-badge{padding:2px 6px;border-radius:20px;font-size:9px;font-weight:500;white-space:nowrap;flex-shrink:0}
+.item-row{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:12px 14px}
+.item-row-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.item-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
 .badge-tequila{background:#fdf0d0;color:var(--gold-d);border:1px solid rgba(200,146,30,.3)}
 .badge-other{background:var(--blue-l);color:var(--blue);border:1px solid rgba(24,95,165,.3)}
 .badge-misc{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
-.item-del{background:var(--red-l);border:1px solid rgba(140,40,24,.2);color:var(--red);padding:4px 8px;border-radius:var(--r);font-size:11px;flex-shrink:0}
-.item-info{flex:1;min-width:0}
-.item-summary{font-size:12px;color:var(--ink2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item-sub{font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item-amtrow{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.item-qty{width:48px;padding:6px 6px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
-.item-unit{font-size:11px;color:var(--ink3);white-space:nowrap}
-.item-x{font-size:11px;color:var(--ink3)}
-.item-price{width:68px;padding:6px 6px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
-.item-yen{font-size:11px;color:var(--ink3)}
+.item-del{margin-left:auto;background:var(--red-l);border:1px solid rgba(140,40,24,.2);color:var(--red);padding:4px 10px;border-radius:var(--r);font-size:11px}
+.item-summary{font-size:13px;color:var(--ink2);font-weight:500;margin-bottom:6px}
+.item-sub{font-size:11px;color:var(--ink3)}
+.item-amtrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.item-qty{width:72px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
+.item-unit{font-size:12px;color:var(--ink3);white-space:nowrap}
+.item-x{font-size:12px;color:var(--ink3)}
+.item-price{flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
+.item-yen{font-size:12px;color:var(--ink3)}
 
 /* ── ボタン ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:var(--r);font-size:14px;font-weight:500;border:none;white-space:nowrap;cursor:pointer}
@@ -480,13 +479,11 @@ var state = {
 // ═══════════════════════════════════════════════════════════════
 function loadTodayVisits(){
   var today = todayStr6();
-  db.collection('visits').where('visitDate','==',today).get()
+  // .where()クエリはFirestoreインデックスが必要なため全件取得→クライアント側フィルター
+  db.collection('visits').get()
     .then(function(snap){
       var all = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-      // チェックアウト済みを除外（ただし既に選択済みのIDは残す）
-      state.todayVisits = all.filter(function(v){
-        return !v.checkoutTime || state.selectedVisitIds.indexOf(v.id)>=0;
-      });
+      state.todayVisits = all.filter(function(v){ return v.visitDate===today && !v.checkoutTime; });
       state.todayVisits.sort(function(a,b){ return (a.visitTime||'').localeCompare(b.visitTime||''); });
       renderVisitorList();
     })
@@ -555,9 +552,9 @@ function goStep(n){
   if(n===1){
     var names = state.selectedVisitIds.map(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
-      var memberId = v ? v.memberId : null;
+      var memberId = v ? (v.memberId||null) : null;
       var mem = memberId ? master.members.find(function(m){ return m.id===memberId||m.memberId===memberId; }) : null;
-      return mem ? (mem.name||memberId) : (memberId||vid);
+      return mem ? (mem.name||memberId) : (memberId||'非会員');
     });
     g('items-desc').textContent = '対象: '+names.join('、');
     renderItemList();
@@ -602,11 +599,11 @@ function renderItemList(){
   el.innerHTML = state.items.map(function(item,i){
     var totalAmt = (item.qty||1) * (item.price||0);
     return '<div class="item-row">'
-      +itemTypeBadge(item.type)
-      +'<div class="item-info">'
-        +'<div class="item-summary">'+escHtml(item.productName)+'</div>'
-        +(item.detail?'<div class="item-sub">'+escHtml(item.detail)+'</div>':'')
+      +'<div class="item-row-head">'+itemTypeBadge(item.type)
+        +'<button class="item-del" data-del-idx="'+i+'">削除</button>'
       +'</div>'
+      +'<div class="item-summary">'+escHtml(item.productName)+'</div>'
+      +'<div class="item-sub">'+escHtml(item.detail||'')+'</div>'
       +'<div class="item-amtrow">'
         +'<input class="item-qty" type="number" min="1" value="'+item.qty+'" data-qty-idx="'+i+'">'
         +'<span class="item-unit">'+escHtml(item.unit||'ml')+'</span>'
@@ -614,7 +611,6 @@ function renderItemList(){
         +'<input class="item-price" type="number" min="0" value="'+item.price+'" data-price-idx="'+i+'">'
         +'<span class="item-yen">円</span>'
       +'</div>'
-      +'<button class="item-del" data-del-idx="'+i+'">✕</button>'
     +'</div>';
   }).join('');
 
@@ -645,24 +641,41 @@ g('btn-add-item').addEventListener('click',function(){ openItemModal(-1); });
 // ═══════════════════════════════════════════════════════════════
 function renderConfirm(){
   var el = g('confirm-content');
-  var html = '';
 
   if(!state.selectedVisitIds.length){
-    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink3);font-size:13px">来場者が選択されていません</div>';
+    el.innerHTML='<div style="padding:24px;text-align:center;color:var(--ink3)">来場者が選択されていません</div>';
     return;
   }
   if(!state.items.length){
-    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink3);font-size:13px">商品が追加されていません</div>';
+    el.innerHTML='<div style="padding:24px;text-align:center;color:var(--ink3)">商品が追加されていません</div>';
     return;
   }
 
+  // todayVisitsにないIDをFirestoreから個別取得して補完
+  var missingIds = state.selectedVisitIds.filter(function(vid){
+    return !state.todayVisits.find(function(v){ return v.id===vid; });
+  });
+  if(missingIds.length > 0){
+    el.innerHTML='<div style="padding:24px;text-align:center;color:var(--ink3)">読み込み中...</div>';
+    Promise.all(missingIds.map(function(vid){
+      return db.collection('visits').doc(vid).get()
+        .then(function(doc){ if(doc.exists) state.todayVisits.push(Object.assign({id:doc.id},doc.data())); })
+        .catch(function(){});
+    })).then(function(){ _renderConfirmHtml(el); });
+    return;
+  }
+  _renderConfirmHtml(el);
+}
+
+function _renderConfirmHtml(el){
+  var html = '';
   var total = state.items.reduce(function(s,it){ return s+(parseFloat(it.qty)||1)*(parseFloat(it.price)||0); },0);
 
   state.selectedVisitIds.forEach(function(vid){
     var v = state.todayVisits.find(function(x){ return x.id===vid; });
     var memberId = v ? (v.memberId||null) : null;
     var mem = memberId ? master.members.find(function(m){ return m.id===memberId||m.memberId===memberId; }) : null;
-    var name = mem ? (mem.name||memberId) : (memberId||vid||'非会員');
+    var name = mem ? (mem.name||memberId) : (memberId||'非会員');
 
     html += '<div class="confirm-visitor">'
       +'<div class="confirm-visitor-head">'
@@ -673,9 +686,9 @@ function renderConfirm(){
 
     state.items.forEach(function(item,i){
       html += '<div class="confirm-item">'
-        +'<div style="flex:1;min-width:0">'
+        +'<div>'
           +'<div class="confirm-item-name">'+escHtml(item.productName||'—')+'</div>'
-          +'<div class="confirm-item-detail">'+(item.qty||1)+(item.unit||'')+'  × '+(item.price||0)+'円</div>'
+          +'<div class="confirm-item-detail">'+(item.qty||1)+(item.unit||'')+'  ×  '+(item.price||0)+'円</div>'
         +'</div>'
         +'<div class="confirm-item-actions">'
           +'<button class="confirm-item-edit" data-edit-item="'+i+'">編集</button>'
@@ -685,35 +698,26 @@ function renderConfirm(){
     });
 
     html += '<button class="confirm-add-item" data-add-visitor="'+vid+'">＋ 商品を追加</button>';
-    html += '</div>';// confirm-items
+    html += '</div>';
     html += '<div class="confirm-total">'
       +'<span class="confirm-total-label">合計（'+state.items.length+'品）</span>'
       +'<span class="confirm-total-amount">¥'+total.toLocaleString()+'</span>'
     +'</div>';
-    html += '</div>';// confirm-visitor
+    html += '</div>';
   });
 
   html += '<button class="confirm-visitor-add" id="conf-add-visitor">＋ 来場者を追加</button>';
-
   el.innerHTML = html;
 
-  // 来場者変更
   el.querySelectorAll('[data-edit-visitor]').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      goStep(0);
-    });
+    btn.addEventListener('click',function(){ goStep(0); });
   });
-  // 商品追加（確認画面から）
   el.querySelectorAll('[data-add-visitor]').forEach(function(btn){
     btn.addEventListener('click',function(){ openItemModal(-1); });
   });
-  // 商品編集
   el.querySelectorAll('[data-edit-item]').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      openItemModal(parseInt(btn.dataset.editItem));
-    });
+    btn.addEventListener('click',function(){ openItemModal(parseInt(btn.dataset.editItem)); });
   });
-  // 商品削除
   el.querySelectorAll('[data-del-item]').forEach(function(btn){
     btn.addEventListener('click',function(){
       if(!confirm('この商品を削除しますか？')) return;
@@ -721,7 +725,6 @@ function renderConfirm(){
       renderConfirm();
     });
   });
-  // 来場者追加
   var av = g('conf-add-visitor');
   if(av) av.addEventListener('click',function(){ goStep(0); });
 }
@@ -732,28 +735,31 @@ function renderConfirm(){
 function submitOrder(){
   var today = todayStr6();
   var orderTime = nowStr4();
-  var batch = db.batch();
   var orderIds = [];
 
-  // 今日の注文件数を取得してから連番を振る
-  db.collection('orders').where('orderDate','==',today).get().then(function(snap){
-    var baseSeq = snap.size + 1;
-    var seqCounter = baseSeq;
+  if(!state.selectedVisitIds.length){ toast('来場者が選択されていません','err'); return; }
+  if(!state.items.length){ toast('商品が選択されていません','err'); return; }
+
+  // 今日の注文の最大連番を取得（whereクエリなしで全件取得→クライアント側フィルター）
+  db.collection('orders').get().then(function(snap){
+    var allOrders = snap.docs.map(function(d){ return d.data(); });
+    var todayOrders = allOrders.filter(function(o){ return o.orderDate===today; });
+    var seqCounter = todayOrders.length + 1;
+    var batch = db.batch();
 
     state.selectedVisitIds.forEach(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
-      if(!v) return;
+      var memberId = v ? (v.memberId||null) : null;
 
       state.items.forEach(function(item, itemIdx){
         var orderId = today + pad(seqCounter,3);
         seqCounter++;
-        var ref = db.collection('orders').doc(orderId);
-        batch.set(ref,{
+        batch.set(db.collection('orders').doc(orderId),{
           orderId:      orderId,
           orderDate:    today,
           seq:          seqCounter-1,
           orderTime:    orderTime,
-          customerId:   v.memberId||null,
+          customerId:   memberId,
           visitId:      vid,
           productCode:  item.productCode||null,
           productName:  item.productName||null,
@@ -769,12 +775,13 @@ function submitOrder(){
       });
     });
 
+    if(!orderIds.length){ toast('登録する注文がありません','err'); return; }
     return batch.commit();
   }).then(function(){
-    var count = state.selectedVisitIds.length;
-    var itemCount = state.items.length;
+    if(!orderIds.length) return;
     g('done-msg').textContent =
-      count+'名に'+itemCount+'種の商品を注文登録しました。\n注文ID: '+orderIds.slice(0,3).join('、')+(orderIds.length>3?'…':'');
+      state.selectedVisitIds.length+'名に'+state.items.length+'種の商品を注文登録しました。\n注文ID: '+
+      orderIds.slice(0,3).join('、')+(orderIds.length>3?'…':'');
     goStep(3);
     toast('注文を登録しました','ok');
   }).catch(function(e){ toast('注文登録失敗: '+e.message,'err'); });
