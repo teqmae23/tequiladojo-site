@@ -97,20 +97,22 @@ button{cursor:pointer;font-family:var(--sans);border:none}
 
 /* ── 商品行 ── */
 .item-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.item-row{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:12px 14px}
-.item-row-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.item-row{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:9px 12px;display:flex;align-items:center;gap:8px}
+.item-row-head{display:none}
 .item-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
 .badge-tequila{background:#fdf0d0;color:var(--gold-d);border:1px solid rgba(200,146,30,.3)}
 .badge-other{background:var(--blue-l);color:var(--blue);border:1px solid rgba(24,95,165,.3)}
 .badge-misc{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
-.item-del{margin-left:auto;background:var(--red-l);border:1px solid rgba(140,40,24,.2);color:var(--red);padding:4px 10px;border-radius:var(--r);font-size:11px}
-.item-summary{font-size:13px;color:var(--ink2);font-weight:500;margin-bottom:6px}
+.item-del{background:var(--red-l);border:1px solid rgba(140,40,24,.2);color:var(--red);padding:4px 8px;border-radius:var(--r);font-size:11px;flex-shrink:0}
+.item-info{flex:1;min-width:0}
+.item-summary{font-size:12px;color:var(--ink2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-sub{font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item-sub{font-size:11px;color:var(--ink3)}
-.item-amtrow{display:flex;align-items:center;gap:8px;margin-top:8px}
-.item-qty{width:72px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
+.item-amtrow{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.item-qty{width:48px;padding:6px 6px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
 .item-unit{font-size:12px;color:var(--ink3);white-space:nowrap}
 .item-x{font-size:12px;color:var(--ink3)}
-.item-price{flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
+.item-price{width:68px;padding:6px 6px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
 .item-yen{font-size:12px;color:var(--ink3)}
 
 /* ── ボタン ── */
@@ -479,7 +481,6 @@ var state = {
 // ═══════════════════════════════════════════════════════════════
 function loadTodayVisits(){
   var today = todayStr6();
-  // .where()はFirestoreインデックスが必要なため全件取得→クライアントフィルター
   db.collection('visits').get()
     .then(function(snap){
       var all = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
@@ -550,10 +551,10 @@ function goStep(n){
   if(n===1){
     var names = state.selectedVisitIds.map(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
-      var mid = v?(v.memberId||null):null;
-      var mem = mid?master.members.find(function(m){ return m.id===mid||m.memberId===mid; }):null;
-      return mem?(mem.name||mid):(mid||'非会員');
-    });
+      if(!v) return '';
+      var mem = v.memberId?master.members.find(function(m){ return m.id===v.memberId||m.memberId===v.memberId; }):null;
+      return mem?(mem.name||v.memberId):(v.memberId||'非会員');
+    }).filter(Boolean);
     g('items-desc').textContent = '対象: '+names.join('、');
     renderItemList();
   }
@@ -597,11 +598,11 @@ function renderItemList(){
   el.innerHTML = state.items.map(function(item,i){
     var totalAmt = (item.qty||1) * (item.price||0);
     return '<div class="item-row">'
-      +'<div class="item-row-head">'+itemTypeBadge(item.type)
-        +'<button class="item-del" data-del-idx="'+i+'">削除</button>'
+      +itemTypeBadge(item.type)
+      +'<div class="item-info">'
+        +'<div class="item-summary">'+escHtml(item.productName)+'</div>'
+        +(item.detail?'<div class="item-sub">'+escHtml(item.detail)+'</div>':'')
       +'</div>'
-      +'<div class="item-summary">'+escHtml(item.productName)+'</div>'
-      +'<div class="item-sub">'+escHtml(item.detail||'')+'</div>'
       +'<div class="item-amtrow">'
         +'<input class="item-qty" type="number" min="1" value="'+item.qty+'" data-qty-idx="'+i+'">'
         +'<span class="item-unit">'+escHtml(item.unit||'ml')+'</span>'
@@ -609,6 +610,7 @@ function renderItemList(){
         +'<input class="item-price" type="number" min="0" value="'+item.price+'" data-price-idx="'+i+'">'
         +'<span class="item-yen">円</span>'
       +'</div>'
+      +'<button class="item-del" data-del-idx="'+i+'">✕</button>'
     +'</div>';
   }).join('');
 
@@ -647,7 +649,6 @@ function renderConfirm(){
     el.innerHTML='<div style="padding:24px;text-align:center;color:var(--ink3)">商品が追加されていません</div>';
     return;
   }
-  // todayVisitsにないIDをFirestoreから個別取得して補完
   var missingIds = state.selectedVisitIds.filter(function(vid){
     return !state.todayVisits.find(function(v){ return v.id===vid; });
   });
@@ -726,16 +727,12 @@ function submitOrder(){
   var today = todayStr6();
   var orderTime = nowStr4();
   var orderIds = [];
-
   if(!state.selectedVisitIds.length){ toast('来場者が選択されていません','err'); return; }
   if(!state.items.length){ toast('商品が選択されていません','err'); return; }
-
-  // ordersも全件取得→クライアント側でフィルター（.where()インデックス不要）
   db.collection('orders').get().then(function(snap){
-    var todayOrders = snap.docs.filter(function(d){ return d.data().orderDate===today; });
-    var seqCounter = todayOrders.length + 1;
+    var todayCnt = snap.docs.filter(function(d){ return d.data().orderDate===today; }).length;
+    var seqCounter = todayCnt + 1;
     var batch = db.batch();
-
     state.selectedVisitIds.forEach(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
       var memberId = v?(v.memberId||null):null;
@@ -762,7 +759,6 @@ function submitOrder(){
         orderIds.push(orderId);
       });
     });
-
     if(!orderIds.length){ toast('登録する注文がありません','err'); return Promise.reject(new Error('empty')); }
     return batch.commit();
   }).then(function(){
