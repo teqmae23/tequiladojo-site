@@ -19,6 +19,105 @@ var FIREBASE_CONFIG = {
   appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
   measurementId:     "G-KMS18946JQ"
 };
+// ════════════════════════════════════════════════════════════════
+// セット商品マスタ（setProducts）
+// ════════════════════════════════════════════════════════════════
+var SS_TYPE_LABEL={"0":"通常","1":"段位認定","2":"イベント"};
+
+// ソートボタン
+(function(){
+  var btn=g("btn-sort-ssets"); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState["ssets"]={key:gv("sort-key-ssets"),dir:gv("sort-dir-ssets")};
+    render("ssets");
+  });
+  var openBtn=g("btn-open-sset"); if(!openBtn) return;
+  openBtn.addEventListener("click",function(){ openSsetModal(null); });
+})();
+
+function buildSsetItemSelects(){
+  var opts='<option value="">— なし —</option>'+
+    cache.mproducts.slice().sort(function(a,b){return (a.id||"").localeCompare(b.id||"");})
+    .map(function(p){ return '<option value="'+p.id+'">'+p.id+': '+escHtml(p.name||p.id)+'</option>'; }).join("");
+  for(var i=1;i<=8;i++){
+    var sel=g("ss-item"+String(i).padStart(2,"0"));
+    if(sel){ var v=sel.value; sel.innerHTML=opts; sel.value=v; }
+  }
+}
+
+function updateSsetKey(){
+  var t=gv("ss-type")||"0", sid=gv("ss-id"); var pid=sid.padStart(2,"0");
+  var el=g("kb-sset");
+  if(sid&&sid!=="00"){
+    el.innerHTML='<span class="keypart kp-a">'+t+'</span><span class="keypart kp-c">'+pid+'</span><span class="klabel">setProducts ID</span>';
+  } else {
+    el.innerHTML='—<span class="klabel">setProducts ID（3桁）</span>';
+  }
+}
+
+function autoSsetSeq(type){
+  var maxSeq=0;
+  cache.ssets.forEach(function(r){
+    if(String(r.setType||r.id[0]||"0")===String(type)){
+      var s=parseInt(r.id.slice(1,3))||0; if(s>maxSeq) maxSeq=s;
+    }
+  });
+  sv("ss-id",String(maxSeq+1).padStart(2,"0"));
+  updateSsetKey();
+}
+
+function openSsetModal(id){
+  editId.sset=id;
+  g("mt-sset").textContent=id?"セット編集":"セット登録";
+  buildSsetItemSelects();
+  var typeEl=g("ss-type"), idEl=g("ss-id");
+  if(id){
+    var r=cache.ssets.find(function(x){return x.id===id;});
+    sv("ss-type",String(r?r.setType||id[0]||"0":"0"));
+    sv("ss-id",id.slice(1,3));
+    for(var i=1;i<=8;i++){
+      var key="item"+String(i).padStart(2,"0");
+      sv("ss-item"+String(i).padStart(2,"0"),r&&r[key]?r[key]:"");
+    }
+    sv("ss-memo",r?r.memo||"":"");
+    typeEl.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)";
+  } else {
+    sv("ss-type","0");
+    autoSsetSeq("0");
+    for(var i=1;i<=8;i++){ sv("ss-item"+String(i).padStart(2,"0"),""); }
+    sv("ss-memo","");
+    typeEl.disabled=false; idEl.readOnly=false; idEl.style.background="";
+  }
+  updateSsetKey(); openM("m-sset");
+}
+
+(function(){
+  var typeEl=g("ss-type"); if(!typeEl) return;
+  typeEl.addEventListener("change",function(){ if(!editId.sset) autoSsetSeq(this.value); updateSsetKey(); });
+  var idEl=g("ss-id"); if(!idEl) return;
+  idEl.addEventListener("input",updateSsetKey);
+})();
+
+(function(){
+  var btn=g("btn-save-sset"); if(!btn) return;
+  btn.addEventListener("click",function(){
+    var type=gv("ss-type")||"0", sid=gv("ss-id");
+    var pid=sid.padStart(2,"0");
+    if(!sid||pid==="00"){ toast("セットID（2桁）は必須です","err"); return; }
+    var fullId=type+pid;
+    if(!editId.sset&&cache.ssets.some(function(x){return x.id===fullId;})){ toast("ID「"+fullId+"」は既に存在します","err"); return; }
+    var data={id:fullId,setType:parseInt(type),memo:gv("ss-memo")||null};
+    for(var i=1;i<=8;i++){
+      var key="item"+String(i).padStart(2,"0");
+      var val=gv("ss-item"+String(i).padStart(2,"0"));
+      data[key]=val||null;
+    }
+    db.collection("setProducts").doc(fullId).set(data,{merge:true})
+      .then(function(){ toast(editId.sset?"更新しました":"登録しました"); closeM("m-sset"); loadCol("ssets","setProducts",function(){}); })
+      .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+  });
+})();
+
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,6 +284,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <span class="tab-group-label">その他</span>
       <button class="tab" data-page="mkinds">種別 <span class="cnt" id="cnt-mkinds">—</span></button>
       <button class="tab" data-page="mproducts">商品 <span class="cnt" id="cnt-mproducts">—</span></button>
+      <button class="tab" data-page="ssets">セット商品 <span class="cnt" id="cnt-ssets">—</span></button>
     </div>
     <div class="tuser">
       <span class="temail" id="temail"></span>
@@ -339,6 +439,36 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       </div>
     </div>
 
+
+    <!-- ── セット商品マスタ ── -->
+    <div class="page" id="page-ssets">
+      <div class="phead">
+        <div><div class="ptitle">セット商品マスタ</div><div class="pdesc">setProducts ID = セット種別1桁 + セットID2桁 = 3桁</div></div>
+        <button class="btn bp" id="btn-open-sset">＋ セット登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-sset" placeholder="備考で検索..."></div>
+          <select class="fsel" id="f-ss-type">
+            <option value="">全種別</option>
+            <option value="0">0: 通常</option>
+            <option value="1">1: 段位認定</option>
+            <option value="2">2: イベント</option>
+          </select>
+          <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+            <select id="sort-key-ssets"><option value="id">ID</option><option value="memo">備考</option></select>
+            <select id="sort-dir-ssets"><option value="asc">昇順 ▲</option><option value="desc">降順 ▼</option></select>
+            <button class="btn bs" id="btn-sort-ssets">整列</button>
+          </div>
+        </div>
+        <div class="tw"><table id="tbl-ssets">
+          <colgroup><col style="width:60px"><col style="width:80px"><col><col><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>種別</th><th>商品構成</th><th>備考</th><th>✏️ レコード操作</th></tr></thead>
+          <tbody id="tb-ssets"><tr><td colspan="5" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
   </div><!-- .content -->
 </div><!-- #app -->
 
@@ -459,6 +589,42 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
   </div>
 </div>
 
+<!-- ── セット商品モーダル ── -->
+<div class="mbg" id="m-sset">
+  <div class="modal modal-lg">
+    <div class="mhead"><div class="mtitle" id="mt-sset">セット登録</div><button class="mx" data-close="m-sset">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-sset">—<span class="klabel">setProducts ID（3桁）</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">セット種別<span class="req">*</span></label>
+          <select class="fs" id="ss-type">
+            <option value="0">0: 通常</option>
+            <option value="1">1: 段位認定</option>
+            <option value="2">2: イベント</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">セットID（2桁）<span class="req">*</span></label>
+          <input class="fi mono" id="ss-id" maxlength="2" placeholder="01">
+        </div>
+      </div>
+      <hr class="fsep">
+      <div style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">商品構成（最大8品）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品01</label><select class="fs ss-item" id="ss-item01"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品02</label><select class="fs ss-item" id="ss-item02"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品03</label><select class="fs ss-item" id="ss-item03"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品04</label><select class="fs ss-item" id="ss-item04"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品05</label><select class="fs ss-item" id="ss-item05"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品06</label><select class="fs ss-item" id="ss-item06"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品07</label><select class="fs ss-item" id="ss-item07"><option value="">— 選択 —</option></select></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">商品08</label><select class="fs ss-item" id="ss-item08"><option value="">— 選択 —</option></select></div>
+      </div>
+      <div class="fg"><label class="fl">備考</label><input class="fi" id="ss-memo" placeholder="セット内容・説明..."></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-sset">キャンセル</button><button class="btn bp" id="btn-save-sset">保存</button></div>
+  </div>
+</div>
+
 <!-- 削除確認 -->
 <div class="cbg" id="confirm-bg">
   <div class="ccard">
@@ -475,6 +641,7 @@ var auth = firebase.auth();
 var db   = firebase.firestore();
 
 // ── ユーティリティ ─────────────────────────────────────────────
+function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function g(id)      { return document.getElementById(id); }
 function gv(id)     { var el=g(id); return el?el.value.trim():""; }
 function sv(id,val) { var el=g(id); if(el) el.value=(val==null?"":val); }
@@ -492,7 +659,7 @@ function closeM(id) { g(id).classList.remove("open"); }
 function todayStr() { return new Date().toISOString().slice(0,10); }
 
 // モーダル閉じ確認
-var FORM_MODALS=["m-ocat1","m-ocat2","m-ocat3","m-obottle","m-mkind","m-mproduct"];
+var FORM_MODALS=["m-ocat1","m-ocat2","m-ocat3","m-obottle","m-mkind","m-mproduct","m-sset"];
 function confirmClose(id){
   if(FORM_MODALS.indexOf(id)>=0){ if(!confirm("登録作業を中止しますか？\n入力内容は破棄されます。")) return; }
   g(id).classList.remove("open");
@@ -547,8 +714,8 @@ document.querySelectorAll(".tab").forEach(function(tab){
 });
 
 // ── キャッシュ ────────────────────────────────────────────────
-var cache={ocat1:[],ocat2:[],ocat3:[],obottles:[],mkinds:[],mproducts:[]};
-var editId={ocat1:null,ocat2:null,ocat3:null,obottle:null,mkind:null,mproduct:null};
+var cache={ocat1:[],ocat2:[],ocat3:[],obottles:[],mkinds:[],mproducts:[],ssets:[]};
+var editId={ocat1:null,ocat2:null,ocat3:null,obottle:null,mkind:null,mproduct:null,sset:null};
 var sortState={};
 
 // ── 初期ロード ───────────────────────────────────────────────
@@ -559,6 +726,7 @@ function loadAll(){
   loadCol("obottles","otherBottles",function(){ updateAllFilters(); });
   loadCol("mkinds","miscKinds",function(){ updateMiscFilters(); });
   loadCol("mproducts","miscProducts",function(){ updateMiscFilters(); });
+  loadCol("ssets","setProducts",function(){});
 }
 
 function loadCol(key,col,cb){
@@ -653,6 +821,7 @@ addFilter(["s-ocat3","f-ocat3-cat1","f-ocat3-cat2"],"ocat3");
 addFilter(["s-obottle","f-ob-cat1","f-ob-cat2","f-ob-cat3"],"obottles");
 addFilter(["s-mkind"],"mkinds");
 addFilter(["s-mproduct","f-mp-kind"],"mproducts");
+addFilter(["s-sset","f-ss-type"],"ssets");
 
 // ── ソート ────────────────────────────────────────────────────
 ["ocat1","ocat2","ocat3","obottles","mkinds","mproducts"].forEach(function(key){
@@ -759,6 +928,21 @@ function render(key){
         +'</div></td></tr>';
     }).join(""):'<tr><td colspan="3" class="ec">データがありません</td></tr>';
 
+  } else if(key==="ssets"){
+    var qt=gv("f-ss-type"),qs=gv("s-sset").toLowerCase();
+    list=list.filter(function(r){ return (!qt||String(r.setType||r.id[0]||"0")===qt)&&(!qs||(r.memo||"").toLowerCase().indexOf(qs)>=0); });
+    list=applySort(list,key);
+    var tb=g("tb-ssets"); if(!tb) return;
+    var ST_LABEL={"0":"通常","1":"段位認定","2":"イベント"};
+    tb.innerHTML=list.length?list.map(function(r){
+      var itemIds=[r.item01,r.item02,r.item03,r.item04,r.item05,r.item06,r.item07,r.item08].filter(Boolean);
+      var itemsStr=itemIds.map(function(pid){
+        var p=cache.mproducts.find(function(x){return x.id===pid;});
+        return p?(p.name||pid):pid;
+      }).join(" / ");
+      var stLabel=ST_LABEL[String(r.setType||r.id[0]||"0")]||"—";
+      return '<tr><td class="mono">'+r.id+'</td><td>'+'<span class="badge bg-gold">'+stLabel+'</span></td><td style="font-size:11px;color:var(--ink2)">'+escHtml(itemsStr||"—")+'</td><td class="dim" style="font-size:11px">'+escHtml(r.memo||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit="sset" data-id="'+r.id+'">編集</button><button class="btn bd sm" data-del="setProducts" data-key="ssets" data-id="'+r.id+'" data-label="セット商品">削除</button></div></td></tr>';
+    }).join(""):'<tr><td colspan="5" class="ec">データがありません</td></tr>';
   } else if(key==="mproducts"){
     var q=gv("s-mproduct").toLowerCase(), kd=gv("f-mp-kind");
     list=list.filter(function(r){
@@ -793,6 +977,7 @@ document.addEventListener("click",function(e){
   if(edit==="obottle")  { openObottleModal(id); return; }
   if(edit==="mkind")    { openMkindModal(id); return; }
   if(edit==="mproduct") { openMproductModal(id); return; }
+  if(edit==="sset")     { openSsetModal(id); return; }
   if(btn.dataset.copy==="obottle"){ copyObottleModal(btn.dataset.id); return; }
   if(btn.dataset.del){
     var col=btn.dataset.del, key=btn.dataset.key, label=btn.dataset.label;
@@ -1119,6 +1304,105 @@ g("btn-save-mproduct").addEventListener("click",function(){
   .then(function(){ toast(editId.mproduct?"更新しました":"登録しました"); closeM("m-mproduct"); loadCol("mproducts","miscProducts",updateMiscFilters); })
   .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
 });
+// ════════════════════════════════════════════════════════════════
+// セット商品マスタ（setProducts）
+// ════════════════════════════════════════════════════════════════
+var SS_TYPE_LABEL={"0":"通常","1":"段位認定","2":"イベント"};
+
+// ソートボタン
+(function(){
+  var btn=g("btn-sort-ssets"); if(!btn) return;
+  btn.addEventListener("click",function(){
+    sortState["ssets"]={key:gv("sort-key-ssets"),dir:gv("sort-dir-ssets")};
+    render("ssets");
+  });
+  var openBtn=g("btn-open-sset"); if(!openBtn) return;
+  openBtn.addEventListener("click",function(){ openSsetModal(null); });
+})();
+
+function buildSsetItemSelects(){
+  var opts='<option value="">— なし —</option>'+
+    cache.mproducts.slice().sort(function(a,b){return (a.id||"").localeCompare(b.id||"");})
+    .map(function(p){ return '<option value="'+p.id+'">'+p.id+': '+escHtml(p.name||p.id)+'</option>'; }).join("");
+  for(var i=1;i<=8;i++){
+    var sel=g("ss-item"+String(i).padStart(2,"0"));
+    if(sel){ var v=sel.value; sel.innerHTML=opts; sel.value=v; }
+  }
+}
+
+function updateSsetKey(){
+  var t=gv("ss-type")||"0", sid=gv("ss-id"); var pid=sid.padStart(2,"0");
+  var el=g("kb-sset");
+  if(sid&&sid!=="00"){
+    el.innerHTML='<span class="keypart kp-a">'+t+'</span><span class="keypart kp-c">'+pid+'</span><span class="klabel">setProducts ID</span>';
+  } else {
+    el.innerHTML='—<span class="klabel">setProducts ID（3桁）</span>';
+  }
+}
+
+function autoSsetSeq(type){
+  var maxSeq=0;
+  cache.ssets.forEach(function(r){
+    if(String(r.setType||r.id[0]||"0")===String(type)){
+      var s=parseInt(r.id.slice(1,3))||0; if(s>maxSeq) maxSeq=s;
+    }
+  });
+  sv("ss-id",String(maxSeq+1).padStart(2,"0"));
+  updateSsetKey();
+}
+
+function openSsetModal(id){
+  editId.sset=id;
+  g("mt-sset").textContent=id?"セット編集":"セット登録";
+  buildSsetItemSelects();
+  var typeEl=g("ss-type"), idEl=g("ss-id");
+  if(id){
+    var r=cache.ssets.find(function(x){return x.id===id;});
+    sv("ss-type",String(r?r.setType||id[0]||"0":"0"));
+    sv("ss-id",id.slice(1,3));
+    for(var i=1;i<=8;i++){
+      var key="item"+String(i).padStart(2,"0");
+      sv("ss-item"+String(i).padStart(2,"0"),r&&r[key]?r[key]:"");
+    }
+    sv("ss-memo",r?r.memo||"":"");
+    typeEl.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)";
+  } else {
+    sv("ss-type","0");
+    autoSsetSeq("0");
+    for(var i=1;i<=8;i++){ sv("ss-item"+String(i).padStart(2,"0"),""); }
+    sv("ss-memo","");
+    typeEl.disabled=false; idEl.readOnly=false; idEl.style.background="";
+  }
+  updateSsetKey(); openM("m-sset");
+}
+
+(function(){
+  var typeEl=g("ss-type"); if(!typeEl) return;
+  typeEl.addEventListener("change",function(){ if(!editId.sset) autoSsetSeq(this.value); updateSsetKey(); });
+  var idEl=g("ss-id"); if(!idEl) return;
+  idEl.addEventListener("input",updateSsetKey);
+})();
+
+(function(){
+  var btn=g("btn-save-sset"); if(!btn) return;
+  btn.addEventListener("click",function(){
+    var type=gv("ss-type")||"0", sid=gv("ss-id");
+    var pid=sid.padStart(2,"0");
+    if(!sid||pid==="00"){ toast("セットID（2桁）は必須です","err"); return; }
+    var fullId=type+pid;
+    if(!editId.sset&&cache.ssets.some(function(x){return x.id===fullId;})){ toast("ID「"+fullId+"」は既に存在します","err"); return; }
+    var data={id:fullId,setType:parseInt(type),memo:gv("ss-memo")||null};
+    for(var i=1;i<=8;i++){
+      var key="item"+String(i).padStart(2,"0");
+      var val=gv("ss-item"+String(i).padStart(2,"0"));
+      data[key]=val||null;
+    }
+    db.collection("setProducts").doc(fullId).set(data,{merge:true})
+      .then(function(){ toast(editId.sset?"更新しました":"登録しました"); closeM("m-sset"); loadCol("ssets","setProducts",function(){}); })
+      .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+  });
+})();
+
 </script>
 </body>
 </html>
