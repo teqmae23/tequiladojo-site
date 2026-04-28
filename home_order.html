@@ -97,21 +97,22 @@ button{cursor:pointer;font-family:var(--sans);border:none}
 
 /* ── 商品行 ── */
 .item-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.item-row{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:12px 14px}
-.item-row-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.item-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.item-row{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:9px 12px;display:flex;align-items:center;gap:8px}
+.item-row-head{display:none}
+.item-badge{padding:2px 6px;border-radius:20px;font-size:9px;font-weight:500;white-space:nowrap;flex-shrink:0}
 .badge-tequila{background:#fdf0d0;color:var(--gold-d);border:1px solid rgba(200,146,30,.3)}
 .badge-other{background:var(--blue-l);color:var(--blue);border:1px solid rgba(24,95,165,.3)}
 .badge-misc{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
-.item-del{margin-left:auto;background:var(--red-l);border:1px solid rgba(140,40,24,.2);color:var(--red);padding:4px 10px;border-radius:var(--r);font-size:11px}
-.item-summary{font-size:13px;color:var(--ink2);font-weight:500;margin-bottom:6px}
-.item-sub{font-size:11px;color:var(--ink3)}
-.item-amtrow{display:flex;align-items:center;gap:8px;margin-top:8px}
-.item-qty{width:72px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
-.item-unit{font-size:12px;color:var(--ink3);white-space:nowrap}
-.item-x{font-size:12px;color:var(--ink3)}
-.item-price{flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
-.item-yen{font-size:12px;color:var(--ink3)}
+.item-del{background:var(--red-l);border:1px solid rgba(140,40,24,.2);color:var(--red);padding:4px 8px;border-radius:var(--r);font-size:11px;flex-shrink:0}
+.item-info{flex:1;min-width:0}
+.item-summary{font-size:12px;color:var(--ink2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-sub{font-size:10px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-amtrow{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.item-qty{width:48px;padding:6px 6px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
+.item-unit{font-size:11px;color:var(--ink3);white-space:nowrap}
+.item-x{font-size:11px;color:var(--ink3)}
+.item-price{width:68px;padding:6px 6px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right;background:var(--cream);color:var(--ink);font-family:var(--mono)}
+.item-yen{font-size:11px;color:var(--ink3)}
 
 /* ── ボタン ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:var(--r);font-size:14px;font-weight:500;border:none;white-space:nowrap;cursor:pointer}
@@ -599,11 +600,11 @@ function renderItemList(){
   el.innerHTML = state.items.map(function(item,i){
     var totalAmt = (item.qty||1) * (item.price||0);
     return '<div class="item-row">'
-      +'<div class="item-row-head">'+itemTypeBadge(item.type)
-        +'<button class="item-del" data-del-idx="'+i+'">削除</button>'
+      +itemTypeBadge(item.type)
+      +'<div class="item-info">'
+        +'<div class="item-summary">'+escHtml(item.productName)+'</div>'
+        +(item.detail?'<div class="item-sub">'+escHtml(item.detail)+'</div>':'')
       +'</div>'
-      +'<div class="item-summary">'+escHtml(item.productName)+'</div>'
-      +'<div class="item-sub">'+escHtml(item.detail||'')+'</div>'
       +'<div class="item-amtrow">'
         +'<input class="item-qty" type="number" min="1" value="'+item.qty+'" data-qty-idx="'+i+'">'
         +'<span class="item-unit">'+escHtml(item.unit||'ml')+'</span>'
@@ -611,6 +612,7 @@ function renderItemList(){
         +'<input class="item-price" type="number" min="0" value="'+item.price+'" data-price-idx="'+i+'">'
         +'<span class="item-yen">円</span>'
       +'</div>'
+      +'<button class="item-del" data-del-idx="'+i+'">✕</button>'
     +'</div>';
   }).join('');
 
