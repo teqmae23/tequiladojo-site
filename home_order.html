@@ -262,8 +262,14 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
 
   <!-- ── STEP 2: 商品選択 ── -->
   <div id="page-items" class="content" style="display:none">
-    <div class="sec-title">商品を選択</div>
-    <div class="sec-desc" id="items-desc"></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div class="sec-title" style="margin-bottom:0">商品を選択</div>
+      <div id="items-total-wrap" style="display:none;text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px">合計金額</div>
+        <div id="items-total-amount" style="font-family:var(--serif);font-size:22px;font-weight:600;color:var(--gold-d)">¥0</div>
+      </div>
+    </div>
+    <div class="sec-desc" id="items-desc" style="margin-bottom:12px"></div>
     <div class="item-list" id="item-list"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="btn-add-item" id="btn-add-item">＋ 単品商品を追加</button>
@@ -620,11 +626,22 @@ function itemTypeBadge(type){
   return '<span class="item-badge badge-misc">その他</span>';
 }
 
+function updateItemsTotal(){
+  var wrap=g('items-total-wrap'), amt=g('items-total-amount');
+  if(!wrap||!amt) return;
+  if(!state.items.length){ wrap.style.display='none'; return; }
+  var total=state.items.reduce(function(s,it){
+    var qty=parseFloat(it.qty)||0, price=parseFloat(it.price)||0;
+    return s+((it.type==='tequila'||it.type==='other')?Math.round(price*qty/10):Math.round(price*qty));
+  },0);
+  amt.textContent='¥'+total.toLocaleString();
+  wrap.style.display='';
+}
+
 function renderItemList(){
   var el = g('item-list');
-  if(!state.items.length){ el.innerHTML='<div class="empty">まだ商品が追加されていません</div>'; return; }
+  if(!state.items.length){ el.innerHTML='<div class="empty">まだ商品が追加されていません</div>'; updateItemsTotal(); return; }
   el.innerHTML = state.items.map(function(item,i){
-    var totalAmt = (item.qty||1) * (item.price||0);
     return '<div class="item-row">'
       +itemTypeBadge(item.type)
       +'<div class="item-info">'
@@ -642,6 +659,8 @@ function renderItemList(){
     +'</div>';
   }).join('');
 
+  updateItemsTotal();
+
   el.querySelectorAll('[data-del-idx]').forEach(function(btn){
     btn.addEventListener('click',function(){
       state.items.splice(parseInt(btn.dataset.delIdx),1);
@@ -652,12 +671,14 @@ function renderItemList(){
     inp.addEventListener('change',function(){
       var idx=parseInt(inp.dataset.qtyIdx);
       state.items[idx].qty=parseFloat(inp.value)||1;
+      updateItemsTotal();
     });
   });
   el.querySelectorAll('[data-price-idx]').forEach(function(inp){
     inp.addEventListener('change',function(){
       var idx=parseInt(inp.dataset.priceIdx);
       state.items[idx].price=parseFloat(inp.value)||0;
+      updateItemsTotal();
     });
   });
 }
