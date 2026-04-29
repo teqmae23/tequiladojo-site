@@ -196,6 +196,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <button class="tab" data-page="mkinds">種別 <span class="cnt" id="cnt-mkinds">—</span></button>
       <button class="tab" data-page="mproducts">商品 <span class="cnt" id="cnt-mproducts">—</span></button>
       <button class="tab" data-page="ssets">セット商品 <span class="cnt" id="cnt-ssets">—</span></button>
+      <button class="tab" data-page="blindmarks">ブラインドマーク <span class="cnt" id="cnt-blindmarks">—</span></button>
     </div>
   </div>
 
@@ -372,6 +373,26 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           <colgroup><col style="width:60px"><col style="width:80px"><col style="width:130px"><col><col><col style="width:120px"></colgroup>
           <thead><tr><th>ID</th><th>種別</th><th>セット名</th><th>商品構成</th><th>備考</th><th>✏️ レコード操作</th></tr></thead>
           <tbody id="tb-ssets"><tr><td colspan="6" class="ec">読み込み中...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+
+    <!-- ── ブラインドマークマスタ ── -->
+    <div class="page" id="page-blindmarks">
+      <div class="phead">
+        <div><div class="ptitle">ブラインドマークマスタ</div><div class="pdesc">色5種（赤・緑・白・黄・青）× ○◎ = 10種</div></div>
+        <button class="btn bp" id="btn-open-blindmark">＋ マーク登録</button>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div class="sbox"><input type="text" id="s-blindmark" placeholder="色・記号で検索..."></div>
+          <button class="btn bs sm" id="btn-init-blindmarks" style="margin-left:auto">⚡ 初期データ投入</button>
+        </div>
+        <div class="tw"><table id="tbl-blindmarks">
+          <colgroup><col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:80px"><col style="width:60px"><col style="width:120px"></colgroup>
+          <thead><tr><th>ID</th><th>色</th><th>記号</th><th>表示ラベル</th><th>順番</th><th>✏️ 操作</th></tr></thead>
+          <tbody id="tb-blindmarks"><tr><td colspan="6" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -563,6 +584,36 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
   </div>
 </div>
 
+<!-- ── ブラインドマークモーダル ── -->
+<div class="mbg" id="m-blindmark">
+  <div class="modal">
+    <div class="mhead"><div class="mtitle" id="mt-blindmark">マーク登録</div><button class="mx" data-close="m-blindmark">✕</button></div>
+    <div class="mbody">
+      <div class="keybox" id="kb-blindmark">—<span class="klabel">blindMark ID</span></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">色<span class="req">*</span></label>
+          <select class="fs" id="bm-color">
+            <option value="R">赤</option>
+            <option value="G">緑</option>
+            <option value="W">白</option>
+            <option value="Y">黄</option>
+            <option value="B">青</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">記号<span class="req">*</span></label>
+          <select class="fs" id="bm-mark">
+            <option value="○">○</option>
+            <option value="◎">◎</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">表示ラベル（色名+記号）</label><input class="fi" id="bm-label" placeholder="赤○"></div>
+      <div class="fg"><label class="fl">表示順</label><input class="fi" type="number" id="bm-sort" min="1" max="99" placeholder="1"></div>
+    </div>
+    <div class="mfoot"><button class="btn bg2" data-close="m-blindmark">キャンセル</button><button class="btn bp" id="btn-save-blindmark">保存</button></div>
+  </div>
+</div>
+
 <!-- 削除確認 -->
 <div class="cbg" id="confirm-bg">
   <div class="ccard">
@@ -599,7 +650,7 @@ function closeM(id) { g(id).classList.remove("open"); }
 function todayStr() { return new Date().toISOString().slice(0,10); }
 
 // モーダル閉じ確認
-var FORM_MODALS=["m-ocat1","m-ocat2","m-ocat3","m-obottle","m-mkind","m-mproduct","m-sset"];
+var FORM_MODALS=["m-ocat1","m-ocat2","m-ocat3","m-obottle","m-mkind","m-mproduct","m-sset","m-blindmark"];
 function confirmClose(id){
   if(FORM_MODALS.indexOf(id)>=0){ if(!confirm("登録作業を中止しますか？\n入力内容は破棄されます。")) return; }
   g(id).classList.remove("open");
@@ -654,8 +705,8 @@ document.querySelectorAll(".tab").forEach(function(tab){
 });
 
 // ── キャッシュ ────────────────────────────────────────────────
-var cache={ocat1:[],ocat2:[],ocat3:[],obottles:[],mkinds:[],mproducts:[],ssets:[],distilleries:[],brands:[],classes:[],bottles:[],bottleData:[]};
-var editId={ocat1:null,ocat2:null,ocat3:null,obottle:null,mkind:null,mproduct:null,sset:null};
+var cache={ocat1:[],ocat2:[],ocat3:[],obottles:[],mkinds:[],mproducts:[],ssets:[],blindmarks:[],distilleries:[],brands:[],classes:[],bottles:[],bottleData:[]};
+var editId={ocat1:null,ocat2:null,ocat3:null,obottle:null,mkind:null,mproduct:null,sset:null,blindmark:null};
 var sortState={};
 
 // ── 初期ロード ───────────────────────────────────────────────
@@ -667,6 +718,7 @@ function loadAll(){
   loadCol("mkinds","miscKinds",function(){ updateMiscFilters(); });
   loadCol("mproducts","miscProducts",function(){ updateMiscFilters(); });
   loadCol("ssets","setProducts",function(){});
+  loadCol("blindmarks","blindMarks",function(){});
   // テキーラ・他酒マスタ（セット商品ピッカー用）
   loadColSilent("distilleries","distilleries");
   loadColSilent("brands","brands");
@@ -774,6 +826,7 @@ addFilter(["s-obottle","f-ob-cat1","f-ob-cat2","f-ob-cat3"],"obottles");
 addFilter(["s-mkind"],"mkinds");
 addFilter(["s-mproduct","f-mp-kind"],"mproducts");
 addFilter(["s-sset","f-ss-type"],"ssets");
+addFilter(["s-blindmark"],"blindmarks");
 
 // ── ソート ────────────────────────────────────────────────────
 ["ocat1","ocat2","ocat3","obottles","mkinds","mproducts"].forEach(function(key){
@@ -880,6 +933,16 @@ function render(key){
         +'</div></td></tr>';
     }).join(""):'<tr><td colspan="3" class="ec">データがありません</td></tr>';
 
+  } else if(key==="blindmarks"){
+    var qb=gv("s-blindmark").toLowerCase();
+    list=list.filter(function(r){ return !qb||(r.label||r.id||"").toLowerCase().indexOf(qb)>=0||(r.color||"").indexOf(qb)>=0; });
+    list=list.slice().sort(function(a,b){ return (a.sortOrder||99)-(b.sortOrder||99); });
+    var tb=g("tb-blindmarks"); if(!tb) return;
+    var COLOR_STYLE={"R":"background:#ffebee;color:#c62828","G":"background:#e8f5e9;color:#2e7d32","W":"background:#f5f5f5;color:#424242;border:1px solid #ddd","Y":"background:#fffde7;color:#f57f17","B":"background:#e3f2fd;color:#1565c0"};
+    tb.innerHTML=list.length?list.map(function(r){
+      var cs=COLOR_STYLE[r.colorCode||r.id[0]]||"";
+      return '<tr><td class="mono">'+r.id+'</td><td><span class="badge" style="'+cs+'">'+escHtml(r.color||"—")+'</span></td><td style="font-size:18px;text-align:center">'+escHtml(r.mark||"—")+'</td><td style="font-weight:500">'+escHtml(r.label||"—")+'</td><td class="mono dim" style="text-align:center">'+( r.sortOrder||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit="blindmark" data-id="'+r.id+'">編集</button><button class="btn bd sm" data-del="blindMarks" data-key="blindmarks" data-id="'+r.id+'" data-label="ブラインドマーク">削除</button></div></td></tr>';
+    }).join(""):'<tr><td colspan="6" class="ec">データがありません</td></tr>';
   } else if(key==="ssets"){
     var qt=gv("f-ss-type"),qs=gv("s-sset").toLowerCase();
     list=list.filter(function(r){ return (!qt||String(r.setType||r.id[0]||"0")===qt)&&(!qs||(r.setName||r.memo||"").toLowerCase().indexOf(qs)>=0); });
@@ -924,6 +987,7 @@ document.addEventListener("click",function(e){
   var btn=e.target.closest("button"); if(!btn) return;
   // 新規登録ボタン（page内にあるためIIFEでバインドできない）
   if(btn.id==="btn-open-sset"){ openSsetModal(null); return; }
+  if(btn.id==="btn-open-blindmark"){ openBlindmarkModal(null); return; }
   var edit=btn.dataset.edit, id=btn.dataset.id;
   if(edit==="ocat1")    { openOcat1Modal(id); return; }
   if(edit==="ocat2")    { openOcat2Modal(id); return; }
@@ -932,6 +996,7 @@ document.addEventListener("click",function(e){
   if(edit==="mkind")    { openMkindModal(id); return; }
   if(edit==="mproduct") { openMproductModal(id); return; }
   if(edit==="sset")     { openSsetModal(id); return; }
+  if(edit==="blindmark"){ openBlindmarkModal(id); return; }
   if(btn.dataset.copy==="obottle"){ copyObottleModal(btn.dataset.id); return; }
   if(btn.dataset.del){
     var col=btn.dataset.del, key=btn.dataset.key, label=btn.dataset.label;
@@ -1469,6 +1534,92 @@ function openSsetModal(id){
     db.collection("setProducts").doc(fullId).set(data,{merge:true})
       .then(function(){ toast(editId.sset?"更新しました":"登録しました"); closeM("m-sset"); loadCol("ssets","setProducts",function(){}); })
       .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+  });
+})();
+
+// ════════════════════════════════════════════════════════════════
+// ブラインドマークマスタ（blindMarks）
+// ════════════════════════════════════════════════════════════════
+var COLOR_NAMES={"R":"赤","G":"緑","W":"白","Y":"黄","B":"青"};
+var BLIND_DEFAULTS=[
+  {id:"R○",color:"赤",colorCode:"R",mark:"○",label:"赤○",sortOrder:1},
+  {id:"R◎",color:"赤",colorCode:"R",mark:"◎",label:"赤◎",sortOrder:2},
+  {id:"G○",color:"緑",colorCode:"G",mark:"○",label:"緑○",sortOrder:3},
+  {id:"G◎",color:"緑",colorCode:"G",mark:"◎",label:"緑◎",sortOrder:4},
+  {id:"W○",color:"白",colorCode:"W",mark:"○",label:"白○",sortOrder:5},
+  {id:"W◎",color:"白",colorCode:"W",mark:"◎",label:"白◎",sortOrder:6},
+  {id:"Y○",color:"黄",colorCode:"Y",mark:"○",label:"黄○",sortOrder:7},
+  {id:"Y◎",color:"黄",colorCode:"Y",mark:"◎",label:"黄◎",sortOrder:8},
+  {id:"B○",color:"青",colorCode:"B",mark:"○",label:"青○",sortOrder:9},
+  {id:"B◎",color:"青",colorCode:"B",mark:"◎",label:"青◎",sortOrder:10}
+];
+
+// 初期データ投入
+(function(){
+  var btn=g("btn-init-blindmarks"); if(!btn) return;
+  btn.addEventListener("click",function(){
+    if(!confirm("ブラインドマーク10種を一括登録します。\n既存データは上書きされます。よろしいですか？")) return;
+    var batch=db.batch();
+    BLIND_DEFAULTS.forEach(function(d){
+      batch.set(db.collection("blindMarks").doc(d.id),d);
+    });
+    batch.commit()
+      .then(function(){ toast("ブラインドマーク10種を登録しました"); loadCol("blindmarks","blindMarks",function(){}); })
+      .catch(function(e){ toast("失敗: "+e.message,"err"); });
+  });
+})();
+
+function updateBlindmarkKey(){
+  var c=gv("bm-color"), m=gv("bm-mark"), el=g("kb-blindmark");
+  if(c&&m){
+    el.innerHTML='<span class="keypart kp-a">'+c+'</span><span class="keypart kp-c">'+m+'</span><span class="klabel">blindMark ID</span>';
+    // ラベル自動生成
+    var lbl=g("bm-label"); if(lbl&&!lbl.dataset.manual) sv("bm-label",(COLOR_NAMES[c]||c)+m);
+  } else {
+    el.innerHTML='—<span class="klabel">blindMark ID</span>';
+  }
+}
+
+function openBlindmarkModal(id){
+  editId.blindmark=id;
+  g("mt-blindmark").textContent=id?"マーク編集":"マーク登録";
+  var cEl=g("bm-color"), mEl=g("bm-mark"), lEl=g("bm-label");
+  if(id){
+    var r=cache.blindmarks.find(function(x){return x.id===id;});
+    sv("bm-color",r?r.colorCode||id[0]:"R");
+    sv("bm-mark",r?r.mark||id.slice(1):"○");
+    sv("bm-label",r?r.label||id:"");
+    sv("bm-sort",r?r.sortOrder||1:1);
+    cEl.disabled=true; mEl.disabled=true;
+  } else {
+    sv("bm-color","R"); sv("bm-mark","○"); sv("bm-label","赤○"); sv("bm-sort","");
+    cEl.disabled=false; mEl.disabled=false;
+    if(lEl) lEl.dataset.manual="";
+  }
+  updateBlindmarkKey();
+  openM("m-blindmark");
+}
+
+(function(){
+  ["bm-color","bm-mark"].forEach(function(fid){
+    var el=g(fid); if(!el) return;
+    el.addEventListener("change",updateBlindmarkKey);
+  });
+  var lEl=g("bm-label");
+  if(lEl) lEl.addEventListener("input",function(){ this.dataset.manual="1"; });
+  var btn=g("btn-save-blindmark"); if(!btn) return;
+  btn.addEventListener("click",function(){
+    var c=gv("bm-color"), m=gv("bm-mark"), lbl=gv("bm-label"), sort=gv("bm-sort");
+    if(!c||!m){ toast("色と記号は必須です","err"); return; }
+    var id=editId.blindmark||(c+m);
+    if(!editId.blindmark&&cache.blindmarks.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
+    db.collection("blindMarks").doc(id).set({
+      id:id, color:COLOR_NAMES[c]||c, colorCode:c, mark:m,
+      label:lbl||(COLOR_NAMES[c]||c)+m,
+      sortOrder:parseInt(sort)||99
+    },{merge:true})
+    .then(function(){ toast(editId.blindmark?"更新しました":"登録しました"); closeM("m-blindmark"); loadCol("blindmarks","blindMarks",function(){}); })
+    .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
   });
 })();
 

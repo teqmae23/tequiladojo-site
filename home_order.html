@@ -282,6 +282,24 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
     <div class="sec-title">注文内容の確認</div>
     <div class="sec-desc">内容を確認して注文を確定してください</div>
     <div id="confirm-content"></div>
+    <!-- ブラインドテイスティング設定 -->
+    <div style="margin-top:16px;padding:14px 16px;background:var(--cream2);border-radius:var(--rl);border:1px solid var(--border2)">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="blind-check" style="width:20px;height:20px;accent-color:var(--gold-d);cursor:pointer">
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--ink)">🎭 ブラインドテイスティング</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">チェックすると注文確定後にマーク割り当て画面が表示されます</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- ── STEP 3.5: ブラインド指定 ── -->
+  <div id="page-blind" class="content" style="display:none">
+    <div class="sec-title">🎭 ブラインド マーク割り当て</div>
+    <div class="sec-desc">各アイテムに色と記号のマークを割り当ててください</div>
+    <div id="blind-assign-list" style="display:flex;flex-direction:column;gap:10px;margin-top:16px"></div>
+    <button class="btn bp btn-full" id="btn-blind-confirm" style="margin-top:16px">マークを確定して完了</button>
   </div>
 
   <!-- ── STEP 4: 完了 ── -->
@@ -469,7 +487,7 @@ g('btn-logout').addEventListener('click',function(){ auth.signOut(); });
 var master = {
   members:[], distilleries:[], brands:[], classes:[], bottles:[], bottleData:[],
   otherCat1:[], otherCat2:[], otherCat3:[], otherBottles:[],
-  miscKinds:[], miscProducts:[], setProducts:[], otherBottles:[], bottleData:[]
+  miscKinds:[], miscProducts:[], setProducts:[], otherBottles:[], bottleData:[], blindMarks:[]
 };
 var masterReady = false;
 
@@ -489,7 +507,8 @@ function loadMasterData(){
     db.collection('miscProducts').get().then(function(s){ master.miscProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
     db.collection('setProducts').get().then(function(s){ master.setProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
     db.collection('otherBottles').get().then(function(s){ master.otherBottles=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
-    db.collection('bottleData').get().then(function(s){ master.bottleData=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){})
+    db.collection('bottleData').get().then(function(s){ master.bottleData=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
+    db.collection('blindMarks').get().then(function(s){ master.blindMarks=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){})
   ];
   Promise.all(cols).then(function(){
     masterReady = true;
@@ -562,7 +581,7 @@ function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&l
 // ═══════════════════════════════════════════════════════════════
 // ステップナビゲーション
 // ═══════════════════════════════════════════════════════════════
-var PAGES = ['page-visitors','page-items','page-confirm','page-done'];
+var PAGES = ['page-visitors','page-items','page-confirm','page-blind','page-done'];
 
 function goStep(n){
   state.step = n;
@@ -578,9 +597,9 @@ function goStep(n){
 
   // フッターボタン
   var fp=g('btn-prev'), fn=g('btn-next'), fw=g('foot-wrap');
-  if(fw) fw.style.display = n===3?'none':'block';
+  if(fw) fw.style.display = n===4?'none':'block';
   if(fp) fp.style.display = n===0?'none':'';
-  if(fn){ if(n===2) fn.textContent='注文確定 ✓'; else fn.textContent='次へ →'; }
+  if(fn){ if(n===2) fn.textContent='注文確定 ✓'; else if(n===3) fn.textContent='マーク確定 ✓'; else fn.textContent='次へ →'; }
 
   if(n===1){
     var names = state.selectedVisitIds.map(function(vid){
@@ -607,6 +626,8 @@ g('btn-next').addEventListener('click',function(){
     goStep(2);
   } else if(state.step===2){
     submitOrder();
+  } else if(state.step===3){
+    finishBlind();
   }
 });
 g('btn-new-order').addEventListener('click',function(){
@@ -800,7 +821,20 @@ function submitOrder(){
     g('done-msg').textContent =
       state.selectedVisitIds.length+'名に'+state.items.length+'種の商品を注文登録しました。\n注文ID: '+
       orderIds.slice(0,3).join('、')+(orderIds.length>3?'…':'');
-    goStep(3);
+    var blindChk=g('blind-check');
+    if(blindChk&&blindChk.checked){
+      state.lastOrderIds=orderIds;
+      state.lastOrderGroupIds={};
+      // orderGroupIdを記録
+      state.selectedVisitIds.forEach(function(vid,vi){
+        // 最後に登録したグループIDはsubmitOrder内で計算済み
+        // ordersから逆引き
+      });
+      renderBlindAssign(orderIds);
+      goStep(3);
+    } else {
+      goStep(4);
+    }
     toast('注文を登録しました','ok');
   }).catch(function(e){ toast('注文登録失敗: '+e.message,'err'); });
 }
@@ -1248,6 +1282,114 @@ if(msave) msave.addEventListener('click',function(){
 var btnAS=g('btn-add-set'); if(btnAS) btnAS.addEventListener('click',function(){
   renderSetSelect(); g('m-set').classList.add('open');
 });
+
+// ═══════════════════════════════════════════════════════════════
+// ブラインドテイスティング マーク割り当て
+// ═══════════════════════════════════════════════════════════════
+var COLOR_STYLE_HOME={
+  "R":"background:#ffebee;color:#c62828;border:1px solid #ef9a9a",
+  "G":"background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7",
+  "W":"background:#f5f5f5;color:#424242;border:1px solid #bdbdbd",
+  "Y":"background:#fffde7;color:#f57f17;border:1px solid #fff176",
+  "B":"background:#e3f2fd;color:#1565c0;border:1px solid #90caf9"
+};
+
+function getMarksOrDefault(){
+  var marks=master.blindMarks;
+  if(!marks||!marks.length){
+    // フォールバック
+    marks=[
+      {id:"R○",color:"赤",colorCode:"R",mark:"○",label:"赤○",sortOrder:1},
+      {id:"R◎",color:"赤",colorCode:"R",mark:"◎",label:"赤◎",sortOrder:2},
+      {id:"G○",color:"緑",colorCode:"G",mark:"○",label:"緑○",sortOrder:3},
+      {id:"G◎",color:"緑",colorCode:"G",mark:"◎",label:"緑◎",sortOrder:4},
+      {id:"W○",color:"白",colorCode:"W",mark:"○",label:"白○",sortOrder:5},
+      {id:"W◎",color:"白",colorCode:"W",mark:"◎",label:"白◎",sortOrder:6},
+      {id:"Y○",color:"黄",colorCode:"Y",mark:"○",label:"黄○",sortOrder:7},
+      {id:"Y◎",color:"黄",colorCode:"Y",mark:"◎",label:"黄◎",sortOrder:8},
+      {id:"B○",color:"青",colorCode:"B",mark:"○",label:"青○",sortOrder:9},
+      {id:"B◎",color:"青",colorCode:"B",mark:"◎",label:"青◎",sortOrder:10}
+    ];
+  }
+  return marks.slice().sort(function(a,b){return (a.sortOrder||99)-(b.sortOrder||99);});
+}
+
+function renderBlindAssign(orderIds){
+  // 登録された注文を取得してマーク割り当てUIを構築
+  db.collection('orders').where('__name__','in',
+    orderIds.slice(0,10) // Firestore in は最大10件
+  ).get().then(function(snap){
+    var orders=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+      .filter(function(o){return !o.deleted;})
+      .sort(function(a,b){return a.itemSeq-b.itemSeq;});
+    var marks=getMarksOrDefault();
+
+    // 自動割り当て（順番にマークを割り付け）
+    state.lastBlindAssign=orders.map(function(o,i){
+      return {orderId:o.id,blindMarkId:marks[i%marks.length].id,productName:o.productName||o.productCode||'—'};
+    });
+    renderBlindAssignUI();
+  }).catch(function(e){
+    // フォールバック: orderIdsから直接構築
+    var marks=getMarksOrDefault();
+    state.lastBlindAssign=orderIds.map(function(oid,i){
+      return {orderId:oid,blindMarkId:marks[i%marks.length].id,productName:'アイテム'+(i+1)};
+    });
+    renderBlindAssignUI();
+  });
+}
+
+function renderBlindAssignUI(){
+  var el=g('blind-assign-list'); if(!el) return;
+  var marks=getMarksOrDefault();
+  var markOpts=marks.map(function(m){
+    return '<option value="'+m.id+'">'+m.label+'</option>';
+  }).join('');
+
+  el.innerHTML=state.lastBlindAssign.map(function(item,i){
+    var m=marks.find(function(x){return x.id===item.blindMarkId;})||marks[0];
+    var cs=COLOR_STYLE_HOME[m.colorCode||m.id[0]]||'';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl)">'
+      +'<div style="font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)">'+escHtml(item.productName)+'</div>'
+      +'<select class="fs" data-blind-idx="'+i+'" style="flex-shrink:0;width:100px">'
+        +marks.map(function(mk){
+          var sel=mk.id===item.blindMarkId?' selected':'';
+          return '<option value="'+mk.id+'"'+sel+'>'+mk.label+'</option>';
+        }).join('')
+      +'</select>'
+      +'<div class="blind-badge-preview" data-blind-idx="'+i+'" style="padding:4px 12px;border-radius:20px;font-size:14px;font-weight:600;min-width:48px;text-align:center;'+cs+'">'+m.label+'</div>'
+    +'</div>';
+  }).join('');
+
+  // セレクト変更でバッジ更新
+  el.querySelectorAll('[data-blind-idx]').forEach(function(sel){
+    if(sel.tagName!=='SELECT') return;
+    sel.addEventListener('change',function(){
+      var idx=parseInt(this.dataset.blindIdx);
+      state.lastBlindAssign[idx].blindMarkId=this.value;
+      var m=marks.find(function(x){return x.id===this.value;},this)||marks[0];
+      var cs=COLOR_STYLE_HOME[m.colorCode||m.id[0]]||'';
+      var badge=el.querySelector('.blind-badge-preview[data-blind-idx="'+idx+'"]');
+      if(badge){ badge.textContent=m.label; badge.style.cssText='padding:4px 12px;border-radius:20px;font-size:14px;font-weight:600;min-width:48px;text-align:center;'+cs; }
+    });
+  });
+}
+
+function finishBlind(){
+  if(!state.lastBlindAssign.length){ goStep(4); return; }
+  // 各注文にblindMarkIdをupdate
+  var batch=db.batch();
+  state.lastBlindAssign.forEach(function(item){
+    batch.update(db.collection('orders').doc(item.orderId),{blindMarkId:item.blindMarkId});
+  });
+  batch.commit().then(function(){
+    toast('ブラインドマークを設定しました');
+    goStep(4);
+  }).catch(function(e){ toast('マーク設定失敗: '+e.message,'err'); });
+}
+
+// btn-blind-confirm は btn-next と同じ役割（finishBlind）
+// goStepのstep===3でfn.textContent='マーク確定 ✓'になっているのでbtn-nextで動作する
 
 </script>
 </body>
