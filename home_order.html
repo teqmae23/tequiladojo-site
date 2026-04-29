@@ -201,6 +201,21 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
 /* ── 確認ビジター追加ボタン ── */
 .confirm-visitor-add{background:none;border:2px dashed var(--border2);border-radius:var(--r);color:var(--ink3);font-size:13px;padding:10px 14px;width:100%;margin-bottom:16px}
 .confirm-visitor-add:hover{border-color:var(--gold);color:var(--gold-d)}
+
+/* ブラインド答え合わせ */
+.blind-section{margin-top:20px}
+.blind-section-title{font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;padding-left:2px}
+.blind-group-card{background:var(--white);border:1px solid rgba(90,45,130,.3);border-radius:var(--rl);padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.blind-group-card:hover{border-color:var(--gold);background:#fffbf2}
+.blind-group-icon{font-size:24px;flex-shrink:0}
+.blind-group-info{flex:1;min-width:0}
+.blind-group-id{font-size:10px;color:var(--ink3);font-family:var(--mono)}
+.blind-group-items{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.bmark{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;display:inline-block}
+.blind-answer-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--cream2);border-radius:var(--r);margin-bottom:6px}
+.winner-area{background:var(--cream2);border-radius:var(--r);padding:12px 14px;margin-top:12px}
+.winner-btn{padding:8px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;border:2px solid transparent}
+.winner-btn.selected{outline:3px solid var(--gold-d);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -257,6 +272,11 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
     <div class="sec-desc">注文する来場者をチェックしてください（複数可）</div>
     <div class="visitor-list" id="visitor-list">
       <div class="loading">読み込み中...</div>
+    </div>
+    <!-- 未答え合わせのブラインドグループ -->
+    <div id="blind-pending-section" class="blind-section" style="display:none">
+      <div class="blind-section-title">🎭 ブラインド 答え合わせ待ち</div>
+      <div id="blind-pending-list"></div>
     </div>
   </div>
 
@@ -320,6 +340,29 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
     </div>
   </div>
 
+</div>
+
+<!-- ── ブラインド答え合わせモーダル ── -->
+<div class="mbg" id="m-blind-answer">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="mt-blind-answer">🎭 答え合わせ</div>
+      <button class="modal-x" id="m-blind-answer-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="blind-answer-group-info" style="font-size:11px;color:var(--ink3);margin-bottom:12px"></div>
+      <div style="font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">各マークは何でしたか？</div>
+      <div id="blind-answer-list"></div>
+      <div style="background:var(--cream2);border-radius:var(--r);padding:12px 14px;margin-top:12px">
+        <div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">🏆 一番美味しかったのは？</div>
+        <div id="blind-winner-btns" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn bs" style="flex:1" id="m-blind-answer-cancel">キャンセル</button>
+      <button class="btn bp" style="flex:2" id="btn-save-blind-answer">結果を保存</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── セット商品選択モーダル ── -->
@@ -487,7 +530,7 @@ g('btn-logout').addEventListener('click',function(){ auth.signOut(); });
 var master = {
   members:[], distilleries:[], brands:[], classes:[], bottles:[], bottleData:[],
   otherCat1:[], otherCat2:[], otherCat3:[], otherBottles:[],
-  miscKinds:[], miscProducts:[], setProducts:[], otherBottles:[], bottleData:[], blindMarks:[]
+  miscKinds:[], miscProducts:[], setProducts:[], otherBottles:[], bottleData:[], blindMarks:[], blindResults:[]
 };
 var masterReady = false;
 
@@ -524,9 +567,12 @@ function loadMasterData(){
 var state = {
   step: 0,
   todayVisits: [],          // 今日の来店レコード
+  todayOrders: [],          // 今日の注文レコード
   selectedVisitIds: [],     // 選択した visitId
   items: [],                // [{type,productCode,productName,qty,unit,unitPrice,price,detail}]
-  editItemIdx: -1           // モーダルで編集中の item index (-1=新規)
+  editItemIdx: -1,          // モーダルで編集中の item index (-1=新規)
+  lastOrderIds: [],         // 最後に登録した注文IDリスト
+  lastBlindAssign: []       // [{orderId, blindMarkId}]
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -534,14 +580,21 @@ var state = {
 // ═══════════════════════════════════════════════════════════════
 function loadTodayVisits(){
   var today = todayStr6();
-  db.collection('visits').get()
-    .then(function(snap){
-      var all = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-      state.todayVisits = all.filter(function(v){ return v.visitDate===today && !v.checkoutTime; });
-      state.todayVisits.sort(function(a,b){ return (a.visitTime||'').localeCompare(b.visitTime||''); });
-      renderVisitorList();
-    })
-    .catch(function(e){ toast('来場者読込失敗: '+e.message,'err'); });
+  Promise.all([
+    db.collection('visits').get(),
+    db.collection('orders').get(),
+    db.collection('blindResults').get()
+  ]).then(function(results){
+    var vSnap=results[0], oSnap=results[1], brSnap=results[2];
+    var all=vSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    state.todayVisits=all.filter(function(v){return v.visitDate===today&&!v.checkoutTime;});
+    state.todayVisits.sort(function(a,b){return (a.visitTime||'').localeCompare(b.visitTime||'');});
+    state.todayOrders=oSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+      .filter(function(o){return (o.id||'').slice(0,6)===today&&!o.deleted;});
+    master.blindResults=brSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    renderVisitorList();
+    renderBlindPendingSection();
+  }).catch(function(e){ toast('読込失敗: '+e.message,'err'); });
 }
 
 function renderVisitorList(){
@@ -1390,6 +1443,164 @@ function finishBlind(){
 
 // btn-blind-confirm は btn-next と同じ役割（finishBlind）
 // goStepのstep===3でfn.textContent='マーク確定 ✓'になっているのでbtn-nextで動作する
+
+// ═══════════════════════════════════════════════════════════════
+// ブラインドテイスティング 答え合わせ
+// ═══════════════════════════════════════════════════════════════
+var BMARK_STYLE={'R':'background:#ffebee;color:#c62828;border:1px solid #ef9a9a','G':'background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7','W':'background:#f5f5f5;color:#424242;border:1px solid #bdbdbd','Y':'background:#fffde7;color:#f57f17;border:1px solid #fff176','B':'background:#e3f2fd;color:#1565c0;border:1px solid #90caf9'};
+var _baGroupId=null, _baOrders=[], _baWinner=null;
+
+function bmStyle(markId){ return BMARK_STYLE[(markId||'')[0]]||'background:var(--cream2);color:var(--ink3)'; }
+function bmLabel(markId){
+  var m=(master.blindMarks||[]).find(function(x){return x.id===markId;});
+  return m?m.label:markId||'—';
+}
+
+// ── 未答え合わせセクション描画 ─────────────────────────────────
+function renderBlindPendingSection(){
+  var sec=g('blind-pending-section'), lst=g('blind-pending-list');
+  if(!sec||!lst) return;
+
+  // 当日の注文からblindId=1のgroupIdを収集
+  var orders=state.todayOrders||[];
+  var blindGroups={};
+  orders.filter(function(o){return o.blindId===1||o.blindId==='1';}).forEach(function(o){
+    if(!o.orderGroupId) return;
+    if(!blindGroups[o.orderGroupId]) blindGroups[o.orderGroupId]={orders:[],visitKey:o.visitKey,customerId:o.customerId};
+    blindGroups[o.orderGroupId].orders.push(o);
+  });
+
+  // 答え合わせ済みを除外
+  var answered=(master.blindResults||[]).map(function(r){return r.id;});
+  var pending=Object.keys(blindGroups).filter(function(gid){return answered.indexOf(gid)<0;});
+
+  if(!pending.length){ sec.style.display='none'; return; }
+  sec.style.display='';
+
+  lst.innerHTML=pending.map(function(gid){
+    var grp=blindGroups[gid];
+    var visKey=grp.visitKey||'';
+    var vis=state.todayVisits.find(function(v){return v.id===visKey;});
+    var mem=vis&&vis.memberId?master.members.find(function(m){return m.id===vis.memberId||m.memberId===vis.memberId;}):null;
+    var name=mem?(mem.name||vis.memberId):(vis&&vis.memberId?'ID: '+vis.memberId:'非会員');
+    var marks=grp.orders.map(function(o){
+      return '<span class="bmark" style="'+bmStyle(o.blindMarkId)+'">'+bmLabel(o.blindMarkId)+'</span>';
+    }).join('');
+    return '<div class="blind-group-card" data-blind-gid="'+gid+'">'
+      +'<div class="blind-group-icon">🎭</div>'
+      +'<div class="blind-group-info">'
+        +'<div style="font-size:14px;font-weight:500;color:var(--ink)">'+escHtml(name)+'</div>'
+        +'<div class="blind-group-id">'+gid+' / '+grp.orders.length+'アイテム</div>'
+        +'<div class="blind-group-items">'+marks+'</div>'
+      +'</div>'
+      +'<div style="color:var(--ink3);font-size:20px">›</div>'
+    +'</div>';
+  }).join('');
+
+  lst.querySelectorAll('[data-blind-gid]').forEach(function(card){
+    card.addEventListener('click',function(){ openBlindAnswerModal(card.dataset.blindGid); });
+  });
+}
+
+// ── 答え合わせモーダル ─────────────────────────────────────────
+g('m-blind-answer-close').addEventListener('click',function(){ closeModal('m-blind-answer'); });
+g('m-blind-answer-cancel').addEventListener('click',function(){ closeModal('m-blind-answer'); });
+
+function closeModal(id){ g(id).classList.remove('open'); }
+function openModal(id){ g(id).classList.add('open'); }
+
+function openBlindAnswerModal(groupId){
+  _baGroupId=groupId; _baWinner=null;
+  g('mt-blind-answer').textContent='🎭 答え合わせ';
+  g('blind-answer-group-info').textContent='グループID: '+groupId;
+  g('blind-answer-list').innerHTML='<div style="padding:12px;text-align:center;color:var(--ink3)">読み込み中...</div>';
+  g('blind-winner-btns').innerHTML='';
+  openModal('m-blind-answer');
+
+  // このグループの注文を取得（todayOrdersから）
+  _baOrders=(state.todayOrders||[]).filter(function(o){return o.orderGroupId===groupId&&!o.deleted;})
+    .sort(function(a,b){return (a.itemSeq||0)-(b.itemSeq||0);});
+
+  if(!_baOrders.length){
+    g('blind-answer-list').innerHTML='<div style="padding:12px;text-align:center;color:var(--ink3)">注文データが見つかりません</div>';
+    return;
+  }
+
+  // 既存の答え合わせ
+  var existing=(master.blindResults||[]).find(function(r){return r.id===groupId;});
+
+  // 答え合わせリスト
+  var ansHtml=_baOrders.map(function(o,i){
+    var existGuess='';
+    if(existing&&existing.answers){
+      var ea=existing.answers.find(function(a){return a.blindMarkId===o.blindMarkId;});
+      if(ea) existGuess=ea.guessOrderId||'';
+    }
+    var opts=_baOrders.map(function(oo){
+      return '<option value="'+oo.id+'"'+(existGuess===oo.id?' selected':'')+'>'+escHtml(oo.productName||oo.productCode||oo.id)+'</option>';
+    }).join('');
+    return '<div class="blind-answer-row">'
+      +'<span class="bmark" style="'+bmStyle(o.blindMarkId)+';padding:4px 12px;font-size:13px;font-weight:700;border-radius:20px;flex-shrink:0">'+bmLabel(o.blindMarkId)+'</span>'
+      +'<span style="font-size:12px;color:var(--ink3);flex-shrink:0">の正体:</span>'
+      +'<select class="fs" id="ba-sel-'+i+'" data-ba-idx="'+i+'" style="flex:1;font-size:12px;padding:6px 8px">'
+        +'<option value="">— 選択 —</option>'+opts
+      +'</select>'
+    +'</div>';
+  }).join('');
+  g('blind-answer-list').innerHTML=ansHtml;
+
+  // 勝者ボタン
+  if(existing&&existing.winner) _baWinner=existing.winner;
+  g('blind-winner-btns').innerHTML=_baOrders.map(function(o){
+    var isWin=existing&&existing.winner===o.blindMarkId;
+    return '<button class="winner-btn bmark'+(isWin?' selected':'')+'" data-wmark="'+o.blindMarkId+'" style="'+bmStyle(o.blindMarkId)+';padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;border-radius:20px;border:2px solid transparent">'+bmLabel(o.blindMarkId)+(isWin?' 🏆':'')+'</button>';
+  }).join('');
+  g('blind-winner-btns').querySelectorAll('.winner-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      _baWinner=this.dataset.wmark;
+      g('blind-winner-btns').querySelectorAll('.winner-btn').forEach(function(b){
+        b.classList.remove('selected');
+        b.textContent=bmLabel(b.dataset.wmark);
+      });
+      this.classList.add('selected');
+      this.textContent=bmLabel(this.dataset.wmark)+' 🏆';
+    });
+  });
+}
+
+g('btn-save-blind-answer').addEventListener('click',function(){
+  if(!_baGroupId||!_baOrders.length){ toast('データがありません','err'); return; }
+  var answers=_baOrders.map(function(o,i){
+    var sel=g('ba-sel-'+i); var guessId=sel?sel.value:'';
+    var guessOrder=guessId?_baOrders.find(function(x){return x.id===guessId;}):null;
+    return {
+      blindMarkId:   o.blindMarkId||'',
+      actualOrderId: o.id,
+      actualProduct: o.productName||o.productCode||'',
+      guessOrderId:  guessId||null,
+      guessProduct:  guessOrder?guessOrder.productName||guessOrder.productCode||'':null,
+      isCorrect:     !!guessId&&guessId===o.id
+    };
+  });
+  var correct=answers.filter(function(a){return a.isCorrect;}).length;
+  var result={
+    id:_baGroupId, groupId:_baGroupId,
+    visitKey:_baOrders[0]?_baOrders[0].visitKey:'',
+    customerId:_baOrders[0]?_baOrders[0].customerId||null:null,
+    answeredAt:firebase.firestore.FieldValue.serverTimestamp(),
+    answers:answers, winner:_baWinner||null,
+    correctCount:correct, totalCount:answers.length
+  };
+  db.collection('blindResults').doc(_baGroupId).set(result)
+    .then(function(){
+      master.blindResults=(master.blindResults||[]).filter(function(r){return r.id!==_baGroupId;});
+      master.blindResults.push(result);
+      closeModal('m-blind-answer');
+      renderBlindPendingSection();
+      toast(correct+'/'+answers.length+'問正解！'+(_baWinner?' 🏆 '+bmLabel(_baWinner):''));
+    })
+    .catch(function(e){ toast('保存失敗: '+e.message,'err'); });
+});
 
 </script>
 </body>

@@ -312,6 +312,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
   </div>
 </div>
 
+
 <div id="toasts"></div>
 
 <script>
@@ -483,6 +484,7 @@ function renderVisitorList(){
   el.querySelectorAll('[data-orders-visit]').forEach(function(btn){
     btn.addEventListener('click',function(){ openOrdersModal(btn.dataset.ordersVisit, btn.dataset.ordersName); });
   });
+
 }
 
 function renderVisCard(v, isDone){
