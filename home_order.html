@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>テキーラ道場 — 受注</title>
+<title>テキーラ道場 — 注文</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -224,7 +224,7 @@ select.fs:disabled{opacity:.45;cursor:not-allowed}
 <div id="app">
 
   <div class="topbar">
-    <div class="top-brand">🥃 受注</div>
+    <div class="top-brand">🥃 注文</div>
     <div class="top-right">
       <a href="home.html" class="top-back">← ホーム</a>
       <button class="top-logout" id="btn-logout">ログアウト</button>
@@ -463,7 +463,7 @@ g('btn-logout').addEventListener('click',function(){ auth.signOut(); });
 var master = {
   members:[], distilleries:[], brands:[], classes:[], bottles:[], bottleData:[],
   otherCat1:[], otherCat2:[], otherCat3:[], otherBottles:[],
-  miscKinds:[], miscProducts:[], setProducts:[]
+  miscKinds:[], miscProducts:[], setProducts:[], otherBottles:[], bottleData:[]
 };
 var masterReady = false;
 
@@ -481,7 +481,9 @@ function loadMasterData(){
     db.collection('otherBottles').get().then(function(s){ master.otherBottles=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
     db.collection('miscKinds').get().then(function(s){ master.miscKinds=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
     db.collection('miscProducts').get().then(function(s){ master.miscProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
-    db.collection('setProducts').get().then(function(s){ master.setProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){})
+    db.collection('setProducts').get().then(function(s){ master.setProducts=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
+    db.collection('otherBottles').get().then(function(s){ master.otherBottles=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){}),
+    db.collection('bottleData').get().then(function(s){ master.bottleData=s.docs.map(function(d){return Object.assign({id:d.id},d.data());}); }).catch(function(){})
   ];
   Promise.all(cols).then(function(){
     masterReady = true;
@@ -1146,7 +1148,7 @@ function renderSetSelect(){
   var filtered=master.setProducts.filter(function(s){ return String(s.setType||s.id[0]||'0')===currentSetType; });
   filtered.sort(function(a,b){ return (a.id||'').localeCompare(b.id||''); });
   sel.innerHTML='<option value="">— セットを選択 —</option>'+
-    filtered.map(function(s){ return '<option value="'+s.id+'">'+s.id+' '+(s.memo||'')+'</option>'; }).join('');
+    filtered.map(function(s){ return '<option value="'+s.id+'">'+s.id+(s.setName?' '+s.setName:'')+(s.memo?' ('+s.memo+')':'')+'</option>'; }).join('');
   sel.value=''; var p=g('set-preview'); if(p) p.style.display='none';
 }
 document.querySelectorAll('[data-settype]').forEach(function(btn){
@@ -1164,7 +1166,18 @@ if(setSelEl) setSelEl.addEventListener('change',function(){
   var s=master.setProducts.find(function(x){ return x.id===id; });
   if(!s){ preview.style.display='none'; return; }
   var ids=[s.item01,s.item02,s.item03,s.item04,s.item05,s.item06,s.item07,s.item08].filter(Boolean);
-  pi.innerHTML=ids.map(function(pid){ var p=master.miscProducts.find(function(x){return x.id===pid;}); return '<div style="font-size:12px;color:var(--ink2)">・'+(p?p.name:pid)+(p?' （'+(p.unitPrice||0)+'円）':'')+'</div>'; }).join('');
+  pi.innerHTML=ids.map(function(pid,idx){
+    var iname=s['itemName'+String(idx+1).padStart(2,'0')];
+    var iprice=s['itemPrice'+String(idx+1).padStart(2,'0')];
+    var nm=iname||pid, pr=iprice!=null?iprice:null;
+    if(!iname){
+      var itype=s['itemType'+String(idx+1).padStart(2,'0')]||'misc';
+      if(itype==='tequila'){ var bd=(master.bottleData||[]).find(function(x){return x.id===pid;}); if(bd){nm=bd.bottleEs||bd.bottleJa||pid;pr=bd.price||null;} }
+      else if(itype==='other'){ var ob=(master.otherBottles||[]).find(function(x){return x.id===pid;}); if(ob){nm=ob.bottleName||pid;pr=ob.price10||null;} }
+      else{ var mp=master.miscProducts.find(function(x){return x.id===pid;}); if(mp){nm=mp.name||pid;pr=mp.unitPrice||null;} }
+    }
+    return '<div style="font-size:12px;color:var(--ink2)">・'+nm+(pr!=null?' （¥'+Number(pr).toLocaleString()+'）':'')+'</div>';
+  }).join('');
   pm.textContent=s.memo||''; preview.style.display='';
 });
 var msc=g('m-set-close'); if(msc) msc.addEventListener('click',function(){ g('m-set').classList.remove('open'); });
@@ -1175,9 +1188,20 @@ if(msave) msave.addEventListener('click',function(){
   var s=master.setProducts.find(function(x){return x.id===id;}); if(!s){ toast('セットデータが見つかりません','err'); return; }
   var ids=[s.item01,s.item02,s.item03,s.item04,s.item05,s.item06,s.item07,s.item08].filter(Boolean);
   var cnt=0;
-  ids.forEach(function(pid){
-    var p=master.miscProducts.find(function(x){return x.id===pid;}); if(!p) return;
-    state.items.push({type:'misc',productCode:pid,productName:p.name||pid,qty:p.qty||1,unit:p.unit||'個',price:p.unitPrice||0,detail:'セット: '+id});
+  ids.forEach(function(pid,idx){
+    var itype=s['itemType'+String(idx+1).padStart(2,'0')]||'misc';
+    var iname=s['itemName'+String(idx+1).padStart(2,'0')];
+    var iprice=s['itemPrice'+String(idx+1).padStart(2,'0')];
+    var productName=iname||pid, unitPrice=iprice!=null?iprice:0, qty=10, unit='ml';
+    if(!iname){
+      if(itype==='tequila'){ var bd=(master.bottleData||[]).find(function(x){return x.id===pid;}); if(bd){productName=bd.bottleEs||bd.bottleJa||pid;unitPrice=bd.price||0;} }
+      else if(itype==='other'){ var ob=(master.otherBottles||[]).find(function(x){return x.id===pid;}); if(ob){productName=ob.bottleName||pid;unitPrice=ob.price10||0;} }
+      else{ var mp=master.miscProducts.find(function(x){return x.id===pid;}); if(mp){productName=mp.name||pid;unitPrice=mp.unitPrice||0;qty=mp.qty||1;unit=mp.unit||'個';} }
+    } else if(itype==='misc'){
+      var mp2=master.miscProducts.find(function(x){return x.id===pid;});
+      if(mp2){qty=mp2.qty||1;unit=mp2.unit||'個';}
+    }
+    state.items.push({type:itype,productCode:pid,productName:productName,qty:qty,unit:unit,price:unitPrice,detail:'セット: '+(s.setName||id)});
     cnt++;
   });
   g('m-set').classList.remove('open');
