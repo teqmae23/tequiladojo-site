@@ -919,6 +919,8 @@ function render(key){
 // ── テーブルボタン委任 ────────────────────────────────────────
 document.addEventListener("click",function(e){
   var btn=e.target.closest("button"); if(!btn) return;
+  // 新規登録ボタン（page内にあるためIIFEでバインドできない）
+  if(btn.id==="btn-open-sset"){ openSsetModal(null); return; }
   var edit=btn.dataset.edit, id=btn.dataset.id;
   if(edit==="ocat1")    { openOcat1Modal(id); return; }
   if(edit==="ocat2")    { openOcat2Modal(id); return; }
@@ -1263,12 +1265,6 @@ var _ssetPickType="tequila";
 (function(){
   var sortBtn=g("btn-sort-ssets");
   if(sortBtn) sortBtn.addEventListener("click",function(){ sortState["ssets"]={key:gv("sort-key-ssets"),dir:gv("sort-dir-ssets")}; render("ssets"); });
-  var openBtn=g("btn-open-sset");
-  if(openBtn) openBtn.addEventListener("click",function(){ openSsetModal(null); });
-  // fallback: 委任でも拾う
-  document.addEventListener("click",function(e){
-    if(e.target&&e.target.id==="btn-open-sset"){ openSsetModal(null); }
-  });
 })();
 
 function updateSsetKey(){
