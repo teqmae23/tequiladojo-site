@@ -391,7 +391,15 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         <div class="fg" style="margin-bottom:0"><label class="fl">連番</label><input class="fi" id="bd-seq" placeholder="T00001" maxlength="6" readonly style="background:var(--cream2)"></div>
       </div>
       <div class="frow">
-        <div class="fg"><label class="fl">NOM<span class="req">*</span></label><input class="fi" id="bd-nom" placeholder="1079" maxlength="4"></div>
+        <div class="fg">
+          <label class="fl">NOM<span class="req">*</span></label>
+          <div style="display:flex;gap:6px">
+            <input class="fi" id="bd-nom" placeholder="1079" maxlength="4" style="width:90px;flex-shrink:0">
+            <select class="fs" id="bd-nom-sel" style="flex:1">
+              <option value="">— ドロップダウンから選択 —</option>
+            </select>
+          </div>
+        </div>
         <div class="fg"><label class="fl">ブランド<span class="req">*</span></label><select class="fs" id="bd-brand"><option value="">NOM入力後に選択</option></select></div>
         <div class="fg"><label class="fl">ボトルマスタ<span class="req">*</span></label><select class="fs" id="bd-master"><option value="">ブランド選択後に選択</option></select></div>
       </div>
@@ -622,6 +630,17 @@ function updateBdataFilters(){
     brdSel.innerHTML='<option value="">全ブランド</option>'+
       cache.brands.map(function(b){ return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+'</option>'; }).join("");
     if(curB) brdSel.value=curB;
+  }
+  // モーダル内のNOMドロップダウンも更新
+  var bdNomSel=g("bd-nom-sel"); if(bdNomSel){
+    var curN=bdNomSel.value;
+    bdNomSel.innerHTML='<option value="">— ドロップダウンから選択 —</option>'+
+      cache.distilleries.slice().sort(function(a,b){return (a.nom||a.id).localeCompare(b.nom||b.id);})
+      .map(function(d){
+        var nom=d.nom||d.id;
+        return '<option value="'+nom+'">'+nom+(d.nomJa?" — "+d.nomJa:"")+(d.nomEs?" / "+d.nomEs:"")+'</option>';
+      }).join("");
+    if(curN) bdNomSel.value=curN;
   }
 }
 
@@ -1002,6 +1021,21 @@ function renderBdata(){
 // NOM入力→ブランド絞り込み（ボトルデータ登録）
 var bdNomEl=g("bd-nom"); if(bdNomEl) bdNomEl.addEventListener("input",function(){
   var nom=this.value.replace(/\D/g,""); this.value=nom;
+  // ドロップダウンも同期
+  var dsel=g("bd-nom-sel"); if(dsel) dsel.value=nom;
+  var sel=g("bd-brand");
+  if(nom.length===4){
+    var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
+    sel.innerHTML=brands.length?'<option value="">選択してください</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+(b.brandJa?" / "+b.brandJa:"")+'</option>';}).join(""):'<option value="">該当ブランドなし</option>';
+  } else { sel.innerHTML='<option value="">NOM番号を入力してください</option>'; }
+  sv("bd-brand",""); sv("bd-bottle",""); g("bd-master").innerHTML='<option value="">ブランド選択後に選択</option>';
+  var _p=g("bd-master-panel"); if(_p) _p.style.display="none"; updateBdataKey();
+});
+
+// NOMドロップダウン → テキスト入力に同期してブランドを絞り込む
+var bdNomSelEl=g("bd-nom-sel"); if(bdNomSelEl) bdNomSelEl.addEventListener("change",function(){
+  var nom=this.value;
+  sv("bd-nom",nom);
   var sel=g("bd-brand");
   if(nom.length===4){
     var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
@@ -1070,6 +1104,8 @@ function openBdataModal(id){
     sv("bd-bottle",r?r.bottleId||r.id.slice(0,12):""); sv("bd-seq",r?r.id:"");
     bottleEl.readOnly=true; bottleEl.style.background="var(--cream2)"; seqEl.readOnly=true; seqEl.style.background="var(--cream2)";
     var nom=r?(r.bottleId||r.id).slice(0,4):""; sv("bd-nom",nom);
+    // ドロップダウンにも同期
+    var nomSelEl=g("bd-nom-sel"); if(nomSelEl) nomSelEl.value=nom;
     var brands=cache.brands.filter(function(b){return b.id.slice(0,4)===nom;});
     var brandSel=g("bd-brand");
     brandSel.innerHTML='<option value="">選択...</option>'+brands.map(function(b){return '<option value="'+b.id+'">'+b.id+' — '+(b.brandEs||"")+'</option>';}).join("");
@@ -1084,7 +1120,7 @@ function openBdataModal(id){
     sv("bd-buy-date",r?r.purchaseDate:todayStr()); sv("bd-start",r?r.serveStart:todayStr()); sv("bd-end",r?r.serveEnd:"");
     sv("bd-cost",r?r.cost:""); sv("bd-import",r?r.importType:"0");
   } else {
-    sv("bd-nom",""); sv("bd-bottle",""); sv("bd-seq","");
+    sv("bd-nom",""); var nomSelEl2=g("bd-nom-sel"); if(nomSelEl2) nomSelEl2.value=""; sv("bd-bottle",""); sv("bd-seq","");
     g("bd-brand").innerHTML='<option value="">NOM入力後に選択</option>';
     g("bd-master").innerHTML='<option value="">ブランド選択後に選択</option>';
     var _rp2=g("bd-master-panel"); if(_rp2) _rp2.style.display="none";
