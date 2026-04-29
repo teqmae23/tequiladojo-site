@@ -743,36 +743,53 @@ function submitOrder(){
   var batch = db.batch();
   var orderIds = [];
 
-  // 今日の注文件数を取得してから連番を振る
+  if(!state.selectedVisitIds.length){ toast('来場者が選択されていません','err'); return; }
+  if(!state.items.length){ toast('商品が選択されていません','err'); return; }
+
+  // 全注文を取得して連番計算
   db.collection('orders').get().then(function(snap){
-    var todayCnt = snap.docs.filter(function(d){ return d.data().orderDate===today; }).length;
-    var seqCounter = todayCnt + 1;
+    var allOrders = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+
+    // 当日の最大orderId連番
+    var maxSeq = 0;
+    allOrders.forEach(function(o){
+      if((o.id||'').slice(0,6)===today){
+        var s=parseInt(o.id.slice(6))||0; if(s>maxSeq) maxSeq=s;
+      }
+    });
+    var seqCounter = maxSeq + 1;
 
     state.selectedVisitIds.forEach(function(vid){
       var v = state.todayVisits.find(function(x){ return x.id===vid; });
       var memberId = v?(v.memberId||null):null;
 
+      // この来場者のグループ連番（visitKey内の最大+1）
+      var maxGrp = 0;
+      allOrders.forEach(function(o){
+        if(o.visitKey===vid && o.orderGroupId){
+          var g=parseInt((o.orderGroupId||'').slice(8))||0; if(g>maxGrp) maxGrp=g;
+        }
+      });
+      var groupSeq = maxGrp + 1;
+      var orderGroupId = vid + pad(groupSeq, 2); // visitKey(8) + 連番2 = 10桁
+
       state.items.forEach(function(item, itemIdx){
-        var orderId = today + pad(seqCounter,3);
+        var orderId = today + pad(seqCounter, 3);
         seqCounter++;
-        var ref = db.collection('orders').doc(orderId);
-        batch.set(ref,{
-          orderId:      orderId,
-          orderDate:    today,
-          seq:          seqCounter-1,
-          orderTime:    orderTime,
-          customerId:   memberId,
-          visitKey:     vid,
-          visitId:      vid,
-          productCode:  item.productCode||null,
-          productName:  item.productName||null,
-          productType:  item.type||null,
-          qty:          item.qty||1,
-          unit:         item.unit||'ml',
-          unitPrice:    item.price||0,
-          setId:        pad(itemIdx+1,2),
-          blindId:      0,
-          createdAt:    firebase.firestore.FieldValue.serverTimestamp()
+        batch.set(db.collection('orders').doc(orderId), {
+          orderTime:      orderTime,
+          customerId:     memberId,
+          visitKey:       vid,
+          orderGroupId:   orderGroupId,
+          itemSeq:        itemIdx + 1,  // グループ内の連番
+          productCode:    item.productCode||null,
+          productName:    item.productName||null,
+          productType:    item.type||null,
+          qty:            item.qty||1,
+          unit:           item.unit||'ml',
+          unitPrice:      item.price||0,
+          blindId:        0,
+          deleted:        0
         });
         orderIds.push(orderId);
       });
@@ -780,10 +797,9 @@ function submitOrder(){
 
     return batch.commit();
   }).then(function(){
-    var count = state.selectedVisitIds.length;
-    var itemCount = state.items.length;
     g('done-msg').textContent =
-      count+'名に'+itemCount+'種の商品を注文登録しました。\n注文ID: '+orderIds.slice(0,3).join('、')+(orderIds.length>3?'…':'');
+      state.selectedVisitIds.length+'名に'+state.items.length+'種の商品を注文登録しました。\n注文ID: '+
+      orderIds.slice(0,3).join('、')+(orderIds.length>3?'…':'');
     goStep(3);
     toast('注文を登録しました','ok');
   }).catch(function(e){ toast('注文登録失敗: '+e.message,'err'); });

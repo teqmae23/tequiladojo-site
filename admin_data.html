@@ -358,6 +358,11 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
             <option value="0">通常</option>
             <option value="1">ブラインド</option>
           </select>
+          <select class="fsel" id="f-ord-deleted">
+            <option value="0">有効のみ</option>
+            <option value="">全件（削除済み含む）</option>
+            <option value="1">削除済みのみ</option>
+          </select>
           <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
             <select id="sort-key-orders" class="fsel"><option value="id">注文ID</option><option value="orderDate">日付</option><option value="orderTime">時間</option><option value="customerId">顧客ID</option><option value="productType">種別</option><option value="qty">数量</option><option value="unitPrice">単価</option></select>
             <select id="sort-dir-orders" class="fsel"><option value="desc">降順 ▼</option><option value="asc">昇順 ▲</option></select>
@@ -365,8 +370,8 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           </div>
         </div>
         <div class="tw"><table id="tbl-orders">
-          <colgroup><col style="width:100px"><col style="width:50px"><col style="width:50px"><col style="width:80px"><col style="width:60px"><col><col style="width:44px"><col style="width:50px"><col style="width:60px"><col style="width:36px"><col style="width:100px"></colgroup>
-          <thead><tr><th>注文ID</th><th>日付</th><th>時間</th><th>顧客ID</th><th>種別</th><th>商品名</th><th>数量</th><th>単位</th><th>単価</th><th>盲</th><th>✏️ レコード操作</th></tr></thead>
+          <colgroup><col style="width:110px"><col style="width:50px"><col style="width:70px"><col style="width:80px"><col style="width:44px"><col style="width:90px"><col style="width:80px"><col style="width:120px"><col style="width:44px"><col style="width:50px"><col style="width:60px"><col style="width:36px"><col style="width:100px"></colgroup>
+          <thead><tr><th>注文ID</th><th>時間</th><th>顧客ID</th><th>来店キー</th><th>種別</th><th>注文グループ</th><th>商品コード</th><th>商品名</th><th>数量</th><th>単位</th><th>単価</th><th>盲</th><th>✏️ 操作</th></tr></thead>
           <tbody id="tb-orders"><tr><td colspan="11" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
@@ -601,7 +606,8 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         <div class="fg"><label class="fl">単価（円）</label><input class="fi" id="ord-unit-price" type="number" min="0" placeholder="0"></div>
       </div>
       <div class="frow">
-        <div class="fg"><label class="fl">セットID（2桁）</label><input class="fi mono" id="ord-set-id" maxlength="2" placeholder="01"></div>
+        <div class="fg"><label class="fl">注文グループID</label><input class="fi mono" id="ord-group-id" maxlength="10" placeholder="25042901-01"></div>
+        <div class="fg"><label class="fl">グループ内連番</label><input class="fi" id="ord-item-seq" type="number" min="1" placeholder="1"></div>
         <div class="fg"><label class="fl">ブラインド</label>
           <select class="fs" id="ord-blind">
             <option value="0">0: 通常</option>
@@ -1893,7 +1899,9 @@ function loadOrders(){
   db.collection("orders").get()
     .then(function(snap){
       cache.orders=snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-      setCnt("orders",cache.orders.length);
+      // 集計はdeleted=0のもののみ
+      var active=cache.orders.filter(function(r){return !r.deleted;});
+      setCnt("orders",active.length);
       renderOrders();
       ordUpdateStats();
     })
@@ -1902,11 +1910,12 @@ function loadOrders(){
 
 function ordUpdateStats(){
   var today=todayStr6();
-  var todayCount =cache.orders.filter(function(r){return r.orderDate===today;}).length;
-  var tqCount    =cache.orders.filter(function(r){return r.productType==="tequila";}).length;
-  var otCount    =cache.orders.filter(function(r){return r.productType==="other";}).length;
-  var msCount    =cache.orders.filter(function(r){return r.productType==="misc";}).length;
-  var els={"ord-stat-count":cache.orders.length,"ord-stat-today":todayCount,"ord-stat-tequila":tqCount,"ord-stat-other":otCount,"ord-stat-misc":msCount};
+  var active=cache.orders.filter(function(r){return !r.deleted;});
+  var todayCount=active.filter(function(r){return (r.id||"").slice(0,6)===today;}).length;
+  var tqCount   =active.filter(function(r){return r.productType==="tequila";}).length;
+  var otCount   =active.filter(function(r){return r.productType==="other";}).length;
+  var msCount   =active.filter(function(r){return r.productType==="misc";}).length;
+  var els={"ord-stat-count":active.length,"ord-stat-today":todayCount,"ord-stat-tequila":tqCount,"ord-stat-other":otCount,"ord-stat-misc":msCount};
   Object.keys(els).forEach(function(k){ var el=g(k); if(el) el.textContent=els[k]; });
 }
 
@@ -1914,55 +1923,69 @@ function renderOrders(){
   var list=cache.orders.slice();
   var q=(g("s-ord")||{value:""}).value.toLowerCase();
   var dateF=gv("f-ord-date"), typeF=gv("f-ord-type"), blindF=gv("f-ord-blind");
+  var showDel=g("f-ord-deleted"); var showDelVal=showDel?showDel.value:"0";
   list=list.filter(function(r){
-    if(q&&(r.id||"").indexOf(q)<0&&(r.productName||"").toLowerCase().indexOf(q)<0&&(r.customerId||"").indexOf(q)<0) return false;
-    if(dateF){ var yy=dateF.slice(2,4),mm=dateF.slice(5,7),dd=dateF.slice(8,10); if(r.orderDate!==yy+mm+dd) return false; }
+    // 削除フィルター: 0=有効のみ, 1=削除済みのみ, ""=全件
+    if(showDelVal==="0"&&r.deleted) return false;
+    if(showDelVal==="1"&&!r.deleted) return false;
+    if(q&&(r.id||"").indexOf(q)<0&&(r.productCode||"").indexOf(q)<0&&(r.customerId||"").indexOf(q)<0) return false;
+    if(dateF){ var yy=dateF.slice(2,4),mm=dateF.slice(5,7),dd=dateF.slice(8,10); if((r.id||"").slice(0,6)!==yy+mm+dd) return false; }
     if(typeF&&r.productType!==typeF) return false;
     if(blindF&&String(r.blindId||0)!==blindF) return false;
     return true;
   });
   list=applySortToList(list,"orders");
   var tb=g("tb-orders");
-  if(!list.length){ tb.innerHTML='<tr><td colspan="11" class="ec">データがありません</td></tr>'; return; }
+  if(!list.length){ tb.innerHTML='<tr><td colspan="10" class="ec">データがありません</td></tr>'; return; }
   tb.innerHTML=list.map(function(r){
     var lbl=TYPE_LABEL[r.productType];
     var typeBadge=lbl?'<span class="badge '+(TYPE_BADGE_CLS[r.productType]||"bg-gray")+'">'+lbl+'</span>':'<span class="dim">—</span>';
     var blindBadge=(r.blindId===1||r.blindId==="1")?'<span class="badge bg-red">盲</span>':'';
-    return '<tr>'
-      +'<td class="mono" style="font-size:10px">'+r.id+'</td>'
-      +'<td class="mono dim">'+fmtDate(r.orderDate||"")+'</td>'
+    var isDeleted=!!r.deleted;
+    var rowStyle=isDeleted?'style="opacity:.4;background:var(--cream2)"':'';
+    var delBadge=isDeleted?'<span class="badge bg-red" style="font-size:9px">削除</span>':'';
+    return '<tr '+rowStyle+'>'
+      +'<td class="mono" style="font-size:10px">'+r.id+' '+delBadge+'</td>'
       +'<td class="mono dim">'+fmtHHMM(r.orderTime||"")+'</td>'
       +'<td class="mono dim" style="font-size:11px">'+(r.customerId||"—")+'</td>'
+      +'<td class="mono dim" style="font-size:11px">'+(r.visitKey||"—")+'</td>'
       +'<td>'+typeBadge+'</td>'
-      +'<td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.productName||"—")+'</td>'
+      +'<td class="mono dim" style="font-size:10px">'+(r.orderGroupId?r.orderGroupId+(r.itemSeq?'-'+r.itemSeq:''):"—")+'</td>'
+      +'<td class="mono dim" style="font-size:11px">'+(r.productCode||"—")+'</td>'
+      +'<td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.productName||"—")+'</td>'
       +'<td class="mono dim" style="text-align:right">'+(r.qty!=null?r.qty:"—")+'</td>'
       +'<td class="dim" style="font-size:11px">'+(r.unit||"—")+'</td>'
       +'<td class="mono" style="text-align:right">'+(r.unitPrice!=null?"¥"+Number(r.unitPrice).toLocaleString():"—")+'</td>'
       +'<td style="text-align:center">'+blindBadge+'</td>'
       +'<td><div class="acts">'
-        +'<button class="btn bs sm" data-edit-order="'+r.id+'">編集</button>'
-        +'<button class="btn bd sm" data-del="orders" data-del-id="'+r.id+'" data-del-label="注文データ">削除</button>'
+        +(isDeleted
+          ?'<button class="btn bs sm" data-restore-order="'+r.id+'">復元</button>'
+          :'<button class="btn bs sm" data-edit-order="'+r.id+'">編集</button>'
+           +'<button class="btn bd sm" data-softdel-order="'+r.id+'">削除</button>'
+        )
       +'</div></td></tr>';
   }).join("");
 }
 
 // フィルター・ソート・CSV
 (function(){
-  ["s-ord","f-ord-date","f-ord-type","f-ord-blind"].forEach(function(id){
+  ["s-ord","f-ord-date","f-ord-type","f-ord-blind","f-ord-deleted"].forEach(function(id){
     var el=g(id); if(!el) return;
     el.addEventListener("input",renderOrders);
     el.addEventListener("change",renderOrders);
   });
   var expBtn=g("btn-export-orders");
   if(expBtn) expBtn.addEventListener("click",function(){
-    if(!cache.orders.length){ toast("データがありません","inf"); return; }
-    var csv="\uFEFF注文ID,注文日,注文時間,顧客ID,来店ID,商品種別,商品コード,商品名,数量,単位,単価,セットID,ブラインド\n"+
-      cache.orders.map(function(r){
-        return [r.id,r.orderDate||"",r.orderTime||"",r.customerId||"",r.visitId||"",
+    var active=cache.orders.filter(function(r){return !r.deleted;});
+    if(!active.length){ toast("データがありません","inf"); return; }
+    var csv="\uFEFF注文ID,注文時間,顧客ID,来店キー,注文グループID,グループ内連番,商品種別,商品コード,商品名,数量,単位,単価,ブラインド\n"+
+      active.map(function(r){
+        return [r.id,r.orderTime||"",r.customerId||"",r.visitKey||"",
+                r.orderGroupId||"",r.itemSeq||1,
                 r.productType||"",(r.productCode||"").replace(/,/g,"、"),
                 (r.productName||"").replace(/,/g,"、"),
                 r.qty!=null?r.qty:"",r.unit||"",r.unitPrice!=null?r.unitPrice:"",
-                r.setId||"",r.blindId||0].join(",");
+                r.blindId||0].join(",");
       }).join("\n");
     var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
     var url=URL.createObjectURL(blob);
@@ -1987,7 +2010,7 @@ function autoSetOrderSeq(date){
   if(!date||date.length!==6) return;
   var maxSeq=0;
   cache.orders.forEach(function(r){
-    if(r.orderDate===date){ var s=parseInt((r.id||"").slice(6))||0; if(s>maxSeq) maxSeq=s; }
+    if((r.id||"").slice(0,6)===date){ var s=parseInt((r.id||"").slice(6))||0; if(s>maxSeq) maxSeq=s; }
   });
   sv("ord-seq",String(maxSeq+1).padStart(3,"0"));
   updateOrderKey();
@@ -1999,14 +2022,17 @@ function openOrderModal(id){
   var dEl=g("ord-date"), sEl=g("ord-seq");
   if(id){
     var r=cache.orders.find(function(x){return x.id===id;});
-    sv("ord-date",r?r.orderDate:""); sv("ord-seq",id.slice(6));
+    sv("ord-date",(r&&r.id)?r.id.slice(0,6):""); sv("ord-seq",id?id.slice(6):"");
     sv("ord-time",r?r.orderTime||"":"");
-    sv("ord-customer",r?r.customerId||"":""); sv("ord-visit",r?r.visitId||"":"");
+    sv("ord-customer",r?r.customerId||"":""); sv("ord-visit",r?r.visitKey||"":"");
     sv("ord-type",r?r.productType||"tequila":"tequila");
-    sv("ord-product-code",r?r.productCode||"":""); sv("ord-product-name",r?r.productName||"":"");
+    sv("ord-product-code",r?r.productCode||"":"");
+    sv("ord-product-name",r?r.productName||"":"");
     sv("ord-qty",r&&r.qty!=null?r.qty:""); sv("ord-unit",r?r.unit||"ml":"ml");
     sv("ord-unit-price",r&&r.unitPrice!=null?r.unitPrice:"");
-    sv("ord-set-id",r?r.setId||"01":"01"); sv("ord-blind",r?String(r.blindId||0):"0");
+    sv("ord-group-id",r?r.orderGroupId||"");
+    sv("ord-item-seq",r&&r.itemSeq!=null?r.itemSeq:1);
+    sv("ord-blind",r?String(r.blindId||0):"0");
     if(dEl){dEl.readOnly=true; dEl.style.background="var(--cream2)";}
     if(sEl){sEl.readOnly=true; sEl.style.background="var(--cream2)";}
   } else {
@@ -2016,7 +2042,7 @@ function openOrderModal(id){
     sv("ord-customer",""); sv("ord-visit","");
     sv("ord-type","tequila"); sv("ord-product-code",""); sv("ord-product-name","");
     sv("ord-qty",""); sv("ord-unit","ml"); sv("ord-unit-price","");
-    sv("ord-set-id","01"); sv("ord-blind","0");
+    sv("ord-group-id",""); sv("ord-item-seq",1); sv("ord-blind","0");
     if(dEl){dEl.readOnly=false; dEl.style.background="";}
     if(sEl){sEl.readOnly=false; sEl.style.background="";}
     autoSetOrderSeq(today);
@@ -2041,21 +2067,41 @@ if(_bsoBtn) _bsoBtn.addEventListener("click",function(){
   var id=date+seq;
   if(!editId.order&&cache.orders.some(function(r){return r.id===id;})){ toast("注文ID「"+id+"」は既に存在します","err"); return; }
   db.collection("orders").doc(id).set({
-    orderId:id, orderDate:date, seq:parseInt(seq)||0,
     orderTime:gv("ord-time")||null,
     customerId:gv("ord-customer")||null,
-    visitId:gv("ord-visit")||null,
+    visitKey:gv("ord-visit")||null,
     productType:gv("ord-type")||"tequila",
     productCode:gv("ord-product-code")||null,
     productName:gv("ord-product-name")||null,
     qty:parseFloat(qty)||null,
     unit:gv("ord-unit")||"ml",
     unitPrice:gv("ord-unit-price")!==""?parseInt(gv("ord-unit-price")):null,
-    setId:gv("ord-set-id")||"01",
-    blindId:parseInt(gv("ord-blind"))||0
+    orderGroupId:gv("ord-group-id")||null,
+    itemSeq:parseInt(gv("ord-item-seq"))||1,
+    blindId:parseInt(gv("ord-blind"))||0,
+    deleted:0
   },{merge:true})
   .then(function(){ toast(editId.order?"注文データを更新しました":"注文データを登録しました"); closeM("m-order"); loadOrders(); })
   .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
+});
+
+// 委任ハンドラに削除フラグ・復元を追加
+document.addEventListener("click",function(e){
+  var btn=e.target.closest("button"); if(!btn) return;
+  if(btn.dataset.softdelOrder){
+    var id=btn.dataset.softdelOrder;
+    confirmDel("「"+id+"」を削除済みにしますか？（レコードは残ります）",function(){
+      db.collection("orders").doc(id).update({deleted:1})
+        .then(function(){ toast("削除フラグを設定しました","inf"); loadOrders(); })
+        .catch(function(e){ toast("失敗: "+e.message,"err"); });
+    });
+  }
+  if(btn.dataset.restoreOrder){
+    var id=btn.dataset.restoreOrder;
+    db.collection("orders").doc(id).update({deleted:0})
+      .then(function(){ toast("削除フラグを解除しました"); loadOrders(); })
+      .catch(function(e){ toast("失敗: "+e.message,"err"); });
+  }
 });
 
 </script>
