@@ -578,6 +578,9 @@ if (!firebase.apps.length) { firebase.initializeApp(FIREBASE_CONFIG); }
 var auth = firebase.auth();
 var db   = firebase.firestore();
 
+// ── ユーティリティ（最上位に定義）────────────────────────────
+function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
 // ── ユーティリティ ─────────────────────────────────────────────
 function g(id)      { return document.getElementById(id); }
 function gv(id)     { var el=g(id); return el?el.value.trim():""; }
