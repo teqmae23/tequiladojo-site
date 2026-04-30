@@ -219,37 +219,37 @@ input,select{font-family:var(--sans)}
 /* 結果入力（表形式） */
 .result-info{padding:10px 16px;background:var(--cream);font-size:13px;color:var(--ink2);border-bottom:1px solid var(--border)}
 .blind-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.blind-table{border-collapse:collapse;width:100%;min-width:400px;font-size:13px}
-.blind-table th,.blind-table td{border:1px solid var(--border2);padding:6px 8px;text-align:center;white-space:nowrap}
-.blind-table th{background:var(--cream2);font-size:11px;font-weight:600;color:var(--ink3)}
-.blind-table th.mark-head{font-size:16px;padding:4px 6px;min-width:44px}
-.blind-table td.name-cell{text-align:left;font-weight:600;font-size:13px;color:var(--ink);background:var(--cream);padding-left:10px;min-width:80px}
-.blind-table td.mark-cell{padding:4px;min-width:44px}
-.blind-table td.winner-cell{padding:4px;min-width:44px}
-.blind-table td.score-cell{font-family:var(--mono);font-weight:700;color:var(--gold-d);min-width:40px}
+.blind-table{border-collapse:collapse;width:100%;font-size:12px}
+.blind-table th,.blind-table td{border:1px solid var(--border2);padding:3px 2px;text-align:center;white-space:nowrap}
+.blind-table th{background:var(--cream2);font-size:10px;font-weight:600;color:var(--ink3)}
+.blind-table th.mark-head{font-size:12px;padding:3px 2px;min-width:32px}
+.blind-table td.name-cell{text-align:left;font-weight:600;font-size:12px;color:var(--ink);background:var(--cream);padding-left:8px;padding-right:6px;min-width:60px;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.blind-table td.mark-cell{padding:2px;min-width:32px;width:32px}
+.blind-table td.winner-cell{padding:2px;min-width:32px;width:32px}
+.blind-table td.score-cell{font-family:var(--mono);font-weight:700;color:var(--gold-d);min-width:36px;font-size:11px}
 .blind-table td.correct{background:#d4edda}
 .blind-table td.wrong{background:#f8d7da}
-.mark-legend{padding:10px 16px;background:var(--cream);border-top:1px solid var(--border)}
-.mark-legend-title{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
-.mark-legend-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px}
-.mark-legend-dot{font-size:16px;min-width:28px;text-align:center}
+.mark-legend{padding:8px 16px;background:var(--cream);border-top:1px solid var(--border)}
+.mark-legend-title{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.mark-legend-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px}
+.mark-legend-dot{font-size:13px;min-width:22px;text-align:center}
 .mark-legend-name{color:var(--ink2)}
-.result-action-bar{padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--border);background:var(--cream2)}
+.result-action-bar{padding:10px 16px;display:flex;gap:8px;border-top:1px solid var(--border);background:var(--cream2)}
 .result-score-summary{padding:10px 16px;background:var(--teal-l);border-top:1px solid var(--border);font-size:13px;color:var(--ink2);display:none}
 
 /* テーブル内マークピッカー専用（fixed表示） */
 .tbl-mark-picker{position:relative;display:inline-block}
-.tbl-mark-btn{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;background:var(--cream);border:1px solid var(--border2);border-radius:var(--r);cursor:pointer;min-width:40px;justify-content:center;user-select:none;transition:border-color .15s}
+.tbl-mark-btn{display:inline-flex;align-items:center;gap:1px;padding:2px 3px;background:var(--cream);border:1px solid var(--border2);border-radius:4px;cursor:pointer;min-width:28px;width:28px;justify-content:center;user-select:none;transition:border-color .15s}
 .tbl-mark-btn:hover{border-color:var(--gold)}
 .tbl-mark-btn.selected{border-color:var(--gold-d);background:var(--cream2)}
-.tbl-mark-caret{font-size:9px;color:var(--ink3)}
+.tbl-mark-caret{font-size:7px;color:var(--ink3);flex-shrink:0}
 /* パネルはfixedでDOMルート直下に出す */
-.tbl-mark-panel{display:none;position:fixed;background:var(--white);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:9999;padding:4px;min-width:52px}
+.tbl-mark-panel{display:none;position:fixed;background:var(--white);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:9999;padding:3px;min-width:36px}
 .tbl-mark-panel.open{display:block}
-.tbl-mark-opt{display:flex;align-items:center;justify-content:center;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:14px;transition:background .1s}
+.tbl-mark-opt{display:flex;align-items:center;justify-content:center;padding:3px 4px;border-radius:3px;cursor:pointer;font-size:13px;transition:background .1s}
 .tbl-mark-opt:hover{background:var(--cream2)}
 .tbl-mark-opt.active{background:var(--cream3)}
-.tbl-mark-none{font-size:11px;color:var(--ink3);text-align:center;padding:5px 4px;cursor:pointer;border-radius:4px}
+.tbl-mark-none{font-size:10px;color:var(--ink3);text-align:center;padding:4px 3px;cursor:pointer;border-radius:3px}
 .tbl-mark-none:hover{background:var(--cream2)}
 
 /* ── カスタムマークドロップダウン ── */
@@ -643,7 +643,10 @@ function toggleDoneSection(){
 function vLabel(visitKey){
   const v=allVisits.find(x=>x.id===visitKey);
   if(!v)return`来店ID: ${visitKey}`;
-  if(v.memberId&&allMembers[v.memberId])return allMembers[v.memberId].name;
+  if(v.memberId&&allMembers[v.memberId]){
+    const m=allMembers[v.memberId];
+    return m.nickname||m.name||v.memberId;
+  }
   return`ゲスト（${v.id}）`;
 }
 
@@ -865,7 +868,7 @@ function renderResultTable(){
   const thMarks=marks.map((m,mi)=>{
     if(revealed&&colAllFilled[mi]){
       const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-      return`<th class="mark-head"><div style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</div><div style="font-size:10px;color:var(--ink3)">${nums[mi]||''}</div></th>`;
+      return`<th class="mark-head"><div style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</div><div style="font-size:10px;color:var(--ink3)">${nums[mi]||''}</div></th>`;
     }
     return`<th class="mark-head">${nums[mi]||'?'}</th>`;
   }).join('');
@@ -889,7 +892,7 @@ function renderResultTable(){
         // この列はまだ全員未入力 → 入力済みならマーク表示、未入力は—
         if(chosen){
           const{sym,color}=markSym(blindMarks.find(x=>x.id===chosen)||{id:chosen});
-          cellContent=`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;
+          cellContent=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;
         } else {
           cellContent='<span style="color:var(--ink3)">—</span>';
         }
@@ -899,7 +902,7 @@ function renderResultTable(){
           const isCorrect=chosen===marks[mki];
           cellClass+=isCorrect?' correct':' wrong';
           const{sym,color}=markSym(blindMarks.find(x=>x.id===chosen)||{id:chosen});
-          cellContent=`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;
+          cellContent=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;
         } else {
           cellClass+=' wrong';
           cellContent='<span style="color:var(--ink3)">—</span>';
@@ -911,17 +914,21 @@ function renderResultTable(){
     // 好きセル
     const w=winners[mi];
     let winnerCell=revealed
-      ?(w?(()=>{const{sym,color}=markSym(blindMarks.find(x=>x.id===w)||{id:w});return`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;})():'—')
+      ?(w?(()=>{const{sym,color}=markSym(blindMarks.find(x=>x.id===w)||{id:w});return`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;})():'—')
       :buildTableWinnerPicker(mi,w,false);
 
-    // 正解数（入力済みのみ、未入力は不正解扱い）
+    // 正解数（全員入力済みの列のみ集計）
     let scoreCell='—';
     if(revealed){
-      const correctCount=marks.filter((m,mki)=>{
-        return answers[mi][mki]&&answers[mi][mki]===marks[mki];
-      }).length;
-      const color=correctCount===marks.length?'var(--teal)':'var(--ink)';
-      scoreCell=`<strong style="color:${color}">${correctCount}/${marks.length}</strong>`;
+      const filledMkis=marks.map((_,mki)=>mki).filter(mki=>colAllFilled[mki]);
+      const correctCount=filledMkis.filter(mki=>answers[mi][mki]===marks[mki]).length;
+      const totalFilled=filledMkis.length;
+      if(totalFilled===0){
+        scoreCell='—';
+      } else {
+        const color=correctCount===totalFilled?'var(--teal)':'var(--ink)';
+        scoreCell=`<strong style="color:${color}">${correctCount}/${totalFilled}</strong>`;
+      }
     }
 
     // 好き件数（全員好き入力済み時のみ）
@@ -944,7 +951,7 @@ function renderResultTable(){
     const o=markToOrder[m];
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
     const markSpan=(revealed&&colAllFilled[mi])
-      ?`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px;margin-right:4px">${sym}</span>`
+      ?`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;margin-right:4px">${sym}</span>`
       :`<span style="font-size:13px;margin-right:4px;color:var(--ink3)">?</span>`;
     return`<div class="mark-legend-row">
       <span class="mark-legend-dot">${nums[mi]||'?'}</span>
@@ -977,10 +984,10 @@ document.addEventListener('click',_closeTblPanel);
 
 function buildTableMarkPicker(mi,mki,chosenMarkId,isRevealed){
   const pid=`tp-${mi}-${mki}`;
-  let btnInner='<span style="font-size:10px;color:var(--ink3)">選択</span>';
+  let btnInner='<span style="font-size:9px;color:var(--ink3)">選択</span>';
   if(chosenMarkId){
     const{sym,color}=markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId});
-    btnInner=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+    btnInner=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;line-height:1">${sym}</span>`;
   }
   return`<div class="tbl-mark-picker">
     <div class="tbl-mark-btn${chosenMarkId?' selected':''}" id="${pid}-btn"
@@ -998,7 +1005,7 @@ function openTblPicker(pid,mi,mki,btnEl){
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
     return`<div class="tbl-mark-opt${chosenMarkId===m?' active':''}"
       onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'${esc(m)}')">
-      <span style="color:${color};font-weight:700;font-size:18px;letter-spacing:-2px">${sym}</span>
+      <span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;line-height:1">${sym}</span>
     </div>`;
   }).join('');
   const panel=document.createElement('div');
@@ -1006,7 +1013,6 @@ function openTblPicker(pid,mi,mki,btnEl){
   panel.id=pid+'-panel';
   panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'')">−</div>${opts}`;
   panel.addEventListener('click',e=>e.stopPropagation());
-  // 非表示で追加してサイズ計測してから位置確定
   panel.style.visibility='hidden';
   document.body.appendChild(panel);
   _tblPanel=panel;
@@ -1026,10 +1032,10 @@ function openTblPicker(pid,mi,mki,btnEl){
 
 function buildTableWinnerPicker(mi,chosenMarkId,isRevealed){
   const pid=`tw-${mi}`;
-  let btnInner='<span style="font-size:10px;color:var(--ink3)">好き</span>';
+  let btnInner='<span style="font-size:9px;color:var(--ink3)">好き</span>';
   if(chosenMarkId){
     const{sym,color}=markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId});
-    btnInner=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+    btnInner=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;line-height:1">${sym}</span>`;
   }
   return`<div class="tbl-mark-picker">
     <div class="tbl-mark-btn${chosenMarkId?' selected':''}" id="${pid}-btn"
@@ -1047,7 +1053,7 @@ function openTblWinnerPicker(pid,mi,btnEl){
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
     return`<div class="tbl-mark-opt${chosenMarkId===m?' active':''}"
       onclick="event.stopPropagation();setTableWinner(${mi},'${esc(m)}')">
-      <span style="color:${color};font-weight:700;font-size:18px;letter-spacing:-2px">${sym}</span>
+      <span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;line-height:1">${sym}</span>
     </div>`;
   }).join('');
   const panel=document.createElement('div');
@@ -1083,6 +1089,24 @@ function setTableWinner(mi,markId){
 }
 
 function showBlindResult(){
+  const{members,marks,answers}=resultState;
+  const nums=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
+  // 参加者ごとに入力済み回答の重複チェック
+  for(let mi=0;mi<members.length;mi++){
+    const name=vLabel(members[mi].visitKey);
+    const chosen=answers[mi].filter(Boolean);
+    const dup=[...new Set(chosen.filter((m,i)=>chosen.indexOf(m)!==i))];
+    if(dup.length>0){
+      const dupSyms=dup.map(m=>{
+        const{sym}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+        return sym;
+      }).join('・');
+      alert(`${name}に重複した回答があります（${dupSyms}）\n修正してください。`);
+      return;
+    }
+  }
+
   resultState.revealed=true;
   renderResultTable();
   document.getElementById('btn-show-result').style.display='none';
@@ -1173,7 +1197,7 @@ function renderVisitors(){
   if(!active.length){c.innerHTML='<div class="empty">在店中の来場者がいません</div>';return;}
   c.innerHTML=active.map(v=>{
     const m=v.memberId&&allMembers[v.memberId];
-    const name=m?m.name:`ゲスト（来店ID: ${v.id}）`;
+    const name=m?(m.nickname||m.name):`ゲスト（来店ID: ${v.id}）`;
     const sub=v.memberId?`会員ID: ${v.memberId}`:v.id;
     const checked=flow.visits.find(x=>x.id===v.id)?'checked':'';
     return`<div class="visitor-card${checked?' selected':''}" id="vc-${v.id}">
@@ -1396,7 +1420,7 @@ function goStep2(){
     }
   }
   showStep(2);
-  const names=flow.visits.map(v=>{const m=v.memberId&&allMembers[v.memberId];return m?m.name:`ゲスト（${v.id}）`;});
+  const names=flow.visits.map(v=>{const m=v.memberId&&allMembers[v.memberId];return m?(m.nickname||m.name):`ゲスト（${v.id}）`;});
   document.getElementById('confirm-visitor').textContent=names.join('、');
   const total=flow.cart.reduce((s,o)=>s+cartAmt(o),0);
   document.getElementById('confirm-items').innerHTML=flow.cart.map(o=>{

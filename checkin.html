@@ -489,8 +489,7 @@ function renderVisitorList(){
 
 function renderVisCard(v, isDone){
   var mem=getMemberInfo(v.memberId);
-  var name=mem?(mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
-  var orders=getVisitOrders(v.id);
+  var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
   var totalAmt=calcAmount(orders);
   var totalTq=calcTequila(orders);
   var orderCount=orders.length;
@@ -632,7 +631,7 @@ g('ci-member').addEventListener('input',function(){
   if(!val){ status.textContent=''; return; }
   var mem=getMemberInfo(val);
   if(mem){
-    status.textContent='✓ '+mem.name+'（'+( mem.rank||'段位なし')+'・来店'+( mem.visitCount||0)+'回）';
+    status.textContent='✓ '+(mem.nickname||mem.name)+'（'+( mem.rank||'段位なし')+'・来店'+( mem.visitCount||0)+'回）';
     status.style.color='var(--teal)';
   } else {
     status.textContent='✕ 会員ID「'+val+'」は登録されていません（非会員として登録可）';
@@ -681,8 +680,7 @@ function openCheckoutModal(visitKey){
   if(!v) return;
 
   var mem=getMemberInfo(v.memberId);
-  var name=mem?(mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
-  g('mt-checkout').textContent='退店 / お会計 — '+name;
+  var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
 
   // 来場者情報（来店時間・在店時間も表示）
   var now=new Date();
