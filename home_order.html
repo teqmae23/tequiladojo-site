@@ -4,827 +4,330 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>注文管理 | テキーラ道場</title>
-
-<!-- Firebase -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
 <style>
-:root {
-  --bg: #0f0e0c;
-  --surface: #1a1916;
-  --surface2: #222119;
-  --border: #2e2c27;
-  --accent: #c9a84c;
-  --accent2: #e8c96a;
-  --text: #f0ece0;
-  --text2: #a09880;
-  --text3: #6a6455;
-  --red: #c0392b;
-  --green: #27ae60;
-  --blue: #2980b9;
-  --blind: #8e44ad;
-  --radius: 8px;
+:root{
+  --ink:#18110a;--ink2:#4a3820;--ink3:#9a8470;
+  --gold:#c8921e;--gold-l:#e8b84a;--gold-d:#7a5610;
+  --teal:#1a6e58;--teal-l:#e0f0eb;
+  --red:#8c2818;--red-l:#fae8e4;
+  --blue:#185FA5;--blue-l:#E6F1FB;
+  --purple:#6b3fa0;--purple-l:#f0e8fa;
+  --orange:#b85c00;--orange-l:#fff0e0;
+  --green:#1a6e3a;--green-l:#e0f0e8;
+  --cream:#faf7f1;--cream2:#f0ebe0;--cream3:#e4ddd0;--white:#fff;
+  --border:rgba(160,130,100,.18);--border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07);--shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:8px;--rl:14px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button{cursor:pointer;font-family:var(--sans);border:none}
+input,select{font-family:var(--sans)}
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── ログイン ── */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.07),transparent),var(--cream)}
+.lcard{width:100%;max-width:360px;background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:40px 28px;box-shadow:var(--shadow-lg)}
+.llogo{text-align:center;font-size:40px;margin-bottom:4px}
+.lbrand{font-family:var(--serif);font-size:24px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;text-align:center;margin-bottom:24px}
+.lcard label{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:12px}
+.lcard input{width:100%;padding:11px 13px;border:1px solid var(--border2);border-radius:var(--r);font-size:14px;background:var(--cream);color:var(--ink);outline:none}
+.lcard input:focus{border-color:var(--gold)}
+.lerr{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.lbtn{width:100%;margin-top:20px;padding:13px;background:var(--gold-d);color:var(--cream);border-radius:var(--r);font-size:14px;font-weight:500}
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
-  font-size: 14px;
-  min-height: 100vh;
-}
+/* ── アプリ ── */
+#app{display:none;flex-direction:column;min-height:100vh}
+.topbar{background:var(--ink);padding:10px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.top-brand{font-family:var(--serif);font-size:17px;color:var(--gold-l);letter-spacing:.08em}
+.top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.top-back{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 10px;border-radius:var(--r);font-size:11px;text-decoration:none}
+.top-logout{background:none;border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.38);padding:5px 10px;border-radius:var(--r);font-size:11px}
 
-/* ── トップバー ── */
-#topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 48px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-#topbar .brand {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 1px;
-  margin-right: auto;
-}
-#topbar a {
-  color: var(--text2);
-  text-decoration: none;
-  font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: background .15s;
-}
-#topbar a:hover { background: var(--border); }
+/* ── コンテンツ ── */
+.content{padding:16px;max-width:700px;margin:0 auto;width:100%;flex:1}
+.page-title{font-family:var(--serif);font-size:24px;font-weight:500;color:var(--gold-d);margin-bottom:16px}
 
-/* ── メインコンテンツ ── */
-#main {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 16px;
-}
+/* ── ボタン ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;border:none;white-space:nowrap;cursor:pointer;transition:all .15s}
+.bp{background:var(--gold-d);color:var(--cream)}.bp:hover{background:var(--gold)}.bp:active{transform:scale(.97)}
+.bs{background:var(--cream2);color:var(--ink2);border:1px solid var(--border2)}.bs:hover{background:var(--cream3)}
+.bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}
+.bt{background:var(--teal);color:#fff}.bt:hover{background:#1a8060}
+.bpu{background:var(--purple-l);color:var(--purple);border:1px solid rgba(107,63,160,.2)}.bpu:hover{background:#e0d0f5}
+.btn-full{width:100%}
+.sm{padding:6px 10px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 
-/* ── 新規注文ボタン ── */
-#btn-new-order {
-  width: 100%;
-  padding: 14px;
-  background: var(--accent);
-  color: #0f0e0c;
-  font-size: 15px;
-  font-weight: 700;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  margin-bottom: 20px;
-  letter-spacing: 1px;
-  transition: background .2s, transform .1s;
-}
-#btn-new-order:hover { background: var(--accent2); }
-#btn-new-order:active { transform: scale(.98); }
+/* ── 新規注文 ── */
+#btn-new-order{margin-bottom:20px;font-size:15px;font-weight:700;letter-spacing:.5px}
 
 /* ── セクション ── */
-.section { margin-bottom: 24px; }
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
-}
-.section-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: .5px;
-  text-transform: uppercase;
-}
-.section-count {
-  background: var(--border);
-  color: var(--text2);
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-.section-action {
-  margin-left: auto;
-}
+.section{margin-bottom:24px}
+.sec-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--cream3)}
+.sec-title{font-family:var(--serif);font-size:17px;font-weight:600}
+.sec-count{background:var(--cream2);color:var(--ink3);font-size:11px;padding:2px 8px;border-radius:10px;font-family:var(--mono)}
+.sec-action{margin-left:auto}
+#btn-serve-all{display:none}
+#btn-serve-all.visible{display:inline-flex}
 
 /* ── グループカード ── */
-.group-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 8px;
-  overflow: hidden;
-  transition: border-color .2s;
-}
-.group-card.done {
-  opacity: .45;
-}
-.group-card:hover { border-color: #3e3c37; }
-
-.group-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-}
-.group-checkbox {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.group-info { flex: 1; min-width: 0; }
-.group-row1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-.group-id {
-  font-size: 11px;
-  color: var(--text3);
-  font-family: monospace;
-}
-.group-customer {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-.blind-badge {
-  background: var(--blind);
-  color: #fff;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-weight: 700;
-}
-.group-row2 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.group-time {
-  font-size: 11px;
-  color: var(--text3);
-}
-.group-total {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  margin-left: auto;
-}
+.group-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;transition:box-shadow .15s}
+.group-card:hover{box-shadow:var(--shadow)}
+.group-card.done{opacity:.4}
+.group-header{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
+.group-cb{width:17px;height:17px;accent-color:var(--gold-d);cursor:pointer;flex-shrink:0}
+.group-info{flex:1;min-width:0}
+.group-row1{display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap}
+.group-id{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.group-customer{font-size:14px;font-weight:700;color:var(--ink)}
+.blind-badge{background:var(--purple);color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700}
+.group-row2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.group-time{font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.group-total{font-size:13px;font-weight:700;color:var(--gold-d);white-space:nowrap}
+.toggle-btn{background:var(--cream2);border:1px solid var(--border2);color:var(--ink3);font-size:11px;padding:2px 8px;border-radius:3px;cursor:pointer;transition:all .15s}
+.toggle-btn:hover{border-color:var(--gold);color:var(--gold-d)}
+.card-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
 
 /* ── 商品リスト ── */
-.toggle-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text3);
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all .15s;
-}
-.toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+.item-list{border-top:1px solid var(--border);background:var(--cream)}
+.item-row{display:flex;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);gap:8px;font-size:13px}
+.item-row:last-child{border-bottom:none}
+.item-mark{font-size:10px;background:var(--purple);color:#fff;padding:1px 5px;border-radius:3px;min-width:28px;text-align:center;font-family:var(--mono)}
+.item-name{flex:1;color:var(--ink)}
+.item-qty{color:var(--ink3);min-width:50px;text-align:right;font-size:12px}
+.item-price{color:var(--gold-d);min-width:60px;text-align:right;font-weight:600;font-size:12px}
 
-.item-list {
-  border-top: 1px solid var(--border);
-  background: var(--surface2);
-}
-.item-row {
-  display: flex;
-  align-items: center;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--border);
-  gap: 8px;
-}
-.item-row:last-child { border-bottom: none; }
-.item-mark {
-  font-size: 11px;
-  background: var(--blind);
-  color: #fff;
-  padding: 1px 5px;
-  border-radius: 3px;
-  min-width: 28px;
-  text-align: center;
-}
-.item-name {
-  flex: 1;
-  font-size: 13px;
-  color: var(--text);
-}
-.item-qty {
-  font-size: 12px;
-  color: var(--text2);
-  min-width: 50px;
-  text-align: right;
-}
-.item-price {
-  font-size: 12px;
-  color: var(--accent);
-  min-width: 60px;
-  text-align: right;
-  font-weight: 600;
-}
+/* ── ローディング・空 ── */
+#loading{text-align:center;padding:48px;color:var(--ink3)}
+.spinner{width:32px;height:32px;border:3px solid var(--cream3);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{color:var(--ink3);font-size:13px;padding:12px 0;text-align:center}
 
-/* カード右端アクションボタン */
-.card-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.btn-result {
-  background: var(--blind);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .2s;
-}
-.btn-result:hover { opacity: .8; }
+/* ━━━ モーダル共通 ━━━ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(24,17,10,.55);z-index:200;overflow-y:auto;padding:20px 16px}
+.modal-overlay.open{display:block}
+.modal-panel{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);max-width:560px;margin:0 auto;box-shadow:var(--shadow-lg)}
+.modal-header{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);gap:10px}
+.modal-title{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--gold-d);flex:1}
+.modal-body{padding:16px}
 
-/* ── 一括提供ボタン ── */
-#btn-serve-all {
-  background: var(--green);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: none;
-  transition: opacity .2s;
-}
-#btn-serve-all:hover { opacity: .8; }
-#btn-serve-all.visible { display: inline-block; }
+/* ── ステップ ── */
+.step-indicator{display:flex;border-radius:var(--r);overflow:hidden;border:1px solid var(--border2);margin-bottom:16px}
+.step-tab{flex:1;text-align:center;padding:8px 4px;font-size:11px;color:var(--ink3);background:var(--cream2);border-right:1px solid var(--border2);transition:all .2s}
+.step-tab:last-child{border-right:none}
+.step-tab.active{background:var(--gold-d);color:var(--cream);font-weight:700}
+.step-tab.done{background:var(--cream);color:var(--ink2)}
 
-/* ── ローディング ── */
-#loading {
-  text-align: center;
-  padding: 48px;
-  color: var(--text3);
-}
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 12px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+/* ── 来場者カード ── */
+.visitor-card{background:var(--cream);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.visitor-card:hover{border-color:var(--gold)}
+.visitor-card.selected{border-color:var(--gold-d);background:var(--orange-l)}
+.visitor-cb{width:17px;height:17px;accent-color:var(--gold-d);cursor:pointer;flex-shrink:0}
+.visitor-name{font-size:14px;font-weight:700;color:var(--ink)}
+.visitor-sub{font-size:11px;color:var(--ink3);margin-top:2px}
 
-/* ── 空状態 ── */
-.empty {
-  color: var(--text3);
-  font-size: 13px;
-  padding: 12px 0;
-  text-align: center;
-}
+/* ── 商品タブ ── */
+.product-tabs{display:flex;border-radius:var(--r);overflow:hidden;border:1px solid var(--border2);margin-bottom:10px}
+.ptab{flex:1;text-align:center;padding:7px 4px;font-size:12px;background:var(--cream2);border-right:1px solid var(--border2);cursor:pointer;transition:all .15s;color:var(--ink3)}
+.ptab:last-child{border-right:none}
+.ptab.active{background:var(--gold-d);color:var(--cream);font-weight:700}
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   注文作成フロー（モーダル）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-#order-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.85);
-  z-index: 200;
-  overflow-y: auto;
-}
-#order-modal.open { display: block; }
-#order-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  max-width: 600px;
-  margin: 24px auto;
-  min-height: 400px;
-}
-.modal-header {
-  display: flex;
-  align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  gap: 10px;
-}
-.modal-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--accent);
-  flex: 1;
-}
-.btn-close-modal {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.modal-body { padding: 16px; }
+/* NOM */
+.nom-shortcuts{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.nom-btn{background:var(--cream2);border:1px solid var(--border2);color:var(--ink3);padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;font-family:var(--mono);transition:all .15s}
+.nom-btn:hover{border-color:var(--gold);color:var(--gold-d)}
+.nom-btn.active{background:var(--gold-d);color:var(--cream);border-color:var(--gold-d)}
 
-/* ── ステップインジケーター ── */
-#step-indicator {
-  display: flex;
-  gap: 0;
-  margin-bottom: 16px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.step-tab {
-  flex: 1;
-  text-align: center;
-  padding: 8px 4px;
-  font-size: 11px;
-  color: var(--text3);
-  background: var(--surface2);
-  border-right: 1px solid var(--border);
-  transition: all .2s;
-}
-.step-tab:last-child { border-right: none; }
-.step-tab.active {
-  background: var(--accent);
-  color: #0f0e0c;
-  font-weight: 700;
-}
-.step-tab.done {
-  background: var(--surface);
-  color: var(--text2);
-}
+/* 商品検索 */
+.fi{padding:10px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;color:var(--ink);background:var(--cream);width:100%;margin-bottom:8px;outline:none}
+.fi:focus{border-color:var(--gold)}
+.product-list-wrap{max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r)}
+.product-item{padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;display:flex;justify-content:space-between;align-items:center}
+.product-item:last-child{border-bottom:none}
+.product-item:hover{background:var(--cream)}
+.product-item-name{font-size:13px;color:var(--ink)}
+.product-item-sub{font-size:10px;color:var(--ink3);font-family:var(--mono)}
+.product-item-price{font-size:11px;color:var(--gold-d);font-weight:600}
 
-/* ━━━ STEP0: 来場者選択 ━━━ */
-#step0 .visitor-list { display: flex; flex-direction: column; gap: 6px; }
-.visitor-card {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: border-color .2s, background .2s;
-}
-.visitor-card:hover { border-color: var(--accent); }
-.visitor-card.selected {
-  border-color: var(--accent);
-  background: #1e1c14;
-}
-.visitor-name { font-size: 14px; font-weight: 600; }
-.visitor-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
-/* ━━━ STEP1: 商品選択 ━━━ */
-.product-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 12px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.ptab {
-  flex: 1;
-  text-align: center;
-  padding: 7px;
-  font-size: 12px;
-  background: var(--surface2);
-  border-right: 1px solid var(--border);
-  cursor: pointer;
-  transition: all .15s;
-  color: var(--text2);
-}
-.ptab:last-child { border-right: none; }
-.ptab.active { background: var(--accent); color: #0f0e0c; font-weight: 700; }
-
-/* NOMショートカット */
-.nom-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-.nom-btn {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all .15s;
-}
-.nom-btn:hover { border-color: var(--accent); color: var(--accent); }
-.nom-btn.active { background: var(--accent); color: #0f0e0c; border-color: var(--accent); }
-
-/* 商品検索・リスト */
-#product-search {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 8px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  margin-bottom: 8px;
-  outline: none;
-}
-#product-search:focus { border-color: var(--accent); }
-#product-list-container {
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-.product-item {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background .15s;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.product-item:last-child { border-bottom: none; }
-.product-item:hover { background: var(--surface2); }
-.product-item-name { font-size: 13px; }
-.product-item-price { font-size: 11px; color: var(--accent); }
-
-/* 数量入力モーダル */
-#qty-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.7);
-  z-index: 300;
-  align-items: center;
-  justify-content: center;
-}
-#qty-modal.open { display: flex; }
-#qty-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  min-width: 280px;
-}
-#qty-panel h3 { font-size: 14px; color: var(--accent); margin-bottom: 12px; }
-#qty-input {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 18px;
-  text-align: center;
-  outline: none;
-  margin-bottom: 12px;
-}
-#qty-input:focus { border-color: var(--accent); }
-.qty-unit { font-size: 11px; color: var(--text3); text-align: center; margin-bottom: 10px; }
-.qty-presets { display: flex; gap: 6px; margin-bottom: 12px; }
-.qty-preset {
-  flex: 1;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: center;
-  font-size: 12px;
-  transition: all .15s;
-}
-.qty-preset:hover { border-color: var(--accent); color: var(--accent); }
-.qty-buttons { display: flex; gap: 8px; }
-.qty-buttons button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-#qty-ok { background: var(--accent); color: #0f0e0c; font-weight: 700; }
-#qty-cancel { background: var(--surface2); color: var(--text2); border: 1px solid var(--border) !important; }
+/* ブラインドチェック */
+.blind-check-area{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border);margin-bottom:8px}
+.blind-check-area input[type=checkbox]{width:17px;height:17px;accent-color:var(--purple)}
+.blind-check-area label{font-size:13px;color:var(--ink2);cursor:pointer;user-select:none}
 
 /* カート */
-#cart-section { margin-top: 12px; }
-.cart-header { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
-.cart-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-.cart-item:last-child { border-bottom: none; }
-.cart-mark-sel {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 11px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-.cart-item-name { flex: 1; font-size: 12px; }
-.cart-item-qty { font-size: 11px; color: var(--text2); }
-.cart-item-price { font-size: 12px; color: var(--accent); min-width: 55px; text-align: right; }
-.cart-item-del {
-  background: none;
-  border: none;
-  color: var(--red);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0 2px;
-}
+.cart-header{font-size:12px;color:var(--ink3);margin:10px 0 6px;display:flex;gap:8px;align-items:center}
+.cart-item{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.cart-item:last-child{border-bottom:none}
+.cart-mark-sel{background:var(--cream);border:1px solid var(--border2);color:var(--ink);font-size:11px;padding:3px 6px;border-radius:4px;cursor:pointer;outline:none;max-width:90px}
+.cart-mark-sel:focus{border-color:var(--gold)}
+.cart-item-name{flex:1;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cart-item-qty{font-size:11px;color:var(--ink3);white-space:nowrap}
+.cart-item-price{font-size:12px;color:var(--gold-d);font-weight:600;min-width:55px;text-align:right;white-space:nowrap}
+.cart-item-del{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;opacity:.6;flex-shrink:0}
+.cart-item-del:hover{opacity:1}
 
-/* ブラインドチェックボックス */
-.blind-check-area {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0;
-  margin-bottom: 8px;
-  border-top: 1px solid var(--border);
-}
-.blind-check-area label {
-  font-size: 13px;
-  color: var(--text2);
-  cursor: pointer;
-  user-select: none;
-}
+/* セット */
+.set-item{padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.set-item:hover{background:var(--cream)}
+.set-item:last-child{border-bottom:none}
+.set-type-badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:6px}
+.set-type-0{background:var(--cream2);color:var(--ink3)}
+.set-type-1{background:var(--gold-d);color:var(--cream)}
+.set-type-2{background:var(--purple);color:#fff}
 
-/* セット商品リスト */
-.set-item {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background .15s;
-}
-.set-item:hover { background: var(--surface2); }
-.set-item:last-child { border-bottom: none; }
-.set-name { font-size: 13px; }
-.set-type-badge {
-  display: inline-block;
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 6px;
-}
-.set-type-0 { background: var(--surface2); color: var(--text3); }
-.set-type-1 { background: var(--accent); color: #0f0e0c; }
-.set-type-2 { background: var(--blind); color: #fff; }
+/* 確認 */
+.confirm-label{font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.confirm-value{font-size:14px;color:var(--ink);margin-bottom:12px}
+.confirm-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.confirm-item:last-child{border-bottom:none}
+.confirm-total{display:flex;justify-content:flex-end;align-items:baseline;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
 
-/* ━━━ STEP2: 確認 ━━━ */
-#step2 .confirm-group { margin-bottom: 12px; }
-.confirm-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
-.confirm-value { font-size: 14px; color: var(--text); }
-.confirm-items { margin-top: 10px; }
-.confirm-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-.confirm-item:last-child { border-bottom: none; }
-.confirm-total {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-.confirm-total-label { font-size: 13px; color: var(--text2); }
-.confirm-total-val { font-size: 18px; font-weight: 700; color: var(--accent); }
+/* 完了 */
+.complete-wrap{text-align:center;padding:32px 0}
+.complete-icon{font-size:48px;margin-bottom:12px}
+.complete-msg{font-family:var(--serif);font-size:20px;color:var(--gold-d);margin-bottom:6px}
+.complete-sub{font-size:13px;color:var(--ink3)}
 
-/* ━━━ STEP3: 完了 ━━━ */
-#step3 { text-align: center; padding: 32px 0; }
-.complete-icon { font-size: 48px; margin-bottom: 12px; }
-.complete-msg { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
-.complete-sub { font-size: 13px; color: var(--text2); }
+/* ナビ */
+.nav-buttons{display:flex;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.nav-buttons .btn{flex:1}
 
-/* ── ナビゲーションボタン ── */
-.nav-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.btn-back {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.btn-next {
-  flex: 1;
-  background: var(--accent);
-  border: none;
-  color: #0f0e0c;
-  padding: 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  transition: background .2s;
-}
-.btn-next:hover { background: var(--accent2); }
-.btn-next:disabled { opacity: .4; cursor: not-allowed; }
+/* 数量モーダル */
+#qty-modal{display:none;position:fixed;inset:0;background:rgba(24,17,10,.6);z-index:300;align-items:center;justify-content:center;padding:20px}
+#qty-modal.open{display:flex}
+#qty-panel{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:20px;min-width:280px;box-shadow:var(--shadow-lg)}
+#qty-panel h3{font-family:var(--serif);font-size:16px;color:var(--gold-d);margin-bottom:12px}
+#qty-input{width:100%;padding:10px;border:1px solid var(--border2);border-radius:var(--r);font-size:20px;text-align:center;outline:none;background:var(--cream);color:var(--ink);margin-bottom:4px}
+#qty-input:focus{border-color:var(--gold)}
+.qty-unit{font-size:11px;color:var(--ink3);text-align:center;margin-bottom:10px}
+.qty-presets{display:flex;gap:6px;margin-bottom:14px}
+.qty-preset{flex:1;background:var(--cream2);border:1px solid var(--border2);color:var(--ink2);padding:7px;border-radius:var(--r);cursor:pointer;text-align:center;font-size:13px;font-family:var(--mono);transition:all .15s}
+.qty-preset:hover{border-color:var(--gold);color:var(--gold-d)}
+.qty-buttons{display:flex;gap:8px}
+.qty-buttons .btn{flex:1}
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ブラインド結果入力モーダル
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-#result-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.85);
-  z-index: 200;
-  overflow-y: auto;
-}
-#result-modal.open { display: block; }
-#result-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  max-width: 520px;
-  margin: 24px auto;
-}
-.result-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.result-mark-label {
-  font-size: 14px;
-  font-weight: 700;
-  background: var(--blind);
-  color: #fff;
-  padding: 3px 10px;
-  border-radius: 4px;
-  min-width: 44px;
-  text-align: center;
-}
-.result-arrow { color: var(--text3); font-size: 16px; }
-.result-select {
-  flex: 1;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 7px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  outline: none;
-}
-.result-select:focus { border-color: var(--accent); }
-.winner-row {
-  padding: 12px 16px;
-  background: var(--surface2);
-}
-.winner-row label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 8px; }
-.winner-options { display: flex; flex-wrap: wrap; gap: 6px; }
-.winner-opt {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text2);
-  padding: 5px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all .15s;
-}
-.winner-opt.selected {
-  background: var(--accent);
-  color: #0f0e0c;
-  border-color: var(--accent);
-  font-weight: 700;
-}
+/* 結果入力 */
+.result-info{padding:12px 16px;background:var(--cream);font-size:13px;color:var(--ink2);border-bottom:1px solid var(--border)}
+.result-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.result-mark-label{font-size:13px;font-weight:700;background:var(--purple);color:#fff;padding:4px 10px;border-radius:4px;min-width:44px;text-align:center;font-family:var(--mono);flex-shrink:0}
+.result-arrow{color:var(--ink3);font-size:13px;white-space:nowrap;flex-shrink:0}
+.result-select{flex:1;background:var(--cream);border:1px solid var(--border2);color:var(--ink);padding:8px 10px;border-radius:var(--r);font-size:13px;outline:none;min-width:0}
+.result-select:focus{border-color:var(--gold)}
+.winner-row{padding:14px 16px;background:var(--cream2)}
+.winner-label{font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.winner-options{display:flex;flex-wrap:wrap;gap:6px}
+.winner-opt{background:var(--white);border:1px solid var(--border2);color:var(--ink2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:12px;transition:all .15s;font-family:var(--mono)}
+.winner-opt:hover{border-color:var(--gold);color:var(--gold-d)}
+.winner-opt.selected{background:var(--gold-d);color:var(--cream);border-color:var(--gold-d);font-weight:700}
 
-/* ── トースト ── */
-#toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(80px);
-  background: #333;
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 13px;
-  transition: transform .3s;
-  z-index: 999;
-  white-space: nowrap;
-}
-#toast.show { transform: translateX(-50%) translateY(0); }
-#toast.success { background: var(--green); }
-#toast.error { background: var(--red); }
+/* トースト */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);padding:10px 20px;border-radius:20px;font-size:13px;transition:transform .3s;z-index:999;white-space:nowrap;box-shadow:var(--shadow-lg)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{background:var(--teal);color:#fff}
+#toast.error{background:var(--red);color:#fff}
+#toast.info{background:var(--ink);color:var(--cream)}
 </style>
 </head>
 <body>
 
-<!-- トップバー -->
-<div id="topbar">
-  <span class="brand">🥃 テキーラ道場</span>
-  <a href="admin.html">⚙ 管理</a>
-  <a href="home.html">🏠 ホーム</a>
-  <a id="btn-logout" href="#">ログアウト</a>
+<!-- ログイン -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🥃</div>
+    <div class="lbrand">テキーラ道場</div>
+    <label>メールアドレス</label>
+    <input type="email" id="login-email" placeholder="email@example.com">
+    <label>パスワード</label>
+    <input type="password" id="login-pass">
+    <div class="lerr" id="login-err"></div>
+    <button class="lbtn" onclick="doLogin()">ログイン</button>
+  </div>
 </div>
 
-<!-- メイン -->
-<div id="main">
-  <div id="loading">
-    <div class="spinner"></div>
-    <div>読み込み中...</div>
+<!-- アプリ -->
+<div id="app">
+  <div class="topbar">
+    <span class="top-brand">🥃 テキーラ道場</span>
+    <div class="top-right">
+      <a href="admin.html" class="top-back">⚙ 管理</a>
+      <a href="home.html" class="top-back">🏠 ホーム</a>
+      <button class="top-logout" onclick="auth.signOut()">ログアウト</button>
+    </div>
   </div>
 
-  <div id="content" style="display:none">
-    <!-- 新規注文ボタン -->
-    <button id="btn-new-order" onclick="openOrderModal()">＋ 新規注文</button>
+  <div class="content">
+    <div class="page-title">注文管理</div>
+    <div id="loading"><div class="spinner"></div><div>読み込み中...</div></div>
 
-    <!-- セクション1: 未提供 -->
-    <div class="section" id="section-pending">
-      <div class="section-header">
-        <span class="section-title" style="color:#e67e22">📋 未提供</span>
-        <span class="section-count" id="count-pending">0</span>
-        <div class="section-action">
-          <button id="btn-serve-all" onclick="serveChecked()">✓ 提供済みにする</button>
+    <div id="content-area" style="display:none">
+      <button class="btn bp btn-full" id="btn-new-order" onclick="openOrderModal()">＋ 新規注文</button>
+
+      <!-- 未提供 -->
+      <div class="section">
+        <div class="sec-header">
+          <span class="sec-title" style="color:var(--orange)">📋 未提供</span>
+          <span class="sec-count" id="count-pending">0</span>
+          <div class="sec-action">
+            <button class="btn bt sm" id="btn-serve-all" onclick="serveChecked()">✓ 提供済みにする</button>
+          </div>
         </div>
+        <div id="list-pending"><div class="empty">なし</div></div>
       </div>
-      <div id="list-pending"><div class="empty">未提供の注文はありません</div></div>
-    </div>
 
-    <!-- セクション2: 提供済み・ブラインド結果未入力 -->
-    <div class="section" id="section-blind-pending">
-      <div class="section-header">
-        <span class="section-title" style="color:var(--blind)">🎭 ブラインド結果未入力</span>
-        <span class="section-count" id="count-blind-pending">0</span>
+      <!-- ブラインド結果未入力 -->
+      <div class="section">
+        <div class="sec-header">
+          <span class="sec-title" style="color:var(--purple)">🎭 ブラインド結果未入力</span>
+          <span class="sec-count" id="count-blind-pending">0</span>
+        </div>
+        <div id="list-blind-pending"><div class="empty">なし</div></div>
       </div>
-      <div id="list-blind-pending"><div class="empty">なし</div></div>
-    </div>
 
-    <!-- セクション3: 完了 -->
-    <div class="section" id="section-done">
-      <div class="section-header">
-        <span class="section-title" style="color:var(--text3)">✅ 提供済み</span>
-        <span class="section-count" id="count-done">0</span>
+      <!-- 完了 -->
+      <div class="section">
+        <div class="sec-header">
+          <span class="sec-title" style="color:var(--ink3)">✅ 提供済み</span>
+          <span class="sec-count" id="count-done">0</span>
+        </div>
+        <div id="list-done"><div class="empty">なし</div></div>
       </div>
-      <div id="list-done"><div class="empty">なし</div></div>
     </div>
   </div>
 </div>
 
-<!-- ━━━ 注文作成モーダル ━━━ -->
-<div id="order-modal">
-  <div id="order-panel">
+<!-- 注文作成モーダル -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal-panel">
     <div class="modal-header">
       <span class="modal-title" id="modal-title">来場者を選択</span>
-      <button class="btn-close-modal" onclick="closeOrderModal()">✕ 閉じる</button>
+      <button class="btn bs sm" onclick="closeOrderModal()">✕ 閉じる</button>
     </div>
-    <div id="step-indicator">
+    <div class="step-indicator">
       <div class="step-tab active" id="stab0">①来場者</div>
       <div class="step-tab" id="stab1">②商品選択</div>
       <div class="step-tab" id="stab2">③確認</div>
       <div class="step-tab" id="stab3">④完了</div>
     </div>
     <div class="modal-body">
-      <!-- STEP0: 来場者選択 -->
+
+      <!-- STEP0 -->
       <div id="step0">
-        <div class="visitor-list" id="visitor-list-container">
-          <div class="empty">読み込み中...</div>
-        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:10px">複数人選択可（同じ商品を提供する場合は同時選択してください）</div>
+        <div id="visitor-list-container"><div class="empty">読み込み中...</div></div>
         <div class="nav-buttons">
-          <button class="btn-next" id="btn-to-step1" onclick="goStep1()" disabled>次へ →</button>
+          <button class="btn bp" id="btn-to-step1" onclick="goStep1()" disabled>次へ →</button>
         </div>
       </div>
 
-      <!-- STEP1: 商品選択 -->
+      <!-- STEP1 -->
       <div id="step1" style="display:none">
         <div class="blind-check-area">
           <input type="checkbox" id="blind-check" onchange="toggleBlindMode()">
@@ -837,52 +340,51 @@ body {
           <div class="ptab" onclick="switchPTab('set',this)">セット</div>
         </div>
         <div id="nom-shortcuts-area" class="nom-shortcuts"></div>
-        <input type="text" id="product-search" placeholder="商品名・NOMで検索..." oninput="filterProducts()">
-        <div id="product-list-container">
-          <div class="empty">読み込み中...</div>
-        </div>
-        <!-- カート -->
+        <input type="text" id="product-search" class="fi" placeholder="商品名・NOMで検索..." oninput="filterProducts()">
+        <div class="product-list-wrap" id="product-list-container"><div class="empty">読み込み中...</div></div>
         <div id="cart-section">
-          <div class="cart-header">カート <span id="cart-count">0件</span> | 合計: <span id="cart-total" style="color:var(--accent);font-weight:700">¥0</span></div>
+          <div class="cart-header">
+            カート <strong id="cart-count">0件</strong>
+            <span style="margin-left:auto">合計: <strong style="color:var(--gold-d)" id="cart-total">¥0</strong></span>
+          </div>
           <div id="cart-items"></div>
         </div>
         <div class="nav-buttons">
-          <button class="btn-back" onclick="goStep0()">← 戻る</button>
-          <button class="btn-next" id="btn-to-step2" onclick="goStep2()" disabled>確認へ →</button>
+          <button class="btn bs" onclick="goStep0()">← 戻る</button>
+          <button class="btn bp" id="btn-to-step2" onclick="goStep2()" disabled>確認へ →</button>
         </div>
       </div>
 
-      <!-- STEP2: 確認 -->
+      <!-- STEP2 -->
       <div id="step2" style="display:none">
-        <div class="confirm-group">
-          <div class="confirm-label">来場者</div>
-          <div class="confirm-value" id="confirm-visitor"></div>
-        </div>
-        <div class="confirm-items" id="confirm-items"></div>
+        <div class="confirm-label">来場者</div>
+        <div class="confirm-value" id="confirm-visitor"></div>
+        <div class="confirm-label">注文内容</div>
+        <div id="confirm-items"></div>
         <div class="confirm-total">
-          <span class="confirm-total-label">合計</span>
-          <span class="confirm-total-val" id="confirm-total"></span>
+          <span style="font-size:13px;color:var(--ink3)">合計（1人分）</span>
+          <span style="font-family:var(--serif);font-size:20px;font-weight:600;color:var(--gold-d)" id="confirm-total"></span>
         </div>
         <div class="nav-buttons">
-          <button class="btn-back" onclick="goStep1()">← 戻る</button>
-          <button class="btn-next" onclick="confirmOrder()">注文を確定する</button>
+          <button class="btn bs" onclick="goStep1()">← 戻る</button>
+          <button class="btn bp" onclick="confirmOrder()">注文を確定する</button>
         </div>
       </div>
 
-      <!-- STEP3: 完了 -->
+      <!-- STEP3 -->
       <div id="step3" style="display:none">
-        <div class="complete-icon">✅</div>
-        <div class="complete-msg">注文を登録しました</div>
-        <div class="complete-sub" id="complete-sub"></div>
-        <div class="nav-buttons">
-          <button class="btn-next" onclick="closeOrderModal()">注文一覧に戻る</button>
+        <div class="complete-wrap">
+          <div class="complete-icon">✅</div>
+          <div class="complete-msg">注文を登録しました</div>
+          <div class="complete-sub" id="complete-sub"></div>
         </div>
+        <button class="btn bp btn-full" onclick="closeOrderModal()">注文一覧に戻る</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 数量入力モーダル -->
+<!-- 数量モーダル -->
 <div id="qty-modal">
   <div id="qty-panel">
     <h3 id="qty-product-name"></h3>
@@ -890,33 +392,30 @@ body {
     <div class="qty-unit" id="qty-unit-label">ml</div>
     <div class="qty-presets" id="qty-presets"></div>
     <div class="qty-buttons">
-      <button id="qty-cancel" onclick="closeQtyModal()">キャンセル</button>
-      <button id="qty-ok" onclick="confirmQty()">追加</button>
+      <button class="btn bs" onclick="closeQtyModal()">キャンセル</button>
+      <button class="btn bp" onclick="confirmQty()">追加</button>
     </div>
   </div>
 </div>
 
-<!-- ブラインド結果入力モーダル -->
-<div id="result-modal">
-  <div id="result-panel">
+<!-- 結果入力モーダル -->
+<div class="modal-overlay" id="result-modal">
+  <div class="modal-panel">
     <div class="modal-header">
       <span class="modal-title">🎭 ブラインド結果入力</span>
-      <button class="btn-close-modal" onclick="closeResultModal()">✕ 閉じる</button>
+      <button class="btn bs sm" onclick="closeResultModal()">✕ 閉じる</button>
     </div>
     <div id="result-body"></div>
     <div style="padding:16px">
-      <button class="btn-next" onclick="saveResult()">結果を保存</button>
+      <button class="btn bp btn-full" onclick="saveResult()">結果を保存する</button>
     </div>
   </div>
 </div>
 
-<!-- トースト -->
 <div id="toast"></div>
 
 <script>
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Firebase初期化
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━ Firebase ━━━
 const firebaseConfig = {
   apiKey: "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
   authDomain: "tequiladojo.firebaseapp.com",
@@ -927,65 +426,44 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// グローバル状態
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-let todayStr = ''; // YYMMDD
-let allGroups = []; // 注文グループ一覧
-let allVisits = []; // 来場者一覧（当日）
-let allMembers = {};
-let blindResultsSet = new Set(); // 結果入力済みorderGroupId
-let masterData = { tequila: [], other: [], misc: [], set: [] };
-let blindMarks = [];
+// ━━━ 状態 ━━━
+let todayStr='', allGroups=[], allVisits=[], allMembers={};
+let blindResultsSet=new Set();
+let masterData={tequila:[],other:[],misc:[],set:[]};
+let blindMarks=[];
+let flow={visits:[],cart:[],isBlind:false};
+let resultTarget=null;
+let currentPTab='tequila', currentNOM='', pendingProduct=null;
 
-// 注文作成フロー
-let orderFlow = {
-  step: 0,
-  visit: null,
-  cart: [],
-  isBlind: false
-};
-
-// ブラインド結果入力
-let resultTarget = null; // {group, orders}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 認証
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-auth.onAuthStateChanged(user => {
-  if (!user) { location.href = 'index.html'; return; }
-  init();
+// ━━━ 認証 ━━━
+auth.onAuthStateChanged(user=>{
+  const ls=document.getElementById('login-screen');
+  const app=document.getElementById('app');
+  if(!user){ls.style.display='flex';app.style.display='none';}
+  else{ls.style.display='none';app.style.display='flex';init();}
 });
-document.getElementById('btn-logout').onclick = e => {
-  e.preventDefault();
-  auth.signOut();
-};
+async function doLogin(){
+  try{ await auth.signInWithEmailAndPassword(
+    document.getElementById('login-email').value,
+    document.getElementById('login-pass').value
+  );}catch(e){document.getElementById('login-err').textContent='ログインに失敗しました';}
+}
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 初期化
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function init() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(2).padStart(2,'0');
-  const mm = String(now.getMonth()+1).padStart(2,'0');
-  const dd = String(now.getDate()).padStart(2,'0');
-  todayStr = yy + mm + dd;
-
-  await Promise.all([
-    loadMasters(),
-    loadTodayData()
-  ]);
-
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('content').style.display = 'block';
+// ━━━ 初期化 ━━━
+async function init(){
+  const now=new Date();
+  todayStr=String(now.getFullYear()).slice(2).padStart(2,'0')
+    +String(now.getMonth()+1).padStart(2,'0')
+    +String(now.getDate()).padStart(2,'0');
+  await Promise.all([loadMasters(),loadTodayData()]);
+  document.getElementById('loading').style.display='none';
+  document.getElementById('content-area').style.display='block';
   renderOrderList();
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// マスタ読み込み
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function loadMasters() {
-  const [membSnap, blindSnap, bottleSnap, miscSnap, setSnap, otherSnap] = await Promise.all([
+// ━━━ マスタ ━━━
+async function loadMasters(){
+  const [membSnap,blindSnap,bottleSnap,miscSnap,setSnap,otherSnap]=await Promise.all([
     db.collection('members').get(),
     db.collection('blindMarks').get(),
     db.collection('bottleData').get(),
@@ -993,732 +471,413 @@ async function loadMasters() {
     db.collection('setProducts').get(),
     db.collection('otherBottles').get()
   ]);
-
-  // 会員
-  membSnap.forEach(d => { allMembers[d.id] = d.data(); });
-
-  // ブラインドマーク
-  blindMarks = [];
-  blindSnap.forEach(d => blindMarks.push({id: d.id, ...d.data()}));
-  blindMarks.sort((a,b) => (a.sortOrder||0)-(b.sortOrder||0));
-
-  // テキーラ
-  masterData.tequila = [];
-  bottleSnap.forEach(d => {
-    const v = d.data();
-    if (v.visibility !== false) masterData.tequila.push({id:d.id,...v, type:'tequila'});
-  });
-
-  // 他酒
-  masterData.other = [];
-  otherSnap.forEach(d => masterData.other.push({id:d.id,...d.data(), type:'other'}));
-
-  // その他
-  masterData.misc = [];
-  miscSnap.forEach(d => masterData.misc.push({id:d.id,...d.data(), type:'misc'}));
-
-  // セット
-  masterData.set = [];
-  setSnap.forEach(d => masterData.set.push({id:d.id,...d.data(), type:'set'}));
+  allMembers={};
+  membSnap.forEach(d=>{allMembers[d.id]=d.data();});
+  blindMarks=[];
+  blindSnap.forEach(d=>blindMarks.push({id:d.id,...d.data()}));
+  blindMarks.sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  masterData.tequila=[];
+  bottleSnap.forEach(d=>{const v=d.data();if(v.visibility!==false)masterData.tequila.push({id:d.id,...v,type:'tequila'});});
+  masterData.other=[];
+  otherSnap.forEach(d=>masterData.other.push({id:d.id,...d.data(),type:'other'}));
+  masterData.misc=[];
+  miscSnap.forEach(d=>masterData.misc.push({id:d.id,...d.data(),type:'misc'}));
+  masterData.set=[];
+  setSnap.forEach(d=>masterData.set.push({id:d.id,...d.data(),type:'set'}));
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 当日データ読み込み
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function loadTodayData() {
-  const [visitsSnap, ordersSnap, resultsSnap] = await Promise.all([
+// ━━━ 当日データ ━━━
+async function loadTodayData(){
+  const [visitsSnap,ordersSnap,resultsSnap]=await Promise.all([
     db.collection('visits').get(),
     db.collection('orders').get(),
     db.collection('blindResults').get()
   ]);
-
-  // 来場者（当日）
-  allVisits = [];
-  visitsSnap.forEach(d => {
-    if (d.id.startsWith(todayStr)) allVisits.push({id:d.id,...d.data()});
+  allVisits=[];
+  visitsSnap.forEach(d=>{if(d.id.startsWith(todayStr))allVisits.push({id:d.id,...d.data()});});
+  allVisits.sort((a,b)=>(a.seq||0)-(b.seq||0));
+  blindResultsSet=new Set();
+  resultsSnap.forEach(d=>blindResultsSet.add(d.id));
+  const gmap={};
+  ordersSnap.forEach(d=>{
+    if(!d.id.startsWith(todayStr))return;
+    const o={id:d.id,...d.data()};
+    if(!o.orderGroupId)return;
+    if(!gmap[o.orderGroupId])gmap[o.orderGroupId]=[];
+    gmap[o.orderGroupId].push(o);
   });
-  allVisits.sort((a,b) => (a.seq||0)-(b.seq||0));
-
-  // ブラインド結果入力済み
-  blindResultsSet = new Set();
-  resultsSnap.forEach(d => blindResultsSet.add(d.id));
-
-  // 注文データ（当日）→ グループ化
-  const groupMap = {};
-  ordersSnap.forEach(d => {
-    if (!d.id.startsWith(todayStr)) return;
-    const o = {id:d.id,...d.data()};
-    const gid = o.orderGroupId;
-    if (!gid) return;
-    if (!groupMap[gid]) groupMap[gid] = [];
-    groupMap[gid].push(o);
+  allGroups=Object.entries(gmap).map(([gid,orders])=>{
+    const sample=orders.find(o=>o.served!==undefined)||orders[0];
+    const served=sample.served??1;
+    const isBlind=orders.some(o=>o.blindId===1);
+    const hasResult=blindResultsSet.has(gid);
+    const total=orders.filter(o=>o.served!==0).reduce((s,o)=>s+calcAmt(o),0);
+    return{gid,orders,served,isBlind,hasResult,total,visitKey:sample.visitKey,orderTime:sample.orderTime};
   });
-
-  // グループオブジェクト作成
-  allGroups = Object.entries(groupMap).map(([gid, orders]) => {
-    // served値はグループ内の最初の有効な値を使う（同一グループは同じservedのはず）
-    const sample = orders.find(o => o.served !== undefined) || orders[0];
-    const served = sample.served ?? 1;
-    const isBlind = orders.some(o => o.blindId === 1);
-    const hasResult = blindResultsSet.has(gid);
-    const total = orders.reduce((s,o) => s + calcItemAmount(o), 0);
-    return { gid, orders, served, isBlind, hasResult, total,
-             visitKey: sample.visitKey, orderTime: sample.orderTime };
-  });
-  allGroups.sort((a,b) => a.gid.localeCompare(b.gid));
+  allGroups.sort((a,b)=>a.gid.localeCompare(b.gid));
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 金額計算
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function calcItemAmount(o) {
-  if (o.productType === 'tequila' || o.productType === 'other') {
-    return Math.round((o.unitPrice * o.qty) / 10);
-  }
-  return o.unitPrice * o.qty;
+function calcAmt(o){
+  if(o.productType==='tequila'||o.productType==='other')return Math.round((o.unitPrice*o.qty)/10);
+  return(o.unitPrice||0)*(o.qty||0);
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 注文一覧描画
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function renderOrderList() {
-  const pending = allGroups.filter(g => g.served === 1); // 未提供
-  const blindPending = allGroups.filter(g => g.served === 2 && g.isBlind && !g.hasResult); // 結果未入力
-  const done = allGroups.filter(g =>
-    g.served === 2 && (!g.isBlind || g.hasResult) ||
-    g.served === 0
-  ); // 完了
-
-  document.getElementById('count-pending').textContent = pending.length;
-  document.getElementById('count-blind-pending').textContent = blindPending.length;
-  document.getElementById('count-done').textContent = done.length;
-
-  renderSection('list-pending', pending, 'pending');
-  renderSection('list-blind-pending', blindPending, 'blind-pending');
-  renderSection('list-done', done, 'done');
-
-  updateServeButton();
+// ━━━ 一覧描画 ━━━
+function renderOrderList(){
+  const pending   =allGroups.filter(g=>g.served===1);
+  const blindPend =allGroups.filter(g=>g.served===2&&g.isBlind&&!g.hasResult);
+  const done      =allGroups.filter(g=>(g.served===2&&(!g.isBlind||g.hasResult))||g.served===0);
+  document.getElementById('count-pending').textContent=pending.length;
+  document.getElementById('count-blind-pending').textContent=blindPend.length;
+  document.getElementById('count-done').textContent=done.length;
+  renderSec('list-pending',pending,'pending');
+  renderSec('list-blind-pending',blindPend,'blind-pending');
+  renderSec('list-done',done,'done');
+  updateServeBtn();
 }
-
-function renderSection(containerId, groups, mode) {
-  const el = document.getElementById(containerId);
-  if (!groups.length) {
-    el.innerHTML = '<div class="empty">なし</div>';
-    return;
-  }
-  el.innerHTML = groups.map(g => buildGroupCard(g, mode)).join('');
+function renderSec(id,groups,mode){
+  const el=document.getElementById(id);
+  if(!groups.length){el.innerHTML='<div class="empty">なし</div>';return;}
+  el.innerHTML=groups.map(g=>buildCard(g,mode)).join('');
 }
-
-function buildGroupCard(g, mode) {
-  const visit = allVisits.find(v => v.id === g.visitKey);
-  const memberName = visit?.memberId && allMembers[visit.memberId]
-    ? allMembers[visit.memberId].name
-    : `ゲスト（来店ID: ${g.visitKey}）`;
-
-  const isDone = mode === 'done';
-  const showCheckbox = mode === 'pending';
-  const showResultBtn = mode === 'blind-pending';
-
-  // 商品リスト
-  const validOrders = g.orders.filter(o => o.served !== 0);
-  const isSingle = validOrders.length === 1;
-  const listHtml = validOrders.map(o => {
-    const amt = calcItemAmount(o);
-    const markBadge = o.blindId === 1 && o.blindMarkId
-      ? `<span class="item-mark">${o.blindMarkId}</span>` : '';
-    return `<div class="item-row">
-      ${markBadge}
-      <span class="item-name">${escHtml(o.productName)}</span>
-      <span class="item-qty">${o.qty}${o.unit}</span>
-      <span class="item-price">¥${amt.toLocaleString()}</span>
-    </div>`;
+function vLabel(visitKey){
+  const v=allVisits.find(x=>x.id===visitKey);
+  if(!v)return`来店ID: ${visitKey}`;
+  if(v.memberId&&allMembers[v.memberId])return allMembers[v.memberId].name;
+  return`ゲスト（来店ID: ${v.id}）`;
+}
+function buildCard(g,mode){
+  const customer=vLabel(g.visitKey);
+  const isDone=mode==='done';
+  const showCb=mode==='pending';
+  const showResult=mode==='blind-pending';
+  const valid=g.orders.filter(o=>o.served!==0);
+  const single=valid.length===1;
+  const time=g.orderTime?g.orderTime.slice(0,2)+':'+g.orderTime.slice(2):'';
+  const bb=g.isBlind?'<span class="blind-badge">🎭 BLIND</span>':'';
+  const list=valid.map(o=>{
+    const mk=o.blindId===1&&o.blindMarkId?`<span class="item-mark">${esc(o.blindMarkId)}</span>`:'';
+    return`<div class="item-row">${mk}<span class="item-name">${esc(o.productName)}</span><span class="item-qty">${o.qty}${o.unit}</span><span class="item-price">¥${calcAmt(o).toLocaleString()}</span></div>`;
   }).join('');
-
-  const timeStr = g.orderTime ? g.orderTime.slice(0,2)+':'+g.orderTime.slice(2,4) : '';
-  const blindBadge = g.isBlind ? '<span class="blind-badge">🎭 BLIND</span>' : '';
-
-  return `<div class="group-card ${isDone?'done':''}" id="card-${g.gid}">
+  const info=single
+    ?`<span style="font-size:12px;color:var(--ink3)">${esc(valid[0].productName)} ${valid[0].qty}${valid[0].unit}</span>`
+    :`<button class="toggle-btn" onclick="event.stopPropagation();toggleItems('${g.gid}')">▼ ${valid.length}品</button>`;
+  return`<div class="group-card${isDone?' done':''}" id="card-${g.gid}">
     <div class="group-header" onclick="toggleItems('${g.gid}')">
-      ${showCheckbox ? `<input type="checkbox" class="group-checkbox serve-cb" data-gid="${g.gid}" onclick="event.stopPropagation(); updateServeButton()">` : ''}
+      ${showCb?`<input type="checkbox" class="group-cb serve-cb" data-gid="${g.gid}" onclick="event.stopPropagation();updateServeBtn()">` :''}
       <div class="group-info">
-        <div class="group-row1">
-          <span class="group-id">${g.gid}</span>
-          <span class="group-customer">${escHtml(memberName)}</span>
-          ${blindBadge}
-        </div>
-        <div class="group-row2">
-          <span class="group-time">${timeStr}</span>
-          ${isSingle ? `<span style="font-size:12px;color:var(--text2)">${escHtml(validOrders[0].productName)} ${validOrders[0].qty}${validOrders[0].unit}</span>` : `<button class="toggle-btn" onclick="event.stopPropagation(); toggleItems('${g.gid}')">▼ ${validOrders.length}品</button>`}
-        </div>
+        <div class="group-row1"><span class="group-id">${g.gid}</span><span class="group-customer">${esc(customer)}</span>${bb}</div>
+        <div class="group-row2"><span class="group-time">${time}</span>${info}</div>
       </div>
       <div class="card-actions">
         <span class="group-total">¥${g.total.toLocaleString()}</span>
-        ${showResultBtn ? `<button class="btn-result" onclick="event.stopPropagation(); openResultModal('${g.gid}')">結果入力</button>` : ''}
+        ${showResult?`<button class="btn bpu sm" onclick="event.stopPropagation();openResultModal('${g.gid}')">結果入力</button>`:''}
       </div>
     </div>
-    <div class="item-list" id="items-${g.gid}" style="${isSingle?'':'display:none'}">
-      ${listHtml}
-    </div>
+    <div class="item-list" id="items-${g.gid}" style="${single?'':'display:none'}">${list}</div>
   </div>`;
 }
-
-function toggleItems(gid) {
-  const el = document.getElementById('items-'+gid);
-  if (!el) return;
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  // ボタンのラベル更新
-  const card = document.getElementById('card-'+gid);
-  if (!card) return;
-  const btn = card.querySelector('.toggle-btn');
-  if (btn) btn.textContent = el.style.display === 'none'
-    ? '▼ ' + btn.textContent.replace(/[▼▲]\s*/,'').replace(/品.*$/,'') + '品'
-    : '▲ ' + btn.textContent.replace(/[▼▲]\s*/,'').replace(/品.*$/,'') + '品';
+function toggleItems(gid){
+  const el=document.getElementById('items-'+gid);if(!el)return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  const btn=document.querySelector(`#card-${gid} .toggle-btn`);
+  if(btn){const n=el.querySelectorAll('.item-row').length;btn.textContent=(open?'▼ ':'▲ ')+n+'品';}
+}
+function updateServeBtn(){
+  const n=document.querySelectorAll('.serve-cb:checked').length;
+  const btn=document.getElementById('btn-serve-all');
+  if(n>0){btn.classList.add('visible');btn.textContent=`✓ ${n}グループを提供済みにする`;}
+  else btn.classList.remove('visible');
 }
 
-function updateServeButton() {
-  const cbs = document.querySelectorAll('.serve-cb:checked');
-  const btn = document.getElementById('btn-serve-all');
-  if (cbs.length > 0) {
-    btn.classList.add('visible');
-    btn.textContent = `✓ ${cbs.length}グループを提供済みにする`;
-  } else {
-    btn.classList.remove('visible');
-  }
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 一括提供処理
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function serveChecked() {
-  const cbs = [...document.querySelectorAll('.serve-cb:checked')];
-  if (!cbs.length) return;
-  const gids = cbs.map(cb => cb.dataset.gid);
-
-  try {
-    const batch = db.batch();
-    for (const gid of gids) {
-      const group = allGroups.find(g => g.gid === gid);
-      if (!group) continue;
-      for (const o of group.orders) {
-        if (o.served !== 0) { // キャンセル以外を提供済みへ
-          batch.update(db.collection('orders').doc(o.id), { served: 2 });
-        }
-      }
-      group.served = 2;
+// ━━━ 一括提供 ━━━
+async function serveChecked(){
+  const gids=[...document.querySelectorAll('.serve-cb:checked')].map(c=>c.dataset.gid);
+  if(!gids.length)return;
+  try{
+    const batch=db.batch();
+    for(const gid of gids){
+      const g=allGroups.find(x=>x.gid===gid);if(!g)continue;
+      for(const o of g.orders)if(o.served!==0)batch.update(db.collection('orders').doc(o.id),{served:2});
+      g.served=2;
     }
     await batch.commit();
-    showToast(`${gids.length}グループを提供済みにしました`, 'success');
-    await loadTodayData();
-    renderOrderList();
-  } catch(e) {
-    showToast('エラー: '+e.message, 'error');
-  }
+    showToast(`${gids.length}グループを提供済みにしました`,'success');
+    await loadTodayData();renderOrderList();
+  }catch(e){showToast('エラー: '+e.message,'error');}
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ブラインド結果入力モーダル
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function openResultModal(gid) {
-  const group = allGroups.find(g => g.gid === gid);
-  if (!group) return;
-  resultTarget = group;
-
-  const blindOrders = group.orders.filter(o => o.blindId === 1 && o.served !== 0);
-  const visit = allVisits.find(v => v.id === group.visitKey);
-  const memberName = visit?.memberId && allMembers[visit.memberId]
-    ? allMembers[visit.memberId].name
-    : `ゲスト（${group.visitKey}）`;
-
-  // 商品選択肢
-  const productOptions = blindOrders.map(o =>
-    `<option value="${o.id}">${escHtml(o.productName)}</option>`).join('');
-
-  // マーク行
-  const marks = [...new Set(blindOrders.map(o => o.blindMarkId))];
-  const rows = marks.map(m => `
+// ━━━ 結果入力 ━━━
+function openResultModal(gid){
+  const g=allGroups.find(x=>x.gid===gid);if(!g)return;
+  resultTarget=g;
+  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
+  const marks=[...new Set(blindOrders.map(o=>o.blindMarkId).filter(Boolean))];
+  const opts=blindOrders.map(o=>`<option value="${esc(o.id)}">${esc(o.productName)}</option>`).join('');
+  const rows=marks.map(m=>`
     <div class="result-row">
-      <span class="result-mark-label">${escHtml(m)}</span>
-      <span class="result-arrow">→</span>
-      <select class="result-select" data-mark="${escHtml(m)}">
-        <option value="">（実体を選択）</option>
-        ${productOptions}
+      <span class="result-mark-label">${esc(m)}</span>
+      <span class="result-arrow">→ 実体</span>
+      <select class="result-select" data-mark="${esc(m)}">
+        <option value="">選択してください</option>${opts}
       </select>
     </div>`).join('');
-
-  // 一番美味しかったマーク
-  const winnerOpts = marks.map(m =>
-    `<div class="winner-opt" data-mark="${escHtml(m)}" onclick="selectWinner(this)">${escHtml(m)}</div>`
-  ).join('');
-
-  document.getElementById('result-body').innerHTML = `
-    <div style="padding:12px 16px;background:var(--surface2);font-size:13px;color:var(--text2)">
-      来場者: <strong>${escHtml(memberName)}</strong>
-    </div>
+  const winnerOpts=marks.map(m=>`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)">${esc(m)}</div>`).join('');
+  document.getElementById('result-body').innerHTML=`
+    <div class="result-info">来場者: <strong>${esc(vLabel(g.visitKey))}</strong> &nbsp;|&nbsp; ${marks.length}種</div>
     ${rows}
     <div class="winner-row">
-      <label>🏆 一番美味しかったのは？</label>
+      <div class="winner-label">🏆 一番美味しかったのは？</div>
       <div class="winner-options">${winnerOpts}</div>
     </div>`;
-
   document.getElementById('result-modal').classList.add('open');
 }
-
-function selectWinner(el) {
-  document.querySelectorAll('.winner-opt').forEach(e => e.classList.remove('selected'));
+function selectWinner(el){
+  document.querySelectorAll('.winner-opt').forEach(e=>e.classList.remove('selected'));
   el.classList.add('selected');
 }
-
-function closeResultModal() {
+function closeResultModal(){
   document.getElementById('result-modal').classList.remove('open');
-  resultTarget = null;
+  resultTarget=null;
 }
-
-async function saveResult() {
-  if (!resultTarget) return;
-  const group = resultTarget;
-  const blindOrders = group.orders.filter(o => o.blindId === 1 && o.served !== 0);
-
-  // マーク→実体の回答収集
-  const selects = document.querySelectorAll('.result-select');
-  const answers = [];
-  for (const sel of selects) {
-    const markId = sel.dataset.mark;
-    const guessId = sel.value;
-    if (!guessId) { showToast('すべてのマークに回答してください', 'error'); return; }
-    const actualOrder = blindOrders.find(o => o.blindMarkId === markId);
-    const guessOrder = blindOrders.find(o => o.id === guessId);
-    answers.push({
-      blindMarkId: markId,
-      actualOrderId: actualOrder?.id || '',
-      actualProduct: actualOrder?.productName || '',
-      guessOrderId: guessId,
-      guessProduct: guessOrder?.productName || '',
-      isCorrect: actualOrder?.id === guessId
+async function saveResult(){
+  if(!resultTarget)return;
+  const g=resultTarget;
+  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
+  const selects=[...document.querySelectorAll('.result-select')];
+  const answers=[];
+  for(const sel of selects){
+    if(!sel.value){showToast('すべてのマークに回答してください','error');return;}
+    const actual=blindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
+    const guess =blindOrders.find(o=>o.id===sel.value);
+    answers.push({blindMarkId:sel.dataset.mark,actualOrderId:actual?.id||'',actualProduct:actual?.productName||'',guessOrderId:sel.value,guessProduct:guess?.productName||'',isCorrect:actual?.id===sel.value});
+  }
+  const winner=document.querySelector('.winner-opt.selected');
+  if(!winner){showToast('一番美味しかったマークを選んでください','error');return;}
+  const visit=allVisits.find(v=>v.id===g.visitKey);
+  try{
+    await db.collection('blindResults').doc(g.gid).set({
+      id:g.gid,groupId:g.gid,visitKey:g.visitKey,customerId:visit?.memberId||null,
+      answeredAt:firebase.firestore.FieldValue.serverTimestamp(),
+      answers,winner:winner.dataset.mark,
+      correctCount:answers.filter(a=>a.isCorrect).length,totalCount:answers.length
     });
-  }
-
-  const winner = document.querySelector('.winner-opt.selected');
-  if (!winner) { showToast('一番美味しかったマークを選んでください', 'error'); return; }
-
-  const correctCount = answers.filter(a => a.isCorrect).length;
-  const visit = allVisits.find(v => v.id === group.visitKey);
-
-  const resultDoc = {
-    id: group.gid,
-    groupId: group.gid,
-    visitKey: group.visitKey,
-    customerId: visit?.memberId || null,
-    answeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-    answers,
-    winner: winner.dataset.mark,
-    correctCount,
-    totalCount: answers.length
-  };
-
-  try {
-    await db.collection('blindResults').doc(group.gid).set(resultDoc);
-    showToast('結果を保存しました', 'success');
-    closeResultModal();
-    await loadTodayData();
-    renderOrderList();
-  } catch(e) {
-    showToast('エラー: '+e.message, 'error');
-  }
+    showToast('結果を保存しました','success');
+    closeResultModal();await loadTodayData();renderOrderList();
+  }catch(e){showToast('エラー: '+e.message,'error');}
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 注文作成フロー
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function openOrderModal() {
-  orderFlow = { step: 0, visit: null, cart: [], isBlind: false };
+// ━━━ 注文作成 ━━━
+function openOrderModal(){
+  flow={visits:[],cart:[],isBlind:false};
+  document.getElementById('blind-check').checked=false;
   document.getElementById('order-modal').classList.add('open');
-  showStep(0);
-  renderVisitors();
+  showStep(0);renderVisitors();
+}
+function closeOrderModal(){document.getElementById('order-modal').classList.remove('open');}
+function showStep(n){
+  ['step0','step1','step2','step3'].forEach((id,i)=>document.getElementById(id).style.display=i===n?'block':'none');
+  ['stab0','stab1','stab2','stab3'].forEach((id,i)=>document.getElementById(id).className='step-tab '+(i<n?'done':i===n?'active':''));
+  document.getElementById('modal-title').textContent=['来場者を選択','商品を選択','注文を確認','完了'][n];
 }
 
-function closeOrderModal() {
-  document.getElementById('order-modal').classList.remove('open');
-}
-
-function showStep(n) {
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('step'+i).style.display = i===n ? 'block' : 'none';
-    const tab = document.getElementById('stab'+i);
-    tab.className = 'step-tab ' + (i < n ? 'done' : i === n ? 'active' : '');
-  }
-  orderFlow.step = n;
-  const titles = ['来場者を選択','商品を選択','注文を確認','完了'];
-  document.getElementById('modal-title').textContent = titles[n];
-}
-
-// ━━━ STEP0 ━━━
-function renderVisitors() {
-  const container = document.getElementById('visitor-list-container');
-  const inVisits = allVisits.filter(v => !v.checkoutTime);
-  if (!inVisits.length) {
-    container.innerHTML = '<div class="empty">在店中の来場者がいません</div>';
-    return;
-  }
-  container.innerHTML = inVisits.map(v => {
-    const m = v.memberId && allMembers[v.memberId];
-    const name = m ? m.name : `ゲスト（来店ID: ${v.id}）`;
-    const sub = v.memberId ? `会員ID: ${v.memberId}` : v.id;
-    return `<div class="visitor-card" id="vc-${v.id}" onclick="selectVisitor('${v.id}')">
-      <div class="visitor-name">${escHtml(name)}</div>
-      <div class="visitor-sub">${escHtml(sub)} | 来店: ${v.visitTime||''}</div>
+// STEP0
+function renderVisitors(){
+  const c=document.getElementById('visitor-list-container');
+  const active=allVisits.filter(v=>!v.checkoutTime);
+  if(!active.length){c.innerHTML='<div class="empty">在店中の来場者がいません</div>';return;}
+  c.innerHTML=active.map(v=>{
+    const m=v.memberId&&allMembers[v.memberId];
+    const name=m?m.name:`ゲスト（来店ID: ${v.id}）`;
+    const sub=v.memberId?`会員ID: ${v.memberId}`:v.id;
+    const checked=flow.visits.find(x=>x.id===v.id)?'checked':'';
+    return`<div class="visitor-card${checked?' selected':''}" id="vc-${v.id}">
+      <input type="checkbox" class="visitor-cb" id="vcb-${v.id}" ${checked} onchange="toggleVisitor('${v.id}',this)">
+      <label for="vcb-${v.id}" style="flex:1;cursor:pointer">
+        <div class="visitor-name">${esc(name)}</div>
+        <div class="visitor-sub">${esc(sub)} | 来店: ${v.visitTime||''}</div>
+      </label>
     </div>`;
   }).join('');
 }
-
-function selectVisitor(vid) {
-  document.querySelectorAll('.visitor-card').forEach(c => c.classList.remove('selected'));
-  const card = document.getElementById('vc-'+vid);
-  if (card) card.classList.add('selected');
-  orderFlow.visit = allVisits.find(v => v.id === vid);
-  document.getElementById('btn-to-step1').disabled = false;
+function toggleVisitor(vid,cb){
+  const card=document.getElementById('vc-'+vid);
+  if(cb.checked){
+    const v=allVisits.find(x=>x.id===vid);
+    if(v&&!flow.visits.find(x=>x.id===vid))flow.visits.push(v);
+    if(card)card.classList.add('selected');
+  }else{
+    flow.visits=flow.visits.filter(x=>x.id!==vid);
+    if(card)card.classList.remove('selected');
+  }
+  document.getElementById('btn-to-step1').disabled=flow.visits.length===0;
 }
+function goStep0(){showStep(0);renderVisitors();}
 
-function goStep0() { showStep(0); renderVisitors(); }
-
-// ━━━ STEP1 ━━━
-let currentPTab = 'tequila';
-let currentNOM = '';
-let pendingProduct = null;
-
-function goStep1() {
-  if (!orderFlow.visit) return;
+// STEP1
+function goStep1(){
+  if(!flow.visits.length)return;
   showStep(1);
-  switchPTab('tequila', document.querySelector('.ptab.active') || document.querySelectorAll('.ptab')[0]);
+  switchPTab('tequila',document.querySelectorAll('.ptab')[0]);
   renderCart();
 }
-
-function switchPTab(type, el) {
-  currentPTab = type;
-  currentNOM = '';
-  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
-
-  const nomArea = document.getElementById('nom-shortcuts-area');
-  const searchEl = document.getElementById('product-search');
-  const searchBox = searchEl.parentElement;
-
-  if (type === 'tequila') {
-    nomArea.style.display = 'flex';
-    searchEl.style.display = 'block';
-    renderNOMShortcuts();
-  } else if (type === 'set') {
-    nomArea.style.display = 'none';
-    searchEl.style.display = 'none';
-  } else {
-    nomArea.style.display = 'none';
-    searchEl.style.display = 'block';
-  }
-  document.getElementById('product-search').value = '';
+function switchPTab(type,el){
+  currentPTab=type;currentNOM='';
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.getElementById('nom-shortcuts-area').style.display=type==='tequila'?'flex':'none';
+  document.getElementById('product-search').style.display=type==='set'?'none':'block';
+  if(type==='tequila')renderNOMs();
+  document.getElementById('product-search').value='';
   filterProducts();
 }
-
-function renderNOMShortcuts() {
-  const noms = ['1123','1579','1414','1545','1139','1474'];
-  const el = document.getElementById('nom-shortcuts-area');
-  el.innerHTML = noms.map(n =>
-    `<button class="nom-btn ${currentNOM===n?'active':''}" onclick="setNOM('${n}',this)">NOM ${n}</button>`
-  ).join('');
+function renderNOMs(){
+  document.getElementById('nom-shortcuts-area').innerHTML=
+    ['1123','1579','1414','1545','1139','1474'].map(n=>
+      `<button class="nom-btn${currentNOM===n?' active':''}" onclick="setNOM('${n}')">${n}</button>`
+    ).join('');
 }
-
-function setNOM(n, el) {
-  currentNOM = currentNOM === n ? '' : n;
-  renderNOMShortcuts();
-  filterProducts();
-}
-
-function filterProducts() {
-  const q = document.getElementById('product-search').value.toLowerCase();
-  const container = document.getElementById('product-list-container');
-
-  if (currentPTab === 'set') {
-    const sets = masterData.set;
-    if (!sets.length) { container.innerHTML = '<div class="empty">データなし</div>'; return; }
-    container.innerHTML = sets.map(s => {
-      const badge = `<span class="set-type-badge set-type-${s.setType||0}">${['通常','段位','イベント'][s.setType||0]}</span>`;
-      return `<div class="set-item" onclick="addSetToCart('${s.id}')">
-        <span class="set-name">${escHtml(s.setName||s.id)}${badge}</span>
-      </div>`;
-    }).join('');
-    return;
+function setNOM(n){currentNOM=currentNOM===n?'':n;renderNOMs();filterProducts();}
+function filterProducts(){
+  const q=(document.getElementById('product-search').value||'').toLowerCase();
+  const c=document.getElementById('product-list-container');
+  if(currentPTab==='set'){
+    if(!masterData.set.length){c.innerHTML='<div class="empty">データなし</div>';return;}
+    c.innerHTML=masterData.set.map(s=>{
+      const b=`<span class="set-type-badge set-type-${s.setType||0}">${['通常','段位','イベント'][s.setType||0]}</span>`;
+      return`<div class="set-item" onclick="addSetToCart('${s.id}')"><span style="font-size:13px">${esc(s.setName||s.id)}${b}</span></div>`;
+    }).join('');return;
   }
-
-  let items = masterData[currentPTab] || [];
-  if (currentNOM && currentPTab === 'tequila') {
-    items = items.filter(i => (i.nom||i.brandId||'').startsWith(currentNOM));
-  }
-  if (q) {
-    items = items.filter(i =>
-      (i.bottleJa||i.bottleEs||i.name||'').toLowerCase().includes(q) ||
-      (i.brandJa||i.brandEs||'').toLowerCase().includes(q) ||
-      (i.nom||'').includes(q) ||
-      (i.id||'').toLowerCase().includes(q)
-    );
-  }
-  if (!items.length) { container.innerHTML = '<div class="empty">該当なし</div>'; return; }
-
-  container.innerHTML = items.slice(0,50).map(i => {
-    const name = i.bottleJa || i.bottleEs || i.name || i.id;
-    const sub = i.nom ? `NOM ${i.nom} ` : '';
-    const price = i.price ? `¥${i.price}/10ml` : i.unitPrice ? `¥${i.unitPrice}` : '';
-    return `<div class="product-item" onclick="openQtyModal('${i.id}')">
-      <div>
-        <div class="product-item-name">${escHtml(name)}</div>
-        <div style="font-size:11px;color:var(--text3)">${escHtml(sub)}</div>
-      </div>
-      <span class="product-item-price">${escHtml(price)}</span>
+  let items=[...(masterData[currentPTab]||[])];
+  if(currentNOM&&currentPTab==='tequila')items=items.filter(i=>(i.nom||'').startsWith(currentNOM)||(i.brandId||'').startsWith(currentNOM));
+  if(q)items=items.filter(i=>(i.bottleJa||i.bottleEs||i.name||'').toLowerCase().includes(q)||(i.brandJa||i.brandEs||'').toLowerCase().includes(q)||(i.nom||'').includes(q)||(i.id||'').toLowerCase().includes(q));
+  if(!items.length){c.innerHTML='<div class="empty">該当なし</div>';return;}
+  c.innerHTML=items.slice(0,50).map(i=>{
+    const name=i.bottleJa||i.bottleEs||i.name||i.id;
+    const sub=i.nom?`NOM ${i.nom}`:'';
+    const price=i.price?`¥${i.price}/10ml`:i.unitPrice?`¥${i.unitPrice}`:'-';
+    return`<div class="product-item" onclick="openQtyModal('${i.id}')">
+      <div><div class="product-item-name">${esc(name)}</div>${sub?`<div class="product-item-sub">${esc(sub)}</div>`:''}</div>
+      <span class="product-item-price">${esc(price)}</span>
     </div>`;
   }).join('');
 }
 
-// 数量入力モーダル
-function openQtyModal(productId) {
-  const items = [...masterData.tequila, ...masterData.other, ...masterData.misc];
-  const p = items.find(i => i.id === productId);
-  if (!p) return;
-  pendingProduct = p;
-
-  const isMl = p.type === 'tequila' || p.type === 'other';
-  document.getElementById('qty-product-name').textContent = p.bottleJa || p.bottleEs || p.name || p.id;
-  document.getElementById('qty-unit-label').textContent = isMl ? 'ml' : '個';
-  const input = document.getElementById('qty-input');
-  input.value = isMl ? 30 : 1;
-  input.min = 1;
-
-  const presets = isMl
-    ? ['10','20','30','45','60']
-    : ['1','2','3'];
-  document.getElementById('qty-presets').innerHTML = presets.map(v =>
+function openQtyModal(pid){
+  const p=[...masterData.tequila,...masterData.other,...masterData.misc].find(i=>i.id===pid);
+  if(!p)return;
+  pendingProduct=p;
+  const isMl=p.type==='tequila'||p.type==='other';
+  document.getElementById('qty-product-name').textContent=p.bottleJa||p.bottleEs||p.name||p.id;
+  document.getElementById('qty-unit-label').textContent=isMl?'ml':'個';
+  document.getElementById('qty-input').value=isMl?30:1;
+  document.getElementById('qty-presets').innerHTML=(isMl?['10','20','30','45','60']:['1','2','3']).map(v=>
     `<div class="qty-preset" onclick="document.getElementById('qty-input').value='${v}'">${v}</div>`
   ).join('');
-
   document.getElementById('qty-modal').classList.add('open');
 }
-
-function closeQtyModal() {
-  document.getElementById('qty-modal').classList.remove('open');
-  pendingProduct = null;
+function closeQtyModal(){document.getElementById('qty-modal').classList.remove('open');pendingProduct=null;}
+function confirmQty(){
+  if(!pendingProduct)return;
+  const qty=parseInt(document.getElementById('qty-input').value);
+  if(!qty||qty<=0){showToast('数量を入力してください','error');return;}
+  const p=pendingProduct;
+  const isMl=p.type==='tequila'||p.type==='other';
+  flow.cart.push({productId:p.id,productName:p.bottleJa||p.bottleEs||p.name||p.id,productType:p.type,qty,unit:isMl?'ml':'個',unitPrice:p.price||p.unitPrice||0,blindMarkId:null});
+  closeQtyModal();renderCart();
+  document.getElementById('btn-to-step2').disabled=false;
 }
-
-function confirmQty() {
-  if (!pendingProduct) return;
-  const qty = parseInt(document.getElementById('qty-input').value);
-  if (!qty || qty <= 0) { showToast('数量を入力してください', 'error'); return; }
-
-  const p = pendingProduct;
-  const isMl = p.type === 'tequila' || p.type === 'other';
-  const unitPrice = p.price || p.unitPrice || 0;
-
-  orderFlow.cart.push({
-    productId: p.id,
-    productName: p.bottleJa || p.bottleEs || p.name || p.id,
-    productType: p.type,
-    qty,
-    unit: isMl ? 'ml' : '個',
-    unitPrice,
-    blindMarkId: null
-  });
-
-  closeQtyModal();
-  renderCart();
-  updateStep1NextBtn();
-}
-
-function addSetToCart(setId) {
-  const set = masterData.set.find(s => s.id === setId);
-  if (!set) return;
-  // セット内の各アイテムをカートに追加
-  for (let i = 1; i <= 8; i++) {
-    const itemId = set[`item0${i}`];
-    if (!itemId) continue;
-    const itemType = set[`itemType0${i}`] || 'misc';
-    const itemName = set[`itemName0${i}`] || itemId;
-    const itemPrice = set[`itemPrice0${i}`] || 0;
-    const isMl = itemType === 'tequila' || itemType === 'other';
-    orderFlow.cart.push({
-      productId: itemId,
-      productName: itemName,
-      productType: itemType,
-      qty: isMl ? 30 : 1,
-      unit: isMl ? 'ml' : '個',
-      unitPrice: itemPrice,
-      blindMarkId: null
-    });
+function addSetToCart(setId){
+  const s=masterData.set.find(x=>x.id===setId);if(!s)return;
+  for(let i=1;i<=8;i++){
+    const id=s[`item0${i}`];if(!id)continue;
+    const t=s[`itemType0${i}`]||'misc';const isMl=t==='tequila'||t==='other';
+    flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,qty:isMl?30:1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:null});
   }
-  renderCart();
-  updateStep1NextBtn();
-  showToast('セット商品を追加しました', 'success');
+  renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
+  showToast('セット商品を追加しました','info');
 }
+function removeCartItem(idx){flow.cart.splice(idx,1);renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;}
+function setCartMark(idx,val){if(flow.cart[idx])flow.cart[idx].blindMarkId=val||null;}
+function toggleBlindMode(){flow.isBlind=document.getElementById('blind-check').checked;renderCart();}
 
-function removeCartItem(idx) {
-  orderFlow.cart.splice(idx, 1);
-  renderCart();
-  updateStep1NextBtn();
+function cartAmt(o){
+  if(o.productType==='tequila'||o.productType==='other')return Math.round((o.unitPrice*o.qty)/10);
+  return(o.unitPrice||0)*(o.qty||0);
 }
-
-function renderCart() {
-  const items = orderFlow.cart;
-  const countEl = document.getElementById('cart-count');
-  const totalEl = document.getElementById('cart-total');
-  countEl.textContent = items.length + '件';
-  const total = items.reduce((s,o) => s + calcCartItemAmount(o), 0);
-  totalEl.textContent = '¥' + total.toLocaleString();
-
-  const el = document.getElementById('cart-items');
-  if (!items.length) { el.innerHTML = ''; return; }
-
-  const isBlind = document.getElementById('blind-check').checked;
-  el.innerHTML = items.map((o,idx) => {
-    const amt = calcCartItemAmount(o);
-    let markSel = '';
-    if (isBlind && (o.productType === 'tequila' || o.productType === 'other')) {
-      const opts = blindMarks.map(m =>
-        `<option value="${escHtml(m.id)}" ${o.blindMarkId===m.id?'selected':''}>${escHtml(m.label||m.id)}</option>`
-      ).join('');
-      markSel = `<select class="cart-mark-sel" onchange="setCartMark(${idx},this.value)"><option value="">マーク</option>${opts}</select>`;
+function renderCart(){
+  const items=flow.cart;
+  const total=items.reduce((s,o)=>s+cartAmt(o),0);
+  document.getElementById('cart-count').textContent=items.length+'件';
+  document.getElementById('cart-total').textContent='¥'+total.toLocaleString();
+  const el=document.getElementById('cart-items');
+  if(!items.length){el.innerHTML='';return;}
+  const isBlind=document.getElementById('blind-check').checked;
+  el.innerHTML=items.map((o,idx)=>{
+    let markSel='';
+    // ブラインドモードかつテキーラ・他酒の場合にマーク選択を表示
+    if(isBlind&&(o.productType==='tequila'||o.productType==='other')){
+      const opts=blindMarks.map(m=>`<option value="${esc(m.id)}"${o.blindMarkId===m.id?' selected':''}>${esc(m.label||m.id)}</option>`).join('');
+      markSel=`<select class="cart-mark-sel" onchange="setCartMark(${idx},this.value)"><option value="">マーク</option>${opts}</select>`;
     }
-    return `<div class="cart-item">
-      ${markSel}
-      <span class="cart-item-name">${escHtml(o.productName)}</span>
-      <span class="cart-item-qty">${o.qty}${o.unit}</span>
-      <span class="cart-item-price">¥${amt.toLocaleString()}</span>
-      <button class="cart-item-del" onclick="removeCartItem(${idx})">✕</button>
-    </div>`;
+    return`<div class="cart-item">${markSel}<span class="cart-item-name">${esc(o.productName)}</span><span class="cart-item-qty">${o.qty}${o.unit}</span><span class="cart-item-price">¥${cartAmt(o).toLocaleString()}</span><button class="cart-item-del" onclick="removeCartItem(${idx})">✕</button></div>`;
   }).join('');
 }
 
-function setCartMark(idx, markId) {
-  if (orderFlow.cart[idx]) orderFlow.cart[idx].blindMarkId = markId || null;
-}
-
-function calcCartItemAmount(o) {
-  if (o.productType === 'tequila' || o.productType === 'other') {
-    return Math.round((o.unitPrice * o.qty) / 10);
-  }
-  return o.unitPrice * o.qty;
-}
-
-function toggleBlindMode() {
-  orderFlow.isBlind = document.getElementById('blind-check').checked;
-  renderCart();
-}
-
-function updateStep1NextBtn() {
-  document.getElementById('btn-to-step2').disabled = orderFlow.cart.length === 0;
-}
-
-// ━━━ STEP2 ━━━
-function goStep2() {
-  if (!orderFlow.cart.length) return;
+// STEP2
+function goStep2(){
+  if(!flow.cart.length)return;
   showStep(2);
-
-  const visit = orderFlow.visit;
-  const member = visit?.memberId && allMembers[visit.memberId];
-  const name = member ? member.name : `ゲスト（来店ID: ${visit?.id}）`;
-  document.getElementById('confirm-visitor').textContent = name;
-
-  const isBlind = document.getElementById('blind-check').checked;
-  const items = orderFlow.cart;
-  const total = items.reduce((s,o) => s + calcCartItemAmount(o), 0);
-
-  document.getElementById('confirm-items').innerHTML = items.map(o => {
-    const amt = calcCartItemAmount(o);
-    const mark = o.blindMarkId ? `<span class="item-mark">${escHtml(o.blindMarkId)}</span>` : '';
-    return `<div class="confirm-item">
-      ${mark}
-      <span style="flex:1;font-size:13px">${escHtml(o.productName)}</span>
-      <span style="font-size:12px;color:var(--text2)">${o.qty}${o.unit}</span>
-      <span style="font-size:13px;color:var(--accent);min-width:55px;text-align:right">¥${amt.toLocaleString()}</span>
-    </div>`;
+  const names=flow.visits.map(v=>{const m=v.memberId&&allMembers[v.memberId];return m?m.name:`ゲスト（${v.id}）`;});
+  document.getElementById('confirm-visitor').textContent=names.join('、');
+  const total=flow.cart.reduce((s,o)=>s+cartAmt(o),0);
+  document.getElementById('confirm-items').innerHTML=flow.cart.map(o=>{
+    const mark=o.blindMarkId?`<span class="item-mark">${esc(o.blindMarkId)}</span>`:'';
+    return`<div class="confirm-item">${mark}<span style="flex:1;font-size:13px">${esc(o.productName)}</span><span style="font-size:12px;color:var(--ink3)">${o.qty}${o.unit}</span><span style="font-size:13px;color:var(--gold-d);min-width:55px;text-align:right;font-weight:600">¥${cartAmt(o).toLocaleString()}</span></div>`;
   }).join('');
-
-  document.getElementById('confirm-total').textContent = '¥' + total.toLocaleString();
+  const suffix=flow.visits.length>1?` <span style="font-size:12px;color:var(--ink3)">（×${flow.visits.length}人分 = ¥${(total*flow.visits.length).toLocaleString()}）</span>`:'';
+  document.getElementById('confirm-total').innerHTML=`¥${total.toLocaleString()}${suffix}`;
 }
 
-// ━━━ 確定 ━━━
-async function confirmOrder() {
-  const visit = orderFlow.visit;
-  if (!visit) return;
-
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,'0');
-  const min = String(now.getMinutes()).padStart(2,'0');
-  const orderTime = hh + min;
-  const isBlind = document.getElementById('blind-check').checked;
-
-  // orderGroupId採番
-  const existingGroups = allGroups.filter(g => g.visitKey === visit.id);
-  const maxSeq = existingGroups.reduce((m, g) => {
-    const seq = parseInt(g.gid.slice(8)) || 0;
-    return Math.max(m, seq);
-  }, 0);
-  const newSeq = String(maxSeq + 1).padStart(2, '0');
-  const orderGroupId = visit.id + newSeq;
-
-  // 注文ID採番（当日最大+1）
-  const todayOrders = allGroups.flatMap(g => g.orders);
-  const maxOrderSeq = todayOrders.reduce((m, o) => {
-    const seq = parseInt(o.id.slice(6)) || 0;
-    return Math.max(m, seq);
-  }, 0);
-
-  try {
-    const batch = db.batch();
-    let seq = maxOrderSeq + 1;
-
-    orderFlow.cart.forEach((item, i) => {
-      const orderId = todayStr + String(seq).padStart(3, '0');
-      seq++;
-      const doc = {
-        orderTime,
-        customerId: visit.memberId || null,
-        visitKey: visit.id,
-        orderGroupId,
-        itemSeq: i + 1,
-        productCode: item.productId,
-        productName: item.productName,
-        productType: item.productType,
-        qty: item.qty,
-        unit: item.unit,
-        unitPrice: item.unitPrice,
-        blindId: isBlind ? 1 : 0,
-        blindMarkId: isBlind ? (item.blindMarkId || null) : null,
-        served: 1  // 未提供
-      };
-      batch.set(db.collection('orders').doc(orderId), doc);
-    });
-
+// 確定
+async function confirmOrder(){
+  if(!flow.visits.length||!flow.cart.length)return;
+  const now=new Date();
+  const orderTime=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  const isBlind=document.getElementById('blind-check').checked;
+  const todayOrders=allGroups.flatMap(g=>g.orders);
+  let maxSeq=todayOrders.reduce((m,o)=>{const s=parseInt(o.id.slice(6))||0;return Math.max(m,s);},0);
+  try{
+    const batch=db.batch();
+    for(const visit of flow.visits){
+      const existGs=allGroups.filter(g=>g.visitKey===visit.id);
+      const maxGSeq=existGs.reduce((m,g)=>{const s=parseInt(g.gid.slice(8))||0;return Math.max(m,s);},0);
+      const orderGroupId=visit.id+String(maxGSeq+1).padStart(2,'0');
+      flow.cart.forEach((item,i)=>{
+        maxSeq++;
+        batch.set(db.collection('orders').doc(todayStr+String(maxSeq).padStart(3,'0')),{
+          orderTime,customerId:visit.memberId||null,visitKey:visit.id,orderGroupId,
+          itemSeq:i+1,productCode:item.productId,productName:item.productName,productType:item.productType,
+          qty:item.qty,unit:item.unit,unitPrice:item.unitPrice,
+          blindId:isBlind?1:0,blindMarkId:isBlind?(item.blindMarkId||null):null,served:1
+        });
+      });
+    }
     await batch.commit();
     showStep(3);
-    document.getElementById('complete-sub').textContent =
-      `注文グループID: ${orderGroupId} / ${orderFlow.cart.length}品`;
-
-    await loadTodayData();
-    renderOrderList();
-  } catch(e) {
-    showToast('エラー: '+e.message, 'error');
-  }
+    document.getElementById('complete-sub').textContent=`${flow.visits.length}人 × ${flow.cart.length}品 登録完了`;
+    await loadTodayData();renderOrderList();
+  }catch(e){showToast('エラー: '+e.message,'error');}
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ユーティリティ
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function escHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
+// ━━━ ユーティリティ ━━━
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let toastTimer;
-function showToast(msg, type='') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.className = '', 2500);
+function showToast(msg,type='info'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className=`show ${type}`;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='',2800);
 }
 </script>
 </body>
