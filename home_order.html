@@ -911,10 +911,12 @@ function renderResultTable(){
   const legendRows=marks.map((m,mi)=>{
     const o=markToOrder[m];
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-    const dispColor=revealed?color:'#bbb';
+    const markSpan=revealed
+      ?`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px;margin-right:4px">${sym}</span>`
+      :`<span style="font-size:16px;margin-right:4px;color:var(--border2)">?</span>`;
     return`<div class="mark-legend-row">
       <span class="mark-legend-dot">${nums[mi]||'?'}</span>
-      <span style="color:${dispColor};font-weight:700;font-size:16px;letter-spacing:-2px;margin-right:4px">${sym}</span>
+      ${markSpan}
       <span class="mark-legend-name">${esc(o?.productName||m)}</span>
     </div>`;
   }).join('');
@@ -946,12 +948,10 @@ document.addEventListener('click',_closeTblPanel);
 
 function buildTableMarkPicker(mi,mki,chosenMarkId,isRevealed){
   const pid=`tp-${mi}-${mki}`;
-  // 選択済みの記号：結果表示前は灰色、後は実色
   let btnInner='<span style="font-size:10px;color:var(--ink3)">選択</span>';
   if(chosenMarkId){
     const{sym,color}=markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId});
-    const dispColor=isRevealed?color:'#aaa';
-    btnInner=`<span style="color:${dispColor};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+    btnInner=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
   }
   return`<div class="tbl-mark-picker">
     <div class="tbl-mark-btn${chosenMarkId?' selected':''}" id="${pid}-btn"
@@ -1000,8 +1000,7 @@ function buildTableWinnerPicker(mi,chosenMarkId,isRevealed){
   let btnInner='<span style="font-size:10px;color:var(--ink3)">好き</span>';
   if(chosenMarkId){
     const{sym,color}=markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId});
-    const dispColor=isRevealed?color:'#aaa';
-    btnInner=`<span style="color:${dispColor};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+    btnInner=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
   }
   return`<div class="tbl-mark-picker">
     <div class="tbl-mark-btn${chosenMarkId?' selected':''}" id="${pid}-btn"
