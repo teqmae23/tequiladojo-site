@@ -246,6 +246,25 @@ input,select{font-family:var(--sans)}
 .mark-picker-none{font-size:11px;color:var(--ink3);text-align:center;padding:5px 4px;cursor:pointer;border-radius:4px}
 .mark-picker-none:hover{background:var(--cream2)}
 
+/* ── batchカード（同時注文グループ） ── */
+.batch-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;transition:box-shadow .15s}
+.batch-card:hover{box-shadow:var(--shadow)}
+.batch-card.done{opacity:.45}
+.batch-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cream2);border-bottom:1px solid var(--border);cursor:pointer}
+.batch-id{font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.batch-names{font-size:13px;font-weight:700;color:var(--ink);flex:1}
+.batch-time{font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.batch-total{font-size:13px;font-weight:700;color:var(--gold-d);white-space:nowrap}
+.batch-body{padding:0}
+.batch-member{border-bottom:1px solid var(--border)}
+.batch-member:last-child{border-bottom:none}
+.batch-member-header{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer}
+.batch-member-name{font-size:13px;color:var(--ink2);flex:1}
+.batch-member-total{font-size:12px;color:var(--gold-d);font-weight:600}
+.batch-member-items{background:var(--cream);padding:0 12px;display:none}
+.batch-member-items.open{display:block}
+.batch-actions{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--cream);border-top:1px solid var(--border);flex-wrap:wrap}
+
 /* トースト */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);padding:10px 20px;border-radius:20px;font-size:13px;transition:transform .3s;z-index:999;white-space:nowrap;box-shadow:var(--shadow-lg)}
 #toast.show{transform:translateX(-50%) translateY(0)}
@@ -315,11 +334,27 @@ input,select{font-family:var(--sans)}
 
       <!-- 完了 -->
       <div class="section">
-        <div class="sec-header">
+        <div class="sec-header" style="cursor:pointer" onclick="toggleDoneSection()">
           <span class="sec-title" style="color:var(--ink3)">✅ 提供済み</span>
           <span class="sec-count" id="count-done">0</span>
+          <span id="done-toggle-icon" style="margin-left:auto;color:var(--ink3);font-size:12px">▶ 表示</span>
         </div>
-        <div id="list-done"><div class="empty">なし</div></div>
+        <div id="done-section-body" style="display:none">
+          <!-- 絞り込み -->
+          <div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:8px">
+            <select id="f-done-who" class="fi" style="width:auto;margin:0;padding:5px 8px;font-size:12px" onchange="renderOrderList()">
+              <option value="">本日全件</option>
+              <option value="in">在店者</option>
+              <option value="out">退店者</option>
+            </select>
+            <select id="f-done-blind" class="fi" style="width:auto;margin:0;padding:5px 8px;font-size:12px" onchange="renderOrderList()">
+              <option value="">全件</option>
+              <option value="1">ブラインドのみ</option>
+            </select>
+            <input type="text" id="f-done-name" class="fi" style="width:120px;margin:0;padding:5px 8px;font-size:12px" placeholder="来場者名..." oninput="renderOrderList()">
+          </div>
+          <div id="list-done"><div class="empty">なし</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -449,7 +484,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // ━━━ 状態 ━━━
-let todayStr='', allGroups=[], allVisits=[], allMembers={};
+let todayStr='', allGroups=[], allBatchGroups=[], allVisits=[], allMembers={};
 let blindResultsSet=new Set();
 let masterData={tequila:[],other:[],misc:[],set:[]};
 let blindMarks=[];
@@ -520,6 +555,8 @@ async function loadTodayData(){
   allVisits.sort((a,b)=>(a.seq||0)-(b.seq||0));
   blindResultsSet=new Set();
   resultsSnap.forEach(d=>blindResultsSet.add(d.id));
+
+  // orderGroupId単位でグループ化
   const gmap={};
   ordersSnap.forEach(d=>{
     if(!d.id.startsWith(todayStr))return;
@@ -530,17 +567,40 @@ async function loadTodayData(){
   });
   allGroups=Object.entries(gmap).map(([gid,orders])=>{
     const sample=orders.find(o=>o.served!==undefined)||orders[0];
-    // served: 0=キャンセル 1=未提供 2=提供済みブラインド結果未入力 3=完了
     const served=sample.served??1;
     const isBlind=orders.some(o=>o.blindId===1);
     const hasResult=blindResultsSet.has(gid);
     const total=orders.filter(o=>o.served!==0).reduce((s,o)=>s+calcAmt(o),0);
-    return{gid,orders,served,isBlind,hasResult,total,visitKey:sample.visitKey,orderTime:sample.orderTime};
+    const batchId=sample.batchId||null;
+    return{gid,orders,served,isBlind,hasResult,total,
+           visitKey:sample.visitKey,orderTime:sample.orderTime,batchId};
   });
   allGroups.sort((a,b)=>{
     const ta=a.orderTime||'9999',tb=b.orderTime||'9999';
     if(ta!==tb)return ta.localeCompare(tb);
     return(a.visitKey||'').localeCompare(b.visitKey||'');
+  });
+
+  // batchId単位でbatchGroupを構築
+  // batchIdなしのグループは単独batchGroupとして扱う
+  const bmap={};
+  allGroups.forEach(g=>{
+    const key=g.batchId||('solo_'+g.gid);
+    if(!bmap[key])bmap[key]=[];
+    bmap[key].push(g);
+  });
+  allBatchGroups=Object.entries(bmap).map(([bid,groups])=>{
+    const served=groups[0].served; // 同一batchは同じserved
+    const isBlind=groups.some(g=>g.isBlind);
+    const hasResult=groups.every(g=>!g.isBlind||g.hasResult);
+    const orderTime=groups[0].orderTime;
+    const batchId=groups[0].batchId;
+    const total=groups.reduce((s,g)=>s+g.total,0);
+    return{bid,groups,served,isBlind,hasResult,orderTime,batchId,total};
+  });
+  allBatchGroups.sort((a,b)=>{
+    const ta=a.orderTime||'9999',tb=b.orderTime||'9999';
+    return ta.localeCompare(tb);
   });
 }
 
@@ -550,81 +610,140 @@ function calcAmt(o){
 }
 
 // ━━━ 一覧描画 ━━━
-// served: 1=未提供 2=提供済みブラインド未入力 3=完了 0=キャンセル
-function renderOrderList(){
-  const pending   =allGroups.filter(g=>g.served===1);
-  const blindPend =allGroups.filter(g=>g.served===2);
-  const done      =allGroups.filter(g=>g.served===3||g.served===0);
-  document.getElementById('count-pending').textContent=pending.length;
-  document.getElementById('count-blind-pending').textContent=blindPend.length;
-  document.getElementById('count-done').textContent=done.length;
-  renderSec('list-pending',pending,'pending');
-  renderSec('list-blind-pending',blindPend,'blind-pending');
-  renderSec('list-done',done,'done');
-  updateActionBtns();
+function toggleDoneSection(){
+  const body=document.getElementById('done-section-body');
+  const icon=document.getElementById('done-toggle-icon');
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  icon.textContent=open?'▶ 表示':'▼ 閉じる';
 }
-function renderSec(id,groups,mode){
-  const el=document.getElementById(id);
-  if(!groups.length){el.innerHTML='<div class="empty">なし</div>';return;}
-  el.innerHTML=groups.map(g=>buildCard(g,mode)).join('');
-}
+
 function vLabel(visitKey){
   const v=allVisits.find(x=>x.id===visitKey);
   if(!v)return`来店ID: ${visitKey}`;
   if(v.memberId&&allMembers[v.memberId])return allMembers[v.memberId].name;
-  return`ゲスト（来店ID: ${v.id}）`;
+  return`ゲスト（${v.id}）`;
 }
-function buildCard(g,mode){
-  const customer=vLabel(g.visitKey);
+
+function isCheckedOut(visitKey){
+  const v=allVisits.find(x=>x.id===visitKey);
+  return v?!!v.checkoutTime:false;
+}
+
+function renderOrderList(){
+  const pending    =allBatchGroups.filter(b=>b.served===1);
+  const blindPend  =allBatchGroups.filter(b=>b.served===2);
+  const doneAll    =allBatchGroups.filter(b=>b.served===3||b.served===0);
+
+  // 提供済み絞り込み
+  const whoF  =(document.getElementById('f-done-who')||{}).value||'';
+  const blindF=(document.getElementById('f-done-blind')||{}).value||'';
+  const nameF =((document.getElementById('f-done-name')||{}).value||'').toLowerCase();
+  const done=doneAll.filter(b=>{
+    if(whoF==='in'  &&b.groups.every(g=>isCheckedOut(g.visitKey)))return false;
+    if(whoF==='out' &&b.groups.some(g=>!isCheckedOut(g.visitKey)))return false;
+    if(blindF==='1' &&!b.isBlind)return false;
+    if(nameF){
+      const names=b.groups.map(g=>vLabel(g.visitKey).toLowerCase());
+      if(!names.some(n=>n.includes(nameF)))return false;
+    }
+    return true;
+  });
+
+  document.getElementById('count-pending').textContent=pending.length;
+  document.getElementById('count-blind-pending').textContent=blindPend.length;
+  document.getElementById('count-done').textContent=doneAll.length;
+
+  renderBatchSec('list-pending',pending,'pending');
+  renderBatchSec('list-blind-pending',blindPend,'blind-pending');
+  renderBatchSec('list-done',done,'done');
+  updateActionBtns();
+}
+
+function renderBatchSec(containerId,batches,mode){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  if(!batches.length){el.innerHTML='<div class="empty">なし</div>';return;}
+  el.innerHTML=batches.map(b=>buildBatchCard(b,mode)).join('');
+}
+
+function buildBatchCard(b,mode){
   const isDone=mode==='done';
   const showCb=mode==='pending'||mode==='blind-pending';
   const showResult=mode==='blind-pending';
-  const isCancelled=g.served===0;
-  const valid=g.orders.filter(o=>o.served!==0);
-  const single=valid.length===1;
-  const time=g.orderTime?g.orderTime.slice(0,2)+':'+g.orderTime.slice(2):'';
-  const bb=g.isBlind?'<span class="blind-badge">🎭 BLIND</span>':'';
-  const list=valid.map(o=>{
-    const mk=o.blindId===1&&o.blindMarkId
-      ?`<span class="item-mark">${markDisplay(o.blindMarkId)}</span>`:'';
-    return`<div class="item-row">${mk}<span class="item-name">${esc(o.productName)}</span><span class="item-qty">${o.qty}${o.unit}</span><span class="item-price">¥${calcAmt(o).toLocaleString()}</span></div>`;
+  const isCancelled=b.served===0;
+  const time=b.orderTime?b.orderTime.slice(0,2)+':'+b.orderTime.slice(2):'';
+  const bb=b.isBlind?'<span class="blind-badge">🎭 BLIND</span>':'';
+  const cancelBadge=isCancelled?'<span style="font-size:10px;background:var(--red-l);color:var(--red);padding:1px 6px;border-radius:3px;font-weight:700">キャンセル</span>':'';
+  const names=b.groups.map(g=>esc(vLabel(g.visitKey))).join('・');
+  const bidLabel=b.batchId?`<span class="batch-id">${b.batchId}</span>`:'';
+
+  // メンバーごとの注文行
+  const memberRows=b.groups.map((g,gi)=>{
+    const name=vLabel(g.visitKey);
+    const valid=g.orders.filter(o=>o.served!==0);
+    const gTotal=g.total;
+    const itemsHtml=valid.map(o=>{
+      const mk=o.blindId===1&&o.blindMarkId?`<span style="font-size:14px;margin-right:4px">${markDisplay(o.blindMarkId)}</span>`:'';
+      return`<div class="item-row">${mk}<span class="item-name">${esc(o.productName)}</span><span class="item-qty">${o.qty}${o.unit}</span><span class="item-price">¥${calcAmt(o).toLocaleString()}</span></div>`;
+    }).join('');
+    return`<div class="batch-member">
+      <div class="batch-member-header" onclick="toggleMemberItems('bmi-${g.gid}')">
+        <span class="batch-member-name">${esc(name)}</span>
+        <span style="font-size:11px;color:var(--ink3)">${valid.length}品</span>
+        <span class="batch-member-total">¥${gTotal.toLocaleString()}</span>
+        <span style="font-size:11px;color:var(--ink3);margin-left:4px">▼</span>
+      </div>
+      <div class="batch-member-items" id="bmi-${g.gid}">${itemsHtml}</div>
+    </div>`;
   }).join('');
-  const info=single
-    ?`<span style="font-size:12px;color:var(--ink3)">${esc(valid[0]?.productName||'')} ${valid[0]?.qty||''}${valid[0]?.unit||''}</span>`
-    :`<button class="toggle-btn" onclick="event.stopPropagation();toggleItems('${g.gid}')">▼ ${valid.length}品</button>`;
-  const cancelledBadge=isCancelled?'<span style="font-size:10px;background:var(--red-l);color:var(--red);padding:1px 6px;border-radius:3px;font-weight:700">キャンセル</span>':'';
-  return`<div class="group-card${isDone?' done':''}" id="card-${g.gid}">
-    <div class="group-header" onclick="toggleItems('${g.gid}')">
-      ${showCb?`<input type="checkbox" class="group-cb action-cb" data-gid="${g.gid}" data-mode="${mode}" onclick="event.stopPropagation();updateActionBtns()">`:'' }
-      <div class="group-info">
-        <div class="group-row1"><span class="group-id">${g.gid}</span><span class="group-customer">${esc(customer)}</span>${bb}${cancelledBadge}</div>
-        <div class="group-row2"><span class="group-time">${time}</span>${info}</div>
+
+  // チェックボックス（batch単位）
+  const cbHtml=showCb
+    ?`<input type="checkbox" class="group-cb action-cb" data-bid="${esc(b.bid)}" data-mode="${mode}" onclick="event.stopPropagation();updateActionBtns()">`
+    :'';
+
+  return`<div class="batch-card${isDone?' done':''}" id="bcard-${esc(b.bid)}">
+    <div class="batch-header">
+      ${cbHtml}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${bidLabel}
+          <span class="batch-names">${names}</span>
+          ${bb}${cancelBadge}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+          <span class="batch-time">${time}</span>
+          <span style="font-size:11px;color:var(--ink3)">${b.groups.reduce((s,g)=>s+g.orders.filter(o=>o.served!==0).length,0)}品合計</span>
+        </div>
       </div>
-      <div class="card-actions">
-        <span class="group-total">¥${g.total.toLocaleString()}</span>
-        ${showResult?`<button class="btn bpu sm" onclick="event.stopPropagation();openResultModal('${g.gid}')">結果入力</button>`:''}
-      </div>
+      <span class="batch-total">¥${b.total.toLocaleString()}</span>
     </div>
-    <div class="item-list" id="items-${g.gid}" style="${single?'':'display:none'}">${list}</div>
+    <div class="batch-body">${memberRows}</div>
+    ${showResult||showCb?`<div class="batch-actions">
+      ${showResult?`<button class="btn bpu sm" onclick="openResultModal('${esc(b.bid)}')">結果入力</button>`:''}
+      <div style="flex:1"></div>
+    </div>`:''}
   </div>`;
 }
-function toggleItems(gid){
-  const el=document.getElementById('items-'+gid);if(!el)return;
-  const open=el.style.display!=='none';
-  el.style.display=open?'none':'block';
-  const btn=document.querySelector(`#card-${gid} .toggle-btn`);
-  if(btn){const n=el.querySelectorAll('.item-row').length;btn.textContent=(open?'▼ ':'▲ ')+n+'品';}
+
+function toggleMemberItems(id){
+  const el=document.getElementById(id);if(!el)return;
+  const open=el.classList.contains('open');
+  el.classList.toggle('open',!open);
+  const btn=el.previousElementSibling?.querySelector('span:last-child');
+  if(btn)btn.textContent=open?'▼':'▲';
 }
+
 function updateActionBtns(){
   const pendingCbs=[...document.querySelectorAll('.action-cb[data-mode="pending"]:checked')];
-  const blindCbs=[...document.querySelectorAll('.action-cb[data-mode="blind-pending"]:checked')];
-  const serveBtn=document.getElementById('btn-serve-all');
-  const cancelPBtn=document.getElementById('btn-cancel-pending');
-  const cancelBBtn=document.getElementById('btn-cancel-blind');
-  const n=pendingCbs.length;
-  if(n>0){
-    serveBtn.classList.add('visible');serveBtn.textContent=`✓ ${n}件を提供済みにする`;
-    cancelPBtn.style.display='inline-flex';cancelPBtn.textContent=`✕ ${n}件をキャンセル`;
+  const blindCbs  =[...document.querySelectorAll('.action-cb[data-mode="blind-pending"]:checked')];
+  const serveBtn    =document.getElementById('btn-serve-all');
+  const cancelPBtn  =document.getElementById('btn-cancel-pending');
+  const cancelBBtn  =document.getElementById('btn-cancel-blind');
+  if(pendingCbs.length>0){
+    serveBtn.classList.add('visible');serveBtn.textContent=`✓ ${pendingCbs.length}件を提供済みにする`;
+    cancelPBtn.style.display='inline-flex';cancelPBtn.textContent=`✕ ${pendingCbs.length}件をキャンセル`;
   }else{
     serveBtn.classList.remove('visible');cancelPBtn.style.display='none';
   }
@@ -637,19 +756,19 @@ function updateActionBtns(){
 
 // ━━━ 一括提供 ━━━
 async function serveChecked(){
-  const gids=[...document.querySelectorAll('.action-cb[data-mode="pending"]:checked')].map(c=>c.dataset.gid);
-  if(!gids.length)return;
+  const bids=[...document.querySelectorAll('.action-cb[data-mode="pending"]:checked')].map(c=>c.dataset.bid);
+  if(!bids.length)return;
   try{
     const batch=db.batch();
-    for(const gid of gids){
-      const g=allGroups.find(x=>x.gid===gid);if(!g)continue;
-      // ブラインドなら2、それ以外は3
-      const newServed=g.isBlind?2:3;
-      for(const o of g.orders)if(o.served!==0)batch.update(db.collection('orders').doc(o.id),{served:newServed});
-      g.served=newServed;
+    for(const bid of bids){
+      const b=allBatchGroups.find(x=>x.bid===bid);if(!b)continue;
+      const newServed=b.isBlind?2:3;
+      for(const g of b.groups)
+        for(const o of g.orders)if(o.served!==0)batch.update(db.collection('orders').doc(o.id),{served:newServed});
+      b.served=newServed;
     }
     await batch.commit();
-    showToast(`${gids.length}グループを提供済みにしました`,'success');
+    showToast(`${bids.length}グループを提供済みにしました`,'success');
     await loadTodayData();renderOrderList();
   }catch(e){showToast('エラー: '+e.message,'error');}
 }
@@ -657,29 +776,37 @@ async function serveChecked(){
 // ━━━ キャンセル ━━━
 async function cancelChecked(section){
   const sel=section==='pending'?'.action-cb[data-mode="pending"]:checked':'.action-cb[data-mode="blind-pending"]:checked';
-  const gids=[...document.querySelectorAll(sel)].map(c=>c.dataset.gid);
-  if(!gids.length)return;
-  if(!confirm(`${gids.length}グループをキャンセルしますか？`))return;
+  const bids=[...document.querySelectorAll(sel)].map(c=>c.dataset.bid);
+  if(!bids.length)return;
+  if(!confirm(`${bids.length}グループをキャンセルしますか？`))return;
   try{
     const batch=db.batch();
-    for(const gid of gids){
-      const g=allGroups.find(x=>x.gid===gid);if(!g)continue;
-      for(const o of g.orders)batch.update(db.collection('orders').doc(o.id),{served:0});
-      g.served=0;
+    for(const bid of bids){
+      const b=allBatchGroups.find(x=>x.bid===bid);if(!b)continue;
+      for(const g of b.groups)
+        for(const o of g.orders)batch.update(db.collection('orders').doc(o.id),{served:0});
+      b.served=0;
     }
     await batch.commit();
-    showToast(`${gids.length}グループをキャンセルしました`,'info');
+    showToast(`${bids.length}グループをキャンセルしました`,'info');
     await loadTodayData();renderOrderList();
   }catch(e){showToast('エラー: '+e.message,'error');}
 }
 
 // ━━━ 結果入力 ━━━
-function openResultModal(gid){
-  const g=allGroups.find(x=>x.gid===gid);if(!g)return;
-  resultTarget=g;
-  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
-  const marks=[...new Set(blindOrders.map(o=>o.blindMarkId).filter(Boolean))];
-  const opts=blindOrders.map(o=>`<option value="${esc(o.id)}">${esc(o.productName)}</option>`).join('');
+function openResultModal(bid){
+  const b=allBatchGroups.find(x=>x.bid===bid);if(!b)return;
+  resultTarget=b; // batchGroupを保持
+
+  // batchGroup内の全blindOrders
+  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
+  // マーク一覧（共通）
+  const marks=[...new Set(allBlindOrders.map(o=>o.blindMarkId).filter(Boolean))];
+  // 商品候補（マークごとに1商品）
+  const opts=marks.map(m=>{
+    const o=allBlindOrders.find(x=>x.blindMarkId===m);
+    return`<option value="${esc(o?.id||'')}">${esc(o?.productName||m)}</option>`;
+  }).join('');
 
   const rows=marks.map(m=>{
     const dot=markDisplay(m);
@@ -700,8 +827,11 @@ function openResultModal(gid){
     return`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)">${dot}</div>`;
   }).join('');
 
+  // 来場者一覧
+  const memberNames=b.groups.map(g=>esc(vLabel(g.visitKey))).join('・');
+
   document.getElementById('result-body').innerHTML=`
-    <div class="result-info">来場者: <strong>${esc(vLabel(g.visitKey))}</strong> &nbsp;|&nbsp; ${marks.length}種のブラインド</div>
+    <div class="result-info">来場者: <strong>${memberNames}</strong> &nbsp;|&nbsp; ${marks.length}種のブラインド</div>
     ${rows}
     <div class="winner-row">
       <div class="winner-label">🏆 一番美味しかったのは？</div>
@@ -714,12 +844,10 @@ function openResultModal(gid){
 
 function onResultSelect(sel){
   const markId=sel.dataset.mark;
-  const g=resultTarget;
-  if(!g)return;
-  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
-  const actual=blindOrders.find(o=>o.blindMarkId===markId);
-  const hint=document.getElementById('rhint-'+markId);
-  if(!hint)return;
+  const b=resultTarget;if(!b)return;
+  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
+  const actual=allBlindOrders.find(o=>o.blindMarkId===markId);
+  const hint=document.getElementById('rhint-'+markId);if(!hint)return;
   if(!sel.value){hint.style.display='none';return;}
   const isCorrect=actual?.id===sel.value;
   hint.style.display='block';
@@ -730,26 +858,23 @@ function onResultSelect(sel){
 }
 
 function updateScoreDisplay(){
-  const g=resultTarget;if(!g)return;
-  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
-  const marks=[...new Set(blindOrders.map(o=>o.blindMarkId).filter(Boolean))];
+  const b=resultTarget;if(!b)return;
+  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
+  const marks=[...new Set(allBlindOrders.map(o=>o.blindMarkId).filter(Boolean))];
   const selects=[...document.querySelectorAll('.result-select')];
   let correct=0,answered=0;
   for(const sel of selects){
-    if(!sel.value)continue;
-    answered++;
-    const actual=blindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
+    if(!sel.value)continue;answered++;
+    const actual=allBlindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
     if(actual?.id===sel.value)correct++;
   }
-  const score=document.getElementById('result-score');
-  if(!score)return;
+  const score=document.getElementById('result-score');if(!score)return;
   if(answered===marks.length){
     score.style.display='block';
     score.innerHTML=`<span>正解数: <strong style="font-size:16px;color:var(--gold-d)">${correct} / ${marks.length}</strong></span>`;
-  } else {
-    score.style.display='none';
-  }
+  }else score.style.display='none';
 }
+
 function selectWinner(el){
   document.querySelectorAll('.winner-opt').forEach(e=>e.classList.remove('selected'));
   el.classList.add('selected');
@@ -758,33 +883,41 @@ function closeResultModal(){
   document.getElementById('result-modal').classList.remove('open');
   resultTarget=null;
 }
+
 async function saveResult(){
   if(!resultTarget)return;
-  const g=resultTarget;
-  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
+  const b=resultTarget;
+  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
   const selects=[...document.querySelectorAll('.result-select')];
   const answers=[];
   for(const sel of selects){
     if(!sel.value){showToast('すべてのマークに回答してください','error');return;}
-    const actual=blindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
-    const guess =blindOrders.find(o=>o.id===sel.value);
-    answers.push({blindMarkId:sel.dataset.mark,actualOrderId:actual?.id||'',actualProduct:actual?.productName||'',guessOrderId:sel.value,guessProduct:guess?.productName||'',isCorrect:actual?.id===sel.value});
+    const actual=allBlindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
+    const guess =allBlindOrders.find(o=>o.id===sel.value);
+    answers.push({blindMarkId:sel.dataset.mark,actualOrderId:actual?.id||'',actualProduct:actual?.productName||'',
+                  guessOrderId:sel.value,guessProduct:guess?.productName||'',isCorrect:actual?.id===sel.value});
   }
   const winner=document.querySelector('.winner-opt.selected');
   if(!winner){showToast('一番美味しかったマークを選んでください','error');return;}
-  const visit=allVisits.find(v=>v.id===g.visitKey);
+
   try{
-    await db.collection('blindResults').doc(g.gid).set({
-      id:g.gid,groupId:g.gid,visitKey:g.visitKey,customerId:visit?.memberId||null,
-      answeredAt:firebase.firestore.FieldValue.serverTimestamp(),
-      answers,winner:winner.dataset.mark,
-      correctCount:answers.filter(a=>a.isCorrect).length,
-      totalCount:answers.length
-    });
-    // グループのservedを3（完了）に更新
-    const batch2=db.batch();
-    for(const o of g.orders)if(o.served!==0)batch2.update(db.collection('orders').doc(o.id),{served:3});
-    await batch2.commit();
+    const fsBatch=db.batch();
+    // batchGroup内の各グループにresultを保存
+    for(const g of b.groups){
+      if(!g.isBlind)continue;
+      const visit=allVisits.find(v=>v.id===g.visitKey);
+      fsBatch.set(db.collection('blindResults').doc(g.gid),{
+        id:g.gid,groupId:g.gid,batchId:b.batchId||null,
+        visitKey:g.visitKey,customerId:visit?.memberId||null,
+        answeredAt:firebase.firestore.FieldValue.serverTimestamp(),
+        answers,winner:winner.dataset.mark,
+        correctCount:answers.filter(a=>a.isCorrect).length,
+        totalCount:answers.length
+      });
+      // served=3に更新
+      for(const o of g.orders)if(o.served!==0)fsBatch.update(db.collection('orders').doc(o.id),{served:3});
+    }
+    await fsBatch.commit();
     showToast('結果を保存しました','success');
     closeResultModal();await loadTodayData();renderOrderList();
   }catch(e){showToast('エラー: '+e.message,'error');}
@@ -1054,6 +1187,15 @@ async function confirmOrder(){
   const isBlind=document.getElementById('blind-check').checked;
   const todayOrders=allGroups.flatMap(g=>g.orders);
   let maxSeq=todayOrders.reduce((m,o)=>{const s=parseInt(o.id.slice(6))||0;return Math.max(m,s);},0);
+
+  // batchId採番（当日最大+1、3桁）
+  const maxBatch=allGroups.reduce((m,g)=>{
+    const bid=g.batchId||'';
+    if(bid.slice(0,6)!==todayStr)return m;
+    const n=parseInt(bid.slice(6))||0;return Math.max(m,n);
+  },0);
+  const batchId=todayStr+String(maxBatch+1).padStart(3,'0');
+
   try{
     const batch=db.batch();
     for(const visit of flow.visits){
@@ -1063,7 +1205,7 @@ async function confirmOrder(){
       flow.cart.forEach((item,i)=>{
         maxSeq++;
         batch.set(db.collection('orders').doc(todayStr+String(maxSeq).padStart(3,'0')),{
-          orderTime,customerId:visit.memberId||null,visitKey:visit.id,orderGroupId,
+          orderTime,customerId:visit.memberId||null,visitKey:visit.id,orderGroupId,batchId,
           itemSeq:i+1,productCode:item.productId,productName:item.productName,productType:item.productType,
           qty:item.qty,unit:item.unit,unitPrice:item.unitPrice,
           blindId:isBlind?1:0,blindMarkId:isBlind?(item.blindMarkId||null):null,served:1
@@ -1072,7 +1214,8 @@ async function confirmOrder(){
     }
     await batch.commit();
     showStep(3);
-    document.getElementById('complete-sub').textContent=`${flow.visits.length}人 × ${flow.cart.length}品 登録完了`;
+    document.getElementById('complete-sub').textContent=
+      `${flow.visits.length}人 × ${flow.cart.length}品 登録完了 (batch: ${batchId})`;
     await loadTodayData();renderOrderList();
   }catch(e){showToast('エラー: '+e.message,'error');}
 }
