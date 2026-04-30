@@ -216,21 +216,31 @@ input,select{font-family:var(--sans)}
 .qty-buttons{display:flex;gap:8px}
 .qty-buttons .btn{flex:1}
 
-/* 結果入力 */
-.result-info{padding:12px 16px;background:var(--cream);font-size:13px;color:var(--ink2);border-bottom:1px solid var(--border)}
-.result-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.result-mark-label{font-size:20px;font-weight:700;min-width:36px;text-align:center;flex-shrink:0;line-height:1}
-.result-arrow{color:var(--ink3);font-size:13px;white-space:nowrap;flex-shrink:0}
-.result-select{flex:1;background:var(--cream);border:1px solid var(--border2);color:var(--ink);padding:8px 10px;border-radius:var(--r);font-size:13px;outline:none;min-width:0}
-.result-select:focus{border-color:var(--gold)}
-.winner-row{padding:14px 16px;background:var(--cream2)}
-.winner-label{font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
-.winner-options{display:flex;flex-wrap:wrap;gap:6px}
-.winner-opt{background:var(--white);border:2px solid var(--border2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:20px;transition:border-color .15s;line-height:1}
-.winner-opt:hover{border-color:var(--gold)}
-.winner-opt.selected{border-color:var(--gold-d);background:var(--cream2)}
-.result-answer-hint{margin-top:4px;padding:3px 6px;border-radius:4px;background:var(--cream2)}
-.result-score-row{padding:12px 16px;background:var(--teal-l);border-top:1px solid var(--border);text-align:center;font-size:14px;color:var(--ink2)}
+/* 結果入力（表形式） */
+.result-info{padding:10px 16px;background:var(--cream);font-size:13px;color:var(--ink2);border-bottom:1px solid var(--border)}
+.blind-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.blind-table{border-collapse:collapse;width:100%;min-width:400px;font-size:13px}
+.blind-table th,.blind-table td{border:1px solid var(--border2);padding:6px 8px;text-align:center;white-space:nowrap}
+.blind-table th{background:var(--cream2);font-size:11px;font-weight:600;color:var(--ink3)}
+.blind-table th.mark-head{font-size:16px;padding:4px 6px;min-width:44px}
+.blind-table td.name-cell{text-align:left;font-weight:600;font-size:13px;color:var(--ink);background:var(--cream);padding-left:10px;min-width:80px}
+.blind-table td.mark-cell{padding:4px;min-width:44px}
+.blind-table td.winner-cell{padding:4px;min-width:44px}
+.blind-table td.score-cell{font-family:var(--mono);font-weight:700;color:var(--gold-d);min-width:40px}
+.blind-table td.correct{background:#d4edda}
+.blind-table td.wrong{background:#f8d7da}
+.mark-legend{padding:10px 16px;background:var(--cream);border-top:1px solid var(--border)}
+.mark-legend-title{font-size:10px;font-weight:600;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.mark-legend-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px}
+.mark-legend-dot{font-size:16px;min-width:28px;text-align:center}
+.mark-legend-name{color:var(--ink2)}
+.result-action-bar{padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--border);background:var(--cream2)}
+.result-score-summary{padding:10px 16px;background:var(--teal-l);border-top:1px solid var(--border);font-size:13px;color:var(--ink2);display:none}
+
+/* winner-opt in table */
+.winner-opt-sm{background:var(--white);border:2px solid var(--border2);padding:3px 6px;border-radius:var(--r);cursor:pointer;font-size:16px;transition:border-color .15s;line-height:1;display:inline-block}
+.winner-opt-sm:hover{border-color:var(--gold)}
+.winner-opt-sm.selected{border-color:var(--gold-d);background:var(--cream2)}
 
 /* ── カスタムマークドロップダウン ── */
 .mark-picker{position:relative;display:inline-block;flex-shrink:0}
@@ -457,14 +467,15 @@ input,select{font-family:var(--sans)}
 
 <!-- 結果入力モーダル -->
 <div class="modal-overlay" id="result-modal">
-  <div class="modal-panel">
+  <div class="modal-panel" style="max-width:680px">
     <div class="modal-header">
       <span class="modal-title">🎭 ブラインド結果入力</span>
       <button class="btn bs sm" onclick="closeResultModal()">✕ 閉じる</button>
     </div>
     <div id="result-body"></div>
-    <div style="padding:16px">
-      <button class="btn bp btn-full" onclick="saveResult()">結果を保存する</button>
+    <div class="result-action-bar">
+      <button class="btn bs" id="btn-show-result" onclick="showBlindResult()" style="flex:1">結果を見る</button>
+      <button class="btn bp" id="btn-save-result" onclick="saveResult()" style="flex:1" disabled>結果を保存する</button>
     </div>
   </div>
 </div>
@@ -793,128 +804,231 @@ async function cancelChecked(section){
   }catch(e){showToast('エラー: '+e.message,'error');}
 }
 
-// ━━━ 結果入力 ━━━
+// ━━━ 結果入力（表形式） ━━━
+// resultState: 入力中の状態管理
+// resultState.answers[memberIdx][markIdx] = markId (guess)
+// resultState.winners[memberIdx] = markId
+let resultState = null;
+
 function openResultModal(bid){
   const b=allBatchGroups.find(x=>x.bid===bid);if(!b)return;
-  resultTarget=b; // batchGroupを保持
+  resultTarget=b;
 
-  // batchGroup内の全blindOrders
-  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
-  // マーク一覧（共通）
+  // ブラインドが含まれるメンバーのみ
+  const members=b.groups.filter(g=>g.isBlind);
+  if(!members.length){showToast('ブラインド注文がありません','error');return;}
+
+  // 全blindOrders（マーク一覧の基準）
+  const allBlindOrders=members.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
   const marks=[...new Set(allBlindOrders.map(o=>o.blindMarkId).filter(Boolean))];
-  // 商品候補（マークごとに1商品）
-  const opts=marks.map(m=>{
-    const o=allBlindOrders.find(x=>x.blindMarkId===m);
-    return`<option value="${esc(o?.id||'')}">${esc(o?.productName||m)}</option>`;
-  }).join('');
+  // マーク→実商品マッピング（どの来場者でも同じ商品のはず）
+  const markToOrder={};
+  marks.forEach(m=>{markToOrder[m]=allBlindOrders.find(o=>o.blindMarkId===m);});
 
-  const rows=marks.map(m=>{
-    const dot=markDisplay(m);
-    return`<div class="result-row" id="rrow-${esc(m)}">
-      <span class="result-mark-label">${dot}</span>
-      <span class="result-arrow">→</span>
-      <div style="flex:1;min-width:0">
-        <select class="result-select" data-mark="${esc(m)}" onchange="onResultSelect(this)">
-          <option value="">選択してください</option>${opts}
-        </select>
-        <div class="result-answer-hint" id="rhint-${esc(m)}" style="display:none"></div>
-      </div>
-    </div>`;
-  }).join('');
+  // 状態初期化
+  resultState={
+    b, members, marks, markToOrder,
+    // answers[mi][mki] = 選んだmarkId（何のマークだと思ったか）
+    answers: members.map(()=>marks.map(()=>null)),
+    winners: members.map(()=>null),
+    revealed: false
+  };
 
-  const winnerOpts=marks.map(m=>{
-    const dot=markDisplay(m);
-    return`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)">${dot}</div>`;
-  }).join('');
-
-  // 来場者一覧
-  const memberNames=b.groups.map(g=>esc(vLabel(g.visitKey))).join('・');
-
-  document.getElementById('result-body').innerHTML=`
-    <div class="result-info">来場者: <strong>${memberNames}</strong> &nbsp;|&nbsp; ${marks.length}種のブラインド</div>
-    ${rows}
-    <div class="winner-row">
-      <div class="winner-label">🏆 一番美味しかったのは？</div>
-      <div class="winner-options">${winnerOpts}</div>
-    </div>
-    <div class="result-score-row" id="result-score" style="display:none"></div>`;
-
+  renderResultTable();
+  document.getElementById('btn-show-result').disabled=false;
+  document.getElementById('btn-save-result').disabled=true;
   document.getElementById('result-modal').classList.add('open');
 }
 
-function onResultSelect(sel){
-  const markId=sel.dataset.mark;
-  const b=resultTarget;if(!b)return;
-  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
-  const actual=allBlindOrders.find(o=>o.blindMarkId===markId);
-  const hint=document.getElementById('rhint-'+markId);if(!hint)return;
-  if(!sel.value){hint.style.display='none';return;}
-  const isCorrect=actual?.id===sel.value;
-  hint.style.display='block';
-  hint.innerHTML=isCorrect
-    ?`<span style="color:var(--teal);font-size:12px;font-weight:700">✓ 正解！ ${esc(actual?.productName||'')}</span>`
-    :`<span style="color:var(--red);font-size:12px">✗ 実際は: <strong>${esc(actual?.productName||'')}</strong></span>`;
-  updateScoreDisplay();
+function renderResultTable(){
+  const {members,marks,markToOrder,answers,winners,revealed}=resultState;
+  const memberNames=members.map(g=>vLabel(g.visitKey));
+  const nums=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
+  // ── ヘッダー行 ──
+  const thMarks=marks.map((_,mi)=>`<th class="mark-head">${nums[mi]||'?'}</th>`).join('');
+  const thead=`<thead><tr>
+    <th style="text-align:left;padding-left:10px">名前</th>
+    ${thMarks}
+    <th>好</th>
+    <th>正解</th>
+  </tr></thead>`;
+
+  // ── データ行（参加者ごと） ──
+  const tbody=members.map((g,mi)=>{
+    const memberName=memberNames[mi];
+    const cells=marks.map((m,mki)=>{
+      const chosen=answers[mi][mki];
+      let cellClass='mark-cell';
+      let cellContent='';
+      if(revealed&&chosen){
+        // 正解判定：chosen（回答したmark）が実際にmkiのマークか
+        const isCorrect=chosen===marks[mki];
+        cellClass+= isCorrect?' correct':' wrong';
+        cellContent=`<span style="font-size:16px">${markDisplay(chosen)}</span>`;
+      } else {
+        // ピッカー表示
+        cellContent=buildTableMarkPicker(mi,mki,chosen);
+      }
+      return`<td class="${cellClass}">${cellContent}</td>`;
+    }).join('');
+
+    // 好きなもの列
+    const w=winners[mi];
+    let winnerCell='';
+    if(revealed&&w){
+      winnerCell=`<span style="font-size:16px">${markDisplay(w)}</span>`;
+    } else {
+      winnerCell=buildTableWinnerPicker(mi,w);
+    }
+
+    // 正解数
+    let scoreCell='—';
+    if(revealed){
+      const correct=marks.filter((m,mki)=>answers[mi][mki]===marks[mki]).length;
+      scoreCell=`<strong style="color:${correct===marks.length?'var(--teal)':'var(--ink)'}">${correct}/${marks.length}</strong>`;
+    }
+
+    return`<tr>
+      <td class="name-cell">${esc(memberName)}</td>
+      ${cells}
+      <td class="winner-cell">${winnerCell}</td>
+      <td class="score-cell">${scoreCell}</td>
+    </tr>`;
+  }).join('');
+
+  // ── 凡例（マーク番号→商品名） ──
+  const legendRows=marks.map((m,mi)=>{
+    const o=markToOrder[m];
+    return`<div class="mark-legend-row">
+      <span class="mark-legend-dot">${nums[mi]||'?'}</span>
+      <span style="font-size:16px;margin-right:4px">${markDisplay(m)}</span>
+      <span class="mark-legend-name">${esc(o?.productName||m)}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('result-body').innerHTML=`
+    <div class="result-info">
+      <strong>${members.map(g=>esc(vLabel(g.visitKey))).join('・')}</strong>
+      &nbsp;|&nbsp; ${marks.length}種 × ${members.length}名
+    </div>
+    <div class="blind-table-wrap">
+      <table class="blind-table">
+        ${thead}
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+    <div class="mark-legend">
+      <div class="mark-legend-title">マーク対応表</div>
+      ${legendRows}
+    </div>`;
 }
 
-function updateScoreDisplay(){
-  const b=resultTarget;if(!b)return;
-  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
-  const marks=[...new Set(allBlindOrders.map(o=>o.blindMarkId).filter(Boolean))];
-  const selects=[...document.querySelectorAll('.result-select')];
-  let correct=0,answered=0;
-  for(const sel of selects){
-    if(!sel.value)continue;answered++;
-    const actual=allBlindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
-    if(actual?.id===sel.value)correct++;
+// テーブル内マークピッカー（参加者mi、マーク列mki）
+function buildTableMarkPicker(mi,mki,chosenMarkId){
+  const panelId=`tp-${mi}-${mki}`;
+  const{sym,color}=chosenMarkId?markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId}):{sym:'',color:''};
+  const btnHtml=chosenMarkId
+    ?`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`
+    :`<span style="font-size:10px;color:var(--ink3)">選択</span>`;
+  const opts=resultState.marks.map(m=>{
+    const{sym:s,color:c}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+    return`<div class="mark-picker-opt${chosenMarkId===m?' active':''}"
+      onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'${esc(m)}');document.getElementById('${panelId}').classList.remove('open')">
+      <span style="color:${c};font-weight:700;font-size:16px;letter-spacing:-2px">${s}</span>
+    </div>`;
+  }).join('');
+  return`<div class="mark-picker" style="display:inline-block">
+    <div class="mark-picker-btn${chosenMarkId?' selected':''}" style="min-width:36px" onclick="event.stopPropagation();togglePicker('${panelId}')">
+      ${btnHtml}<span class="mark-picker-caret">▾</span>
+    </div>
+    <div class="mark-picker-panel" id="${panelId}">${opts}</div>
+  </div>`;
+}
+
+// テーブル内winner選択（参加者mi）
+function buildTableWinnerPicker(mi,chosenMarkId){
+  const panelId=`tw-${mi}`;
+  const{sym,color}=chosenMarkId?markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId}):{sym:'',color:''};
+  const btnHtml=chosenMarkId
+    ?`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`
+    :`<span style="font-size:10px;color:var(--ink3)">好き</span>`;
+  const opts=resultState.marks.map(m=>{
+    const{sym:s,color:c}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+    return`<div class="mark-picker-opt${chosenMarkId===m?' active':''}"
+      onclick="event.stopPropagation();setTableWinner(${mi},'${esc(m)}');document.getElementById('${panelId}').classList.remove('open')">
+      <span style="color:${c};font-weight:700;font-size:16px;letter-spacing:-2px">${s}</span>
+    </div>`;
+  }).join('');
+  return`<div class="mark-picker" style="display:inline-block">
+    <div class="mark-picker-btn${chosenMarkId?' selected':''}" style="min-width:36px" onclick="event.stopPropagation();togglePicker('${panelId}')">
+      ${btnHtml}<span class="mark-picker-caret">▾</span>
+    </div>
+    <div class="mark-picker-panel" id="${panelId}">${opts}</div>
+  </div>`;
+}
+
+function setTableAnswer(mi,mki,markId){
+  resultState.answers[mi][mki]=markId;
+  renderResultTable();
+}
+function setTableWinner(mi,markId){
+  resultState.winners[mi]=markId;
+  renderResultTable();
+}
+
+function showBlindResult(){
+  // 全員全マーク入力チェック
+  const{members,marks,answers,winners}=resultState;
+  for(let mi=0;mi<members.length;mi++){
+    const name=vLabel(members[mi].visitKey);
+    for(let mki=0;mki<marks.length;mki++){
+      if(!answers[mi][mki]){showToast(`${name}のマーク${mki+1}が未入力です`,'error');return;}
+    }
+    if(!winners[mi]){showToast(`${name}の「好き」が未選択です`,'error');return;}
   }
-  const score=document.getElementById('result-score');if(!score)return;
-  if(answered===marks.length){
-    score.style.display='block';
-    score.innerHTML=`<span>正解数: <strong style="font-size:16px;color:var(--gold-d)">${correct} / ${marks.length}</strong></span>`;
-  }else score.style.display='none';
+  resultState.revealed=true;
+  renderResultTable();
+  document.getElementById('btn-save-result').disabled=false;
 }
 
-function selectWinner(el){
-  document.querySelectorAll('.winner-opt').forEach(e=>e.classList.remove('selected'));
-  el.classList.add('selected');
-}
 function closeResultModal(){
   document.getElementById('result-modal').classList.remove('open');
   resultTarget=null;
+  resultState=null;
 }
 
 async function saveResult(){
-  if(!resultTarget)return;
-  const b=resultTarget;
-  const allBlindOrders=b.groups.flatMap(g=>g.orders.filter(o=>o.blindId===1&&o.served!==0));
-  const selects=[...document.querySelectorAll('.result-select')];
-  const answers=[];
-  for(const sel of selects){
-    if(!sel.value){showToast('すべてのマークに回答してください','error');return;}
-    const actual=allBlindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
-    const guess =allBlindOrders.find(o=>o.id===sel.value);
-    answers.push({blindMarkId:sel.dataset.mark,actualOrderId:actual?.id||'',actualProduct:actual?.productName||'',
-                  guessOrderId:sel.value,guessProduct:guess?.productName||'',isCorrect:actual?.id===sel.value});
-  }
-  const winner=document.querySelector('.winner-opt.selected');
-  if(!winner){showToast('一番美味しかったマークを選んでください','error');return;}
-
+  if(!resultState||!resultState.revealed)return;
+  const{b,members,marks,markToOrder,answers,winners}=resultState;
   try{
     const fsBatch=db.batch();
-    // batchGroup内の各グループにresultを保存
-    for(const g of b.groups){
-      if(!g.isBlind)continue;
+    for(let mi=0;mi<members.length;mi++){
+      const g=members[mi];
       const visit=allVisits.find(v=>v.id===g.visitKey);
+      // answersを変換：マーク番号mki → {blindMarkId, guessMarkId, isCorrect}
+      const ans=marks.map((actualMark,mki)=>{
+        const guessMark=answers[mi][mki];
+        const actualOrder=markToOrder[actualMark];
+        const guessOrder=markToOrder[guessMark];
+        return{
+          blindMarkId:actualMark,
+          actualOrderId:actualOrder?.id||'',
+          actualProduct:actualOrder?.productName||'',
+          guessMarkId:guessMark,
+          guessOrderId:guessOrder?.id||'',
+          guessProduct:guessOrder?.productName||'',
+          isCorrect:guessMark===actualMark
+        };
+      });
+      const correctCount=ans.filter(a=>a.isCorrect).length;
       fsBatch.set(db.collection('blindResults').doc(g.gid),{
         id:g.gid,groupId:g.gid,batchId:b.batchId||null,
         visitKey:g.visitKey,customerId:visit?.memberId||null,
         answeredAt:firebase.firestore.FieldValue.serverTimestamp(),
-        answers,winner:winner.dataset.mark,
-        correctCount:answers.filter(a=>a.isCorrect).length,
-        totalCount:answers.length
+        answers:ans,winner:winners[mi],
+        correctCount,totalCount:marks.length
       });
-      // served=3に更新
       for(const o of g.orders)if(o.served!==0)fsBatch.update(db.collection('orders').doc(o.id),{served:3});
     }
     await fsBatch.commit();
