@@ -246,7 +246,7 @@ input,select{font-family:var(--sans)}
 /* パネルはfixedでDOMルート直下に出す */
 .tbl-mark-panel{display:none;position:fixed;background:var(--white);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:9999;padding:4px;min-width:52px}
 .tbl-mark-panel.open{display:block}
-.tbl-mark-opt{display:flex;align-items:center;justify-content:center;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:18px;transition:background .1s}
+.tbl-mark-opt{display:flex;align-items:center;justify-content:center;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:14px;transition:background .1s}
 .tbl-mark-opt:hover{background:var(--cream2)}
 .tbl-mark-opt.active{background:var(--cream3)}
 .tbl-mark-none{font-size:11px;color:var(--ink3);text-align:center;padding:5px 4px;cursor:pointer;border-radius:4px}
@@ -485,6 +485,7 @@ input,select{font-family:var(--sans)}
     <div id="result-body"></div>
     <div class="result-action-bar">
       <button class="btn bs" id="btn-show-result" onclick="showBlindResult()" style="flex:1">結果を見る</button>
+      <button class="btn bs" id="btn-back-input" onclick="backToInput()" style="flex:1;display:none">← 入力に戻る</button>
       <button class="btn bp" id="btn-save-result" onclick="saveResult()" style="flex:1" disabled>結果を保存する</button>
     </div>
   </div>
@@ -855,8 +856,19 @@ function renderResultTable(){
   const memberNames=members.map(g=>vLabel(g.visitKey));
   const nums=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 
+  // 列ごとに全員入力済みか
+  const colAllFilled=marks.map((_,mki)=>members.every((_,mi)=>!!answers[mi][mki]));
+  // 全員の好きが全部入力済みか
+  const allWinnerFilled=members.every((_,mi)=>!!winners[mi]);
+
   // ── ヘッダー行 ──
-  const thMarks=marks.map((_,mi)=>`<th class="mark-head">${nums[mi]||'?'}</th>`).join('');
+  const thMarks=marks.map((m,mi)=>{
+    if(revealed&&colAllFilled[mi]){
+      const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+      return`<th class="mark-head"><div style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</div><div style="font-size:10px;color:var(--ink3)">${nums[mi]||''}</div></th>`;
+    }
+    return`<th class="mark-head">${nums[mi]||'?'}</th>`;
+  }).join('');
   const thead=`<thead><tr>
     <th style="text-align:left;padding-left:10px">名前</th>
     ${thMarks}
@@ -864,56 +876,76 @@ function renderResultTable(){
     <th>正解</th>
   </tr></thead>`;
 
-  // ── データ行（参加者ごと） ──
+  // ── データ行 ──
   const tbody=members.map((g,mi)=>{
-    const memberName=memberNames[mi];
     const cells=marks.map((m,mki)=>{
       const chosen=answers[mi][mki];
       let cellClass='mark-cell';
       let cellContent='';
-      if(revealed&&chosen){
-        const isCorrect=chosen===marks[mki];
-        cellClass+= isCorrect?' correct':' wrong';
-        const{sym,color}=markSym(blindMarks.find(m=>m.id===chosen)||{id:chosen});
-        cellContent=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+      if(!revealed){
+        // 入力中：ピッカー表示
+        cellContent=buildTableMarkPicker(mi,mki,chosen,false);
+      } else if(!colAllFilled[mki]){
+        // この列はまだ全員未入力 → 入力済みならマーク表示、未入力は—
+        if(chosen){
+          const{sym,color}=markSym(blindMarks.find(x=>x.id===chosen)||{id:chosen});
+          cellContent=`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;
+        } else {
+          cellContent='<span style="color:var(--ink3)">—</span>';
+        }
       } else {
-        cellContent=buildTableMarkPicker(mi,mki,chosen,revealed);
+        // 全員入力済みの列 → 正解/不正解色分け
+        if(chosen){
+          const isCorrect=chosen===marks[mki];
+          cellClass+=isCorrect?' correct':' wrong';
+          const{sym,color}=markSym(blindMarks.find(x=>x.id===chosen)||{id:chosen});
+          cellContent=`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;
+        } else {
+          cellClass+=' wrong';
+          cellContent='<span style="color:var(--ink3)">—</span>';
+        }
       }
       return`<td class="${cellClass}">${cellContent}</td>`;
     }).join('');
 
-    // 好きなもの列
+    // 好きセル
     const w=winners[mi];
-    let winnerCell='';
-    if(revealed&&w){
-      const{sym,color}=markSym(blindMarks.find(m=>m.id===w)||{id:w});
-      winnerCell=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
-    } else {
-      winnerCell=buildTableWinnerPicker(mi,w,revealed);
-    }
+    let winnerCell=revealed
+      ?(w?(()=>{const{sym,color}=markSym(blindMarks.find(x=>x.id===w)||{id:w});return`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;})():'—')
+      :buildTableWinnerPicker(mi,w,false);
 
-    // 正解数
+    // 正解数（入力済みのみ、未入力は不正解扱い）
     let scoreCell='—';
     if(revealed){
-      const correct=marks.filter((m,mki)=>answers[mi][mki]===marks[mki]).length;
-      scoreCell=`<strong style="color:${correct===marks.length?'var(--teal)':'var(--ink)'}">${correct}/${marks.length}</strong>`;
+      const correctCount=marks.filter((m,mki)=>{
+        return answers[mi][mki]&&answers[mi][mki]===marks[mki];
+      }).length;
+      const color=correctCount===marks.length?'var(--teal)':'var(--ink)';
+      scoreCell=`<strong style="color:${color}">${correctCount}/${marks.length}</strong>`;
+    }
+
+    // 好き件数（全員好き入力済み時のみ）
+    let winnerLabel='';
+    if(allWinnerFilled&&w){
+      const wCount=members.filter((_,i)=>winners[i]===w).length;
+      winnerLabel=`<span style="font-size:10px;color:var(--ink3);margin-left:4px">好き:${wCount}</span>`;
     }
 
     return`<tr>
-      <td class="name-cell">${esc(memberName)}</td>
+      <td class="name-cell">${esc(memberNames[mi])}${winnerLabel}</td>
       ${cells}
       <td class="winner-cell">${winnerCell}</td>
       <td class="score-cell">${scoreCell}</td>
     </tr>`;
   }).join('');
 
-  // ── 凡例（マーク番号→商品名） ──
+  // ── 凡例 ──
   const legendRows=marks.map((m,mi)=>{
     const o=markToOrder[m];
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-    const markSpan=revealed
-      ?`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px;margin-right:4px">${sym}</span>`
-      :`<span style="font-size:16px;margin-right:4px;color:var(--border2)">?</span>`;
+    const markSpan=(revealed&&colAllFilled[mi])
+      ?`<span style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px;margin-right:4px">${sym}</span>`
+      :`<span style="font-size:13px;margin-right:4px;color:var(--ink3)">?</span>`;
     return`<div class="mark-legend-row">
       <span class="mark-legend-dot">${nums[mi]||'?'}</span>
       ${markSpan}
@@ -927,10 +959,7 @@ function renderResultTable(){
       &nbsp;|&nbsp; ${marks.length}種 × ${members.length}名
     </div>
     <div class="blind-table-wrap">
-      <table class="blind-table">
-        ${thead}
-        <tbody>${tbody}</tbody>
-      </table>
+      <table class="blind-table">${thead}<tbody>${tbody}</tbody></table>
     </div>
     <div class="mark-legend">
       <div class="mark-legend-title">マーク対応表</div>
@@ -1054,18 +1083,19 @@ function setTableWinner(mi,markId){
 }
 
 function showBlindResult(){
-  // 全員全マーク入力チェック
-  const{members,marks,answers,winners}=resultState;
-  for(let mi=0;mi<members.length;mi++){
-    const name=vLabel(members[mi].visitKey);
-    for(let mki=0;mki<marks.length;mki++){
-      if(!answers[mi][mki]){showToast(`${name}のマーク${mki+1}が未入力です`,'error');return;}
-    }
-    if(!winners[mi]){showToast(`${name}の「好き」が未選択です`,'error');return;}
-  }
   resultState.revealed=true;
   renderResultTable();
+  document.getElementById('btn-show-result').style.display='none';
+  document.getElementById('btn-back-input').style.display='flex';
   document.getElementById('btn-save-result').disabled=false;
+}
+
+function backToInput(){
+  resultState.revealed=false;
+  renderResultTable();
+  document.getElementById('btn-show-result').style.display='flex';
+  document.getElementById('btn-back-input').style.display='none';
+  document.getElementById('btn-save-result').disabled=true;
 }
 
 function closeResultModal(){
@@ -1077,6 +1107,15 @@ function closeResultModal(){
 async function saveResult(){
   if(!resultState||!resultState.revealed)return;
   const{b,members,marks,markToOrder,answers,winners}=resultState;
+
+  // 未選択チェック
+  const hasEmpty=members.some((_,mi)=>marks.some((_,mki)=>!answers[mi][mki]));
+  if(hasEmpty){
+    if(!confirm('未選択の項目がありますが保存しますか？')){
+      backToInput();
+      return;
+    }
+  }
   try{
     const fsBatch=db.batch();
     for(let mi=0;mi<members.length;mi++){
