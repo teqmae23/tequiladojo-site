@@ -1503,6 +1503,12 @@ function calSchTypeChange(sel){
   var v=sel?sel.value:'0';
   var tf=g('sch-time-fields');
   if(tf) tf.style.display=(v==='4'||v==='5'||v==='8')?'none':'';
+  // 時間フィールドが空の場合のみ初期値をセット
+  var openEl=g('sch-open'), closeEl=g('sch-close');
+  if(openEl&&closeEl&&!openEl.value&&!closeEl.value){
+    var defaults={'0':['1900','2300'],'1':['1300','2300'],'2':['1300','1700'],'3':['1900','2300'],'6':['1900','2300'],'7':['1900','2300']};
+    if(defaults[v]){ openEl.value=defaults[v][0]; closeEl.value=defaults[v][1]; }
+  }
 }
 function saveSchRow(key,container,cb){
   var typeVal=gv('sch-type');
@@ -1549,6 +1555,11 @@ function renderSchFormList(y,m,schMap,container){
     var openInp=document.createElement('input'); openInp.className='fi mono'; openInp.style.cssText='width:70px;font-size:12px'; openInp.placeholder='開始'; openInp.maxLength=4;
     var closeInp=document.createElement('input'); closeInp.className='fi mono'; closeInp.style.cssText='width:70px;font-size:12px'; closeInp.placeholder='終了'; closeInp.maxLength=4;
     if(sch){ if(sch.openTime) openInp.value=sch.openTime.slice(0,4); if(sch.closeTime) closeInp.value=sch.closeTime.slice(0,4); }
+    var _btDefaults={'0':['1900','2300'],'1':['1300','2300'],'2':['1300','1700'],'3':['1900','2300'],'6':['1900','2300'],'7':['1900','2300']};
+    typeSel.addEventListener('change',(function(oi,ci){ return function(){
+      var tv=this.value;
+      if(!oi.value&&!ci.value&&_btDefaults[tv]){ oi.value=_btDefaults[tv][0]; ci.value=_btDefaults[tv][1]; }
+    }; })(openInp,closeInp));
     var saveBtn=document.createElement('button'); saveBtn.className='btn bp sm'; saveBtn.textContent='保存';
     saveBtn.addEventListener('click',(function(k,ts,oi,ci,r){ return function(){
       var tv=ts.value; if(tv===''){toast('営業タイプを選択してください','err');return;}
@@ -2030,7 +2041,7 @@ function openOrderModal(id){
     sv("ord-product-name",r?r.productName||"":"");
     sv("ord-qty",r&&r.qty!=null?r.qty:""); sv("ord-unit",r?r.unit||"ml":"ml");
     sv("ord-unit-price",r&&r.unitPrice!=null?r.unitPrice:"");
-    sv("ord-group-id",r?r.orderGroupId||"":"");
+    sv("ord-group-id",r?r.orderGroupId||"");
     sv("ord-item-seq",r&&r.itemSeq!=null?r.itemSeq:1);
     sv("ord-blind",r?String(r.blindId||0):"0");
     if(dEl){dEl.readOnly=true; dEl.style.background="var(--cream2)";}
