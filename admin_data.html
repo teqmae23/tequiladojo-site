@@ -2030,7 +2030,7 @@ function openOrderModal(id){
     sv("ord-product-name",r?r.productName||"":"");
     sv("ord-qty",r&&r.qty!=null?r.qty:""); sv("ord-unit",r?r.unit||"ml":"ml");
     sv("ord-unit-price",r&&r.unitPrice!=null?r.unitPrice:"");
-    sv("ord-group-id",r?r.orderGroupId||"");
+    sv("ord-group-id",r?r.orderGroupId||"":"");
     sv("ord-item-seq",r&&r.itemSeq!=null?r.itemSeq:1);
     sv("ord-blind",r?String(r.blindId||0):"0");
     if(dEl){dEl.readOnly=true; dEl.style.background="var(--cream2)";}
