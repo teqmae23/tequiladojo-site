@@ -967,7 +967,6 @@ function renderResultTable(){
       <span class="mark-legend-name">${esc(o?.productName||m)}</span>${winnerTag}
     </div>`;
   }).join('');
-  }).join('');
 
   document.getElementById('result-body').innerHTML=`
     <div class="result-info">
@@ -984,7 +983,6 @@ function renderResultTable(){
 
   // タイトルを状態に応じて更新
   if(resultState.revealed) _updateResultTitle();
-}
 }
 
 // テーブル内マークピッカー（fixed位置、overflow対応）
@@ -1473,7 +1471,12 @@ function setAllMl(val){
 function closeQtyModal(){document.getElementById('qty-modal').classList.remove('open');pendingProduct=null;}
 function confirmQty(){} // 未使用（モーダル廃止）
 
-function removeCartItem(idx){flow.cart.splice(idx,1);renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;}
+function removeCartItem(idx){
+  flow.cart.splice(idx,1);
+  if(document.getElementById('blind-check').checked)assignBlindMarks();
+  renderCart();
+  document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
+}
 function setCartMark(idx,val){if(flow.cart[idx])flow.cart[idx].blindMarkId=val||null;}
 function toggleBlindMode(){
   flow.isBlind=document.getElementById('blind-check').checked;
