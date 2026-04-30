@@ -479,13 +479,18 @@ input,select{font-family:var(--sans)}
 <div class="modal-overlay" id="result-modal">
   <div class="modal-panel" style="max-width:680px">
     <div class="modal-header">
-      <span class="modal-title">🎭 ブラインド結果入力</span>
+      <span class="modal-title" id="result-modal-title">🎭 ブラインド結果入力</span>
       <button class="btn bs sm" onclick="closeResultModal()">✕ 閉じる</button>
     </div>
     <div id="result-body"></div>
-    <div class="result-action-bar">
+    <div class="result-action-bar" id="result-action-input">
       <button class="btn bs" id="btn-show-result" onclick="showBlindResult()" style="flex:1">結果を見る</button>
-      <button class="btn bs" id="btn-back-input" onclick="backToInput()" style="flex:1;display:none">← 入力に戻る</button>
+      <button class="btn bs" id="btn-confirm-partial" onclick="confirmPartialResult()" style="flex:1">未入力のまま確定</button>
+      <button class="btn bp" id="btn-save-result-hidden" style="flex:1" disabled>結果を保存する</button>
+    </div>
+    <div class="result-action-bar" id="result-action-revealed" style="display:none">
+      <button class="btn bs" onclick="backToInput()" style="flex:1">← 入力に戻る</button>
+      <button class="btn bs" id="btn-confirm-partial-r" onclick="confirmPartialResult()" style="flex:1;display:none">未入力のまま確定</button>
       <button class="btn bp" id="btn-save-result" onclick="saveResult()" style="flex:1" disabled>結果を保存する</button>
     </div>
   </div>
@@ -842,10 +847,10 @@ function openResultModal(bid){
   // 状態初期化
   resultState={
     b, members, marks, markToOrder,
-    // answers[mi][mki] = 選んだmarkId（何のマークだと思ったか）
     answers: members.map(()=>marks.map(()=>null)),
     winners: members.map(()=>null),
-    revealed: false
+    revealed: false,
+    allConfirmed: false
   };
 
   renderResultTable();
@@ -859,18 +864,28 @@ function renderResultTable(){
   const memberNames=members.map(g=>vLabel(g.visitKey));
   const nums=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 
-  // 列ごとに全員入力済みか
-  const colAllFilled=marks.map((_,mki)=>members.every((_,mi)=>!!answers[mi][mki]));
+  // 列ごとに全員入力済みか（allConfirmed時は強制的に全列true）
+  const allConfirmed=resultState.allConfirmed||false;
+  const colAllFilled=marks.map((_,mki)=>
+    allConfirmed||members.every((_,mi)=>!!answers[mi][mki])
+  );
   // 全員の好きが全部入力済みか
   const allWinnerFilled=members.every((_,mi)=>!!winners[mi]);
+
+  // 商品ごとの好き集計（全員入力済み時のみ）
+  const winnerCount={};
+  if(allWinnerFilled){
+    winners.forEach(w=>{if(w)winnerCount[w]=(winnerCount[w]||0)+1;});
+  }
 
   // ── ヘッダー行 ──
   const thMarks=marks.map((m,mi)=>{
     if(revealed&&colAllFilled[mi]){
       const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-      return`<th class="mark-head"><div style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</div><div style="font-size:10px;color:var(--ink3)">${nums[mi]||''}</div></th>`;
+      // 数字上・マーク下
+      return`<th class="mark-head"><div style="font-size:12px;color:var(--ink3)">${nums[mi]||''}</div><div style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</div></th>`;
     }
-    return`<th class="mark-head">${nums[mi]||'?'}</th>`;
+    return`<th class="mark-head" style="font-size:13px">${nums[mi]||'?'}</th>`;
   }).join('');
   const thead=`<thead><tr>
     <th style="text-align:left;padding-left:10px">名前</th>
@@ -886,10 +901,8 @@ function renderResultTable(){
       let cellClass='mark-cell';
       let cellContent='';
       if(!revealed){
-        // 入力中：ピッカー表示
         cellContent=buildTableMarkPicker(mi,mki,chosen,false);
       } else if(!colAllFilled[mki]){
-        // この列はまだ全員未入力 → 入力済みならマーク表示、未入力は—
         if(chosen){
           const{sym,color}=markSym(blindMarks.find(x=>x.id===chosen)||{id:chosen});
           cellContent=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;
@@ -897,7 +910,6 @@ function renderResultTable(){
           cellContent='<span style="color:var(--ink3)">—</span>';
         }
       } else {
-        // 全員入力済みの列 → 正解/不正解色分け
         if(chosen){
           const isCorrect=chosen===marks[mki];
           cellClass+=isCorrect?' correct':' wrong';
@@ -923,41 +935,38 @@ function renderResultTable(){
       const filledMkis=marks.map((_,mki)=>mki).filter(mki=>colAllFilled[mki]);
       const correctCount=filledMkis.filter(mki=>answers[mi][mki]===marks[mki]).length;
       const totalFilled=filledMkis.length;
-      if(totalFilled===0){
-        scoreCell='—';
-      } else {
+      if(totalFilled>0){
         const color=correctCount===totalFilled?'var(--teal)':'var(--ink)';
         scoreCell=`<strong style="color:${color}">${correctCount}/${totalFilled}</strong>`;
       }
     }
 
-    // 好き件数（全員好き入力済み時のみ）
-    let winnerLabel='';
-    if(allWinnerFilled&&w){
-      const wCount=members.filter((_,i)=>winners[i]===w).length;
-      winnerLabel=`<span style="font-size:10px;color:var(--ink3);margin-left:4px">好き:${wCount}</span>`;
-    }
-
     return`<tr>
-      <td class="name-cell">${esc(memberNames[mi])}${winnerLabel}</td>
+      <td class="name-cell">${esc(memberNames[mi])}</td>
       ${cells}
       <td class="winner-cell">${winnerCell}</td>
       <td class="score-cell">${scoreCell}</td>
     </tr>`;
   }).join('');
 
-  // ── 凡例 ──
+  // ── 凡例（好き集計を商品名横に表示） ──
   const legendRows=marks.map((m,mi)=>{
     const o=markToOrder[m];
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
     const markSpan=(revealed&&colAllFilled[mi])
       ?`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;margin-right:4px">${sym}</span>`
       :`<span style="font-size:13px;margin-right:4px;color:var(--ink3)">?</span>`;
+    // 好き集計（全員入力済み時のみ）
+    const wc=winnerCount[m];
+    const winnerTag=allWinnerFilled&&wc
+      ?`<span style="font-size:10px;color:var(--white);background:var(--gold-d);padding:1px 5px;border-radius:3px;margin-left:6px">好き ${wc}</span>`
+      :'';
     return`<div class="mark-legend-row">
       <span class="mark-legend-dot">${nums[mi]||'?'}</span>
       ${markSpan}
-      <span class="mark-legend-name">${esc(o?.productName||m)}</span>
+      <span class="mark-legend-name">${esc(o?.productName||m)}</span>${winnerTag}
     </div>`;
+  }).join('');
   }).join('');
 
   document.getElementById('result-body').innerHTML=`
@@ -972,6 +981,10 @@ function renderResultTable(){
       <div class="mark-legend-title">マーク対応表</div>
       ${legendRows}
     </div>`;
+
+  // タイトルを状態に応じて更新
+  if(resultState.revealed) _updateResultTitle();
+}
 }
 
 // テーブル内マークピッカー（fixed位置、overflow対応）
@@ -1120,38 +1133,89 @@ function setTableWinner(mi,markId){
   renderResultTable();
 }
 
+function _updateResultTitle(){
+  const{members,marks,answers,winners,revealed}=resultState;
+  const title=document.getElementById('result-modal-title');
+  if(!revealed){
+    title.textContent='🎭 ブラインド結果入力';
+    return;
+  }
+  // 全項目入力済み判定（全員全マーク＋全員好き）
+  const allFilled=members.every((_,mi)=>marks.every((_,mki)=>!!answers[mi][mki]))
+                 &&members.every((_,mi)=>!!winners[mi]);
+  title.textContent=allFilled
+    ?'🎭 ブラインド結果表示（最終結果）'
+    :'🎭 ブラインド結果表示（途中経過）';
+}
+
+function _switchToRevealed(allConfirmed){
+  document.getElementById('result-action-input').style.display='none';
+  document.getElementById('result-action-revealed').style.display='flex';
+  // 未入力があるかチェック
+  const{members,marks,answers}=resultState;
+  const hasEmpty=members.some((_,mi)=>marks.some((_,mki)=>!answers[mi][mki]));
+  const saveBtn=document.getElementById('btn-save-result');
+  const partialBtn=document.getElementById('btn-confirm-partial-r');
+  if(hasEmpty&&!allConfirmed){
+    // 未入力あり・まだ確定していない → 保存disabled・未入力確定ボタン表示
+    saveBtn.disabled=true;
+    partialBtn.style.display='flex';
+  } else {
+    // 全入力済み or 未入力確定済み → 保存active・未入力確定ボタン非表示
+    saveBtn.disabled=false;
+    partialBtn.style.display='none';
+  }
+  _updateResultTitle();
+}
+
 function showBlindResult(){
   const{members,marks,answers}=resultState;
-  const nums=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 
-  // 参加者ごとに入力済み回答の重複チェック
+  // 重複チェック
   for(let mi=0;mi<members.length;mi++){
     const name=vLabel(members[mi].visitKey);
     const chosen=answers[mi].filter(Boolean);
     const dup=[...new Set(chosen.filter((m,i)=>chosen.indexOf(m)!==i))];
     if(dup.length>0){
-      const dupSyms=dup.map(m=>{
-        const{sym}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-        return sym;
-      }).join('・');
+      const dupSyms=dup.map(m=>{const{sym}=markSym(blindMarks.find(x=>x.id===m)||{id:m});return sym;}).join('・');
       alert(`${name}に重複した回答があります（${dupSyms}）\n修正してください。`);
       return;
     }
   }
 
   resultState.revealed=true;
+  resultState.allConfirmed=false;
   renderResultTable();
-  document.getElementById('btn-show-result').style.display='none';
-  document.getElementById('btn-back-input').style.display='flex';
-  document.getElementById('btn-save-result').disabled=false;
+  _switchToRevealed(false);
+}
+
+function confirmPartialResult(){
+  // 重複チェックのみ
+  const{members,marks,answers}=resultState;
+  for(let mi=0;mi<members.length;mi++){
+    const name=vLabel(members[mi].visitKey);
+    const chosen=answers[mi].filter(Boolean);
+    const dup=[...new Set(chosen.filter((m,i)=>chosen.indexOf(m)!==i))];
+    if(dup.length>0){
+      const dupSyms=dup.map(m=>{const{sym}=markSym(blindMarks.find(x=>x.id===m)||{id:m});return sym;}).join('・');
+      alert(`${name}に重複した回答があります（${dupSyms}）\n修正してください。`);
+      return;
+    }
+  }
+  // 未入力を全て強制確定（全列を全員入力済みとして扱う）
+  resultState.revealed=true;
+  resultState.allConfirmed=true;
+  renderResultTable();
+  _switchToRevealed(true);
 }
 
 function backToInput(){
   resultState.revealed=false;
+  resultState.allConfirmed=false;
   renderResultTable();
-  document.getElementById('btn-show-result').style.display='flex';
-  document.getElementById('btn-back-input').style.display='none';
-  document.getElementById('btn-save-result').disabled=true;
+  document.getElementById('result-action-input').style.display='flex';
+  document.getElementById('result-action-revealed').style.display='none';
+  document.getElementById('result-modal-title').textContent='🎭 ブラインド結果入力';
 }
 
 function closeResultModal(){
@@ -1304,19 +1368,55 @@ function filterProducts(){
   }).join('');
 }
 
-// 商品クリック→即カート追加（初期値10ml/1個）、ブラインド時はマーク自動割り当て
+// ── ブラインドマーク自動割り当て ──
+function assignBlindMarks(){
+  const mlItems=flow.cart.filter(o=>o.productType==='tequila'||o.productType==='other');
+  const n=mlItems.length;
+  if(!n)return;
+
+  // colorCodeごとにシングル(index0)・ダブル(index1)を取得
+  const byColor={R:[],G:[],W:[],Y:[],B:[]};
+  blindMarks.forEach(m=>{
+    const cc=m.colorCode||(m.id.charAt(0));
+    if(byColor[cc])byColor[cc].push(m.id);
+    // sortOrderでsingle先・double後になっている前提
+  });
+
+  let pool=[];
+  if(n<=3){
+    // 赤緑白シングルのみ
+    pool=[byColor.R[0],byColor.G[0],byColor.W[0]].filter(Boolean);
+  } else if(n===4){
+    // 赤緑白シングル3＋ランダム1色のダブル
+    const singles=[byColor.R[0],byColor.G[0],byColor.W[0]].filter(Boolean);
+    const doubles=[byColor.R[1],byColor.G[1],byColor.W[1]].filter(Boolean);
+    const dbl=doubles[Math.floor(Math.random()*doubles.length)];
+    pool=[...singles,dbl].filter(Boolean);
+  } else if(n<=6){
+    // 赤緑白シングル＋ダブル
+    pool=[byColor.R[0],byColor.R[1],byColor.G[0],byColor.G[1],byColor.W[0],byColor.W[1]].filter(Boolean);
+  } else if(n<=8){
+    // 赤緑白黄シングル＋ダブル
+    pool=[byColor.R[0],byColor.R[1],byColor.G[0],byColor.G[1],
+          byColor.W[0],byColor.W[1],byColor.Y[0],byColor.Y[1]].filter(Boolean);
+  } else {
+    // 赤緑白黄青シングル＋ダブル
+    pool=[byColor.R[0],byColor.R[1],byColor.G[0],byColor.G[1],
+          byColor.W[0],byColor.W[1],byColor.Y[0],byColor.Y[1],
+          byColor.B[0],byColor.B[1]].filter(Boolean);
+  }
+
+  // poolからn個をランダムにシャッフルして割り当て
+  const shuffled=pool.sort(()=>Math.random()-0.5).slice(0,n);
+  mlItems.forEach((o,i)=>{o.blindMarkId=shuffled[i]||null;});
+}
+
+// 商品クリック→即カート追加
 function addToCart(pid){
   const p=[...masterData.tequila,...masterData.other,...masterData.misc].find(i=>i.id===pid);
   if(!p)return;
   const isMl=p.type==='tequila'||p.type==='other';
   const isBlind=document.getElementById('blind-check').checked;
-  // ブラインドモードかつml商品 → 未使用マークを自動割り当て
-  let autoMark=null;
-  if(isBlind&&isMl){
-    const used=new Set(flow.cart.filter(c=>c.blindMarkId).map(c=>c.blindMarkId));
-    const free=blindMarks.find(m=>!used.has(m.id));
-    autoMark=free?free.id:null;
-  }
   flow.cart.push({
     productId:p.id,
     productName:p.bottleJa||p.bottleEs||p.name||p.id,
@@ -1324,8 +1424,9 @@ function addToCart(pid){
     qty:isMl?getCartMl():1,
     unit:isMl?'ml':'個',
     unitPrice:p.price||p.unitPrice||0,
-    blindMarkId:autoMark
+    blindMarkId:null
   });
+  if(isBlind)assignBlindMarks();
   renderCart();
   document.getElementById('btn-to-step2').disabled=false;
   showToast('カートに追加しました','info');
@@ -1339,21 +1440,15 @@ function addSetToCart(setId){
 function _doAddSet(setId){
   const s=masterData.set.find(x=>x.id===setId);if(!s)return;
   const isBlind=document.getElementById('blind-check').checked;
-  // 現在カート内の共通ml（既存ml商品があればそれを引き継ぐ）
   const currentMl=getCartMl();
   for(let i=1;i<=8;i++){
     const id=s[`item0${i}`];if(!id)continue;
     const t=s[`itemType0${i}`]||'misc';
     const isMl=t==='tequila'||t==='other';
-    let autoMark=null;
-    if(isBlind&&isMl){
-      const used=new Set(flow.cart.filter(c=>c.blindMarkId).map(c=>c.blindMarkId));
-      const free=blindMarks.find(m=>!used.has(m.id));
-      autoMark=free?free.id:null;
-    }
     flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,
-      qty:isMl?currentMl:1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:autoMark});
+      qty:isMl?currentMl:1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:null});
   }
+  if(isBlind)assignBlindMarks();
   renderCart();
   document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
   showToast('セット商品を追加しました','info');
@@ -1382,16 +1477,8 @@ function removeCartItem(idx){flow.cart.splice(idx,1);renderCart();document.getEl
 function setCartMark(idx,val){if(flow.cart[idx])flow.cart[idx].blindMarkId=val||null;}
 function toggleBlindMode(){
   flow.isBlind=document.getElementById('blind-check').checked;
-  if(flow.isBlind){
-    const mlItems=flow.cart.filter(o=>o.productType==='tequila'||o.productType==='other');
-    mlItems.forEach(o=>{
-      if(!o.blindMarkId){
-        const used=new Set(flow.cart.filter(c=>c.blindMarkId).map(c=>c.blindMarkId));
-        const free=blindMarks.find(m=>!used.has(m.id));
-        if(free)o.blindMarkId=free.id;
-      }
-    });
-  }
+  if(flow.isBlind)assignBlindMarks();
+  else flow.cart.forEach(o=>o.blindMarkId=null);
   renderCart();
 }
 
