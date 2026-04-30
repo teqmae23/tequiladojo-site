@@ -227,6 +227,8 @@ input,select{font-family:var(--sans)}
 .winner-opt{background:var(--white);border:1px solid var(--border2);color:var(--ink2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:12px;transition:all .15s;font-family:var(--mono)}
 .winner-opt:hover{border-color:var(--gold);color:var(--gold-d)}
 .winner-opt.selected{background:var(--gold-d);color:var(--cream);border-color:var(--gold-d);font-weight:700}
+.result-answer-hint{margin-top:4px;padding:3px 6px;border-radius:4px;background:var(--cream2)}
+.result-score-row{padding:12px 16px;background:var(--teal-l);border-top:1px solid var(--border);text-align:center;font-size:14px;color:var(--ink2)}
 
 /* トースト */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);padding:10px 20px;border-radius:20px;font-size:13px;transition:transform .3s;z-index:999;white-space:nowrap;box-shadow:var(--shadow-lg)}
@@ -514,7 +516,11 @@ async function loadTodayData(){
     const total=orders.filter(o=>o.served!==0).reduce((s,o)=>s+calcAmt(o),0);
     return{gid,orders,served,isBlind,hasResult,total,visitKey:sample.visitKey,orderTime:sample.orderTime};
   });
-  allGroups.sort((a,b)=>a.gid.localeCompare(b.gid));
+  allGroups.sort((a,b)=>{
+    const ta=a.orderTime||'9999', tb=b.orderTime||'9999';
+    if(ta!==tb)return ta.localeCompare(tb);
+    return (a.visitKey||'').localeCompare(b.visitKey||'');
+  });
 }
 
 function calcAmt(o){
@@ -556,7 +562,8 @@ function buildCard(g,mode){
   const time=g.orderTime?g.orderTime.slice(0,2)+':'+g.orderTime.slice(2):'';
   const bb=g.isBlind?'<span class="blind-badge">🎭 BLIND</span>':'';
   const list=valid.map(o=>{
-    const mk=o.blindId===1&&o.blindMarkId?`<span class="item-mark">${esc(o.blindMarkId)}</span>`:'';
+    const mk=o.blindId===1&&o.blindMarkId
+      ?`<span class="item-mark" title="${esc(o.blindMarkId)}">${markDisplay(o.blindMarkId)}</span>`:'';
     return`<div class="item-row">${mk}<span class="item-name">${esc(o.productName)}</span><span class="item-qty">${o.qty}${o.unit}</span><span class="item-price">¥${calcAmt(o).toLocaleString()}</span></div>`;
   }).join('');
   const info=single
@@ -615,23 +622,77 @@ function openResultModal(gid){
   const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
   const marks=[...new Set(blindOrders.map(o=>o.blindMarkId).filter(Boolean))];
   const opts=blindOrders.map(o=>`<option value="${esc(o.id)}">${esc(o.productName)}</option>`).join('');
-  const rows=marks.map(m=>`
-    <div class="result-row">
-      <span class="result-mark-label">${esc(m)}</span>
-      <span class="result-arrow">→ 実体</span>
-      <select class="result-select" data-mark="${esc(m)}">
-        <option value="">選択してください</option>${opts}
-      </select>
-    </div>`).join('');
-  const winnerOpts=marks.map(m=>`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)">${esc(m)}</div>`).join('');
+
+  const rows=marks.map(m=>{
+    const color=MARK_COLOR_MAP[m.charAt(0)];
+    const dot=markDisplay(m);
+    return`<div class="result-row" id="rrow-${esc(m)}">
+      <span class="result-mark-label" style="background:${color||'#555'}">${dot} ${esc(m)}</span>
+      <span class="result-arrow">→</span>
+      <div style="flex:1;min-width:0">
+        <select class="result-select" data-mark="${esc(m)}" onchange="onResultSelect(this)">
+          <option value="">選択してください</option>${opts}
+        </select>
+        <div class="result-answer-hint" id="rhint-${esc(m)}" style="display:none"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const winnerOpts=marks.map(m=>{
+    const color=MARK_COLOR_MAP[m.charAt(0)];
+    const dot=markDisplay(m);
+    return`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)" style="--wc:${color||'#555'}">${dot} ${esc(m)}</div>`;
+  }).join('');
+
   document.getElementById('result-body').innerHTML=`
-    <div class="result-info">来場者: <strong>${esc(vLabel(g.visitKey))}</strong> &nbsp;|&nbsp; ${marks.length}種</div>
+    <div class="result-info">来場者: <strong>${esc(vLabel(g.visitKey))}</strong> &nbsp;|&nbsp; ${marks.length}種のブラインド</div>
     ${rows}
     <div class="winner-row">
       <div class="winner-label">🏆 一番美味しかったのは？</div>
       <div class="winner-options">${winnerOpts}</div>
-    </div>`;
+    </div>
+    <div class="result-score-row" id="result-score" style="display:none"></div>`;
+
   document.getElementById('result-modal').classList.add('open');
+}
+
+function onResultSelect(sel){
+  const markId=sel.dataset.mark;
+  const g=resultTarget;
+  if(!g)return;
+  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
+  const actual=blindOrders.find(o=>o.blindMarkId===markId);
+  const hint=document.getElementById('rhint-'+markId);
+  if(!hint)return;
+  if(!sel.value){hint.style.display='none';return;}
+  const isCorrect=actual?.id===sel.value;
+  hint.style.display='block';
+  hint.innerHTML=isCorrect
+    ?`<span style="color:var(--teal);font-size:12px;font-weight:700">✓ 正解！ ${esc(actual?.productName||'')}</span>`
+    :`<span style="color:var(--red);font-size:12px">✗ 実際は: <strong>${esc(actual?.productName||'')}</strong></span>`;
+  updateScoreDisplay();
+}
+
+function updateScoreDisplay(){
+  const g=resultTarget;if(!g)return;
+  const blindOrders=g.orders.filter(o=>o.blindId===1&&o.served!==0);
+  const marks=[...new Set(blindOrders.map(o=>o.blindMarkId).filter(Boolean))];
+  const selects=[...document.querySelectorAll('.result-select')];
+  let correct=0,answered=0;
+  for(const sel of selects){
+    if(!sel.value)continue;
+    answered++;
+    const actual=blindOrders.find(o=>o.blindMarkId===sel.dataset.mark);
+    if(actual?.id===sel.value)correct++;
+  }
+  const score=document.getElementById('result-score');
+  if(!score)return;
+  if(answered===marks.length){
+    score.style.display='block';
+    score.innerHTML=`<span>正解数: <strong style="font-size:16px;color:var(--gold-d)">${correct} / ${marks.length}</strong></span>`;
+  } else {
+    score.style.display='none';
+  }
 }
 function selectWinner(el){
   document.querySelectorAll('.winner-opt').forEach(e=>e.classList.remove('selected'));
@@ -661,7 +722,8 @@ async function saveResult(){
       id:g.gid,groupId:g.gid,visitKey:g.visitKey,customerId:visit?.memberId||null,
       answeredAt:firebase.firestore.FieldValue.serverTimestamp(),
       answers,winner:winner.dataset.mark,
-      correctCount:answers.filter(a=>a.isCorrect).length,totalCount:answers.length
+      correctCount:answers.filter(a=>a.isCorrect).length,
+      totalCount:answers.length
     });
     showToast('結果を保存しました','success');
     closeResultModal();await loadTodayData();renderOrderList();
@@ -782,6 +844,12 @@ function confirmQty(){
   if(!pendingProduct)return;
   const qty=parseInt(document.getElementById('qty-input').value);
   if(!qty||qty<=0){showToast('数量を入力してください','error');return;}
+  // セット商品の場合
+  if(pendingProduct._isSet){
+    closeQtyModal();
+    _doAddSet(pendingProduct._setId,qty);
+    return;
+  }
   const p=pendingProduct;
   const isMl=p.type==='tequila'||p.type==='other';
   flow.cart.push({productId:p.id,productName:p.bottleJa||p.bottleEs||p.name||p.id,productType:p.type,qty,unit:isMl?'ml':'個',unitPrice:p.price||p.unitPrice||0,blindMarkId:null});
@@ -790,10 +858,31 @@ function confirmQty(){
 }
 function addSetToCart(setId){
   const s=masterData.set.find(x=>x.id===setId);if(!s)return;
+  // テキーラ・他酒が含まれるか確認
+  let hasMl=false;
+  for(let i=1;i<=8;i++){const t=s[`itemType0${i}`]||'';if(t==='tequila'||t==='other'){hasMl=true;break;}}
+  if(hasMl){
+    // ml数量モーダルを開く（セット用）
+    pendingProduct={_isSet:true,_setId:setId,_setName:s.setName||setId};
+    document.getElementById('qty-product-name').textContent=`${s.setName||setId}（テキーラ・他酒のml数）`;
+    document.getElementById('qty-unit-label').textContent='ml';
+    document.getElementById('qty-input').value=10;
+    document.getElementById('qty-presets').innerHTML=['10','20','30','45','60'].map(v=>
+      `<div class="qty-preset" onclick="document.getElementById('qty-input').value='${v}'">${v}</div>`
+    ).join('');
+    document.getElementById('qty-modal').classList.add('open');
+  } else {
+    _doAddSet(setId,null);
+  }
+}
+function _doAddSet(setId,mlQty){
+  const s=masterData.set.find(x=>x.id===setId);if(!s)return;
   for(let i=1;i<=8;i++){
     const id=s[`item0${i}`];if(!id)continue;
-    const t=s[`itemType0${i}`]||'misc';const isMl=t==='tequila'||t==='other';
-    flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,qty:isMl?30:1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:null});
+    const t=s[`itemType0${i}`]||'misc';
+    const isMl=t==='tequila'||t==='other';
+    flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,
+      qty:isMl?(mlQty||10):1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:null});
   }
   renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
   showToast('セット商品を追加しました','info');
@@ -818,8 +907,8 @@ function renderCart(){
     let markSel='';
     // ブラインドモードかつテキーラ・他酒の場合にマーク選択を表示
     if(isBlind&&(o.productType==='tequila'||o.productType==='other')){
-      const opts=blindMarks.map(m=>`<option value="${esc(m.id)}"${o.blindMarkId===m.id?' selected':''}>${esc(m.label||m.id)}</option>`).join('');
-      markSel=`<select class="cart-mark-sel" onchange="setCartMark(${idx},this.value)"><option value="">マーク</option>${opts}</select>`;
+      const opts=blindMarks.map(m=>`<option value="${esc(m.id)}"${o.blindMarkId===m.id?' selected':''}>${esc(markLabel(m))}</option>`).join('');
+      markSel=`<select class="cart-mark-sel" onchange="setCartMark(${idx},this.value)"><option value="">マーク選択</option>${opts}</select>`;
     }
     return`<div class="cart-item">${markSel}<span class="cart-item-name">${esc(o.productName)}</span><span class="cart-item-qty">${o.qty}${o.unit}</span><span class="cart-item-price">¥${cartAmt(o).toLocaleString()}</span><button class="cart-item-del" onclick="removeCartItem(${idx})">✕</button></div>`;
   }).join('');
@@ -833,7 +922,7 @@ function goStep2(){
   document.getElementById('confirm-visitor').textContent=names.join('、');
   const total=flow.cart.reduce((s,o)=>s+cartAmt(o),0);
   document.getElementById('confirm-items').innerHTML=flow.cart.map(o=>{
-    const mark=o.blindMarkId?`<span class="item-mark">${esc(o.blindMarkId)}</span>`:'';
+    const mark=o.blindMarkId?`<span class="item-mark" title="${esc(o.blindMarkId)}">${markDisplay(o.blindMarkId)}</span>`:'';
     return`<div class="confirm-item">${mark}<span style="flex:1;font-size:13px">${esc(o.productName)}</span><span style="font-size:12px;color:var(--ink3)">${o.qty}${o.unit}</span><span style="font-size:13px;color:var(--gold-d);min-width:55px;text-align:right;font-weight:600">¥${cartAmt(o).toLocaleString()}</span></div>`;
   }).join('');
   const suffix=flow.visits.length>1?` <span style="font-size:12px;color:var(--ink3)">（×${flow.visits.length}人分 = ¥${(total*flow.visits.length).toLocaleString()}）</span>`:'';
@@ -873,6 +962,27 @@ async function confirmOrder(){
 
 // ━━━ ユーティリティ ━━━
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ブラインドマーク表示: 白=○/○○(黒文字)、その他=●/●●(色文字)
+const MARK_COLOR_MAP={R:'#c0392b',G:'#1a6e3a',W:null,Y:'#b8860b',B:'#185FA5'};
+function markDisplay(markId){
+  // markId例: "R○" "R◎" "W○" etc.
+  if(!markId)return'';
+  const colorCode=markId.charAt(0); // R/G/W/Y/B
+  const shape=markId.charAt(1);     // ○ or ◎
+  const isWhite=colorCode==='W';
+  const isDbl=shape==='◎';
+  const color=isWhite?'#18110a':(MARK_COLOR_MAP[colorCode]||'#666');
+  const sym=isWhite?(isDbl?'○○':'○'):(isDbl?'●●':'●');
+  return`<span class="blind-mark-dot" style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;
+}
+// カートのselectオプション用: ラベルテキストのみ返す
+function markLabel(m){
+  const isWhite=(m.colorCode||m.id.charAt(0))==='W';
+  const isDbl=(m.mark||m.id.charAt(1))==='◎';
+  const sym=isWhite?(isDbl?'○○':'○'):(isDbl?'●●':'●');
+  return`${sym} ${m.label||m.id}`;
+}
 let toastTimer;
 function showToast(msg,type='info'){
   const el=document.getElementById('toast');
