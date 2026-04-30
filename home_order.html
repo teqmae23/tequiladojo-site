@@ -219,16 +219,16 @@ input,select{font-family:var(--sans)}
 /* 結果入力 */
 .result-info{padding:12px 16px;background:var(--cream);font-size:13px;color:var(--ink2);border-bottom:1px solid var(--border)}
 .result-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.result-mark-label{font-size:13px;font-weight:700;background:var(--purple);color:#fff;padding:4px 10px;border-radius:4px;min-width:44px;text-align:center;font-family:var(--mono);flex-shrink:0}
+.result-mark-label{font-size:20px;font-weight:700;min-width:36px;text-align:center;flex-shrink:0;line-height:1}
 .result-arrow{color:var(--ink3);font-size:13px;white-space:nowrap;flex-shrink:0}
 .result-select{flex:1;background:var(--cream);border:1px solid var(--border2);color:var(--ink);padding:8px 10px;border-radius:var(--r);font-size:13px;outline:none;min-width:0}
 .result-select:focus{border-color:var(--gold)}
 .winner-row{padding:14px 16px;background:var(--cream2)}
 .winner-label{font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
 .winner-options{display:flex;flex-wrap:wrap;gap:6px}
-.winner-opt{background:var(--white);border:1px solid var(--border2);color:var(--ink2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:12px;transition:all .15s;font-family:var(--mono)}
-.winner-opt:hover{border-color:var(--gold);color:var(--gold-d)}
-.winner-opt.selected{background:var(--gold-d);color:var(--cream);border-color:var(--gold-d);font-weight:700}
+.winner-opt{background:var(--white);border:2px solid var(--border2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:20px;transition:border-color .15s;line-height:1}
+.winner-opt:hover{border-color:var(--gold)}
+.winner-opt.selected{border-color:var(--gold-d);background:var(--cream2)}
 .result-answer-hint{margin-top:4px;padding:3px 6px;border-radius:4px;background:var(--cream2)}
 .result-score-row{padding:12px 16px;background:var(--teal-l);border-top:1px solid var(--border);text-align:center;font-size:14px;color:var(--ink2)}
 
@@ -682,12 +682,9 @@ function openResultModal(gid){
   const opts=blindOrders.map(o=>`<option value="${esc(o.id)}">${esc(o.productName)}</option>`).join('');
 
   const rows=marks.map(m=>{
-    const cc=m.charAt(0);
-    const color=MARK_COLOR_MAP[cc]||'#555';
     const dot=markDisplay(m);
-    const bgColor=cc==='W'?'#888':color;
     return`<div class="result-row" id="rrow-${esc(m)}">
-      <span class="result-mark-label" style="background:${bgColor}">${dot}</span>
+      <span class="result-mark-label">${dot}</span>
       <span class="result-arrow">→</span>
       <div style="flex:1;min-width:0">
         <select class="result-select" data-mark="${esc(m)}" onchange="onResultSelect(this)">
@@ -906,7 +903,7 @@ function addToCart(pid){
     productId:p.id,
     productName:p.bottleJa||p.bottleEs||p.name||p.id,
     productType:p.type,
-    qty:isMl?10:1,
+    qty:isMl?getCartMl():1,
     unit:isMl?'ml':'個',
     unitPrice:p.price||p.unitPrice||0,
     blindMarkId:autoMark
@@ -919,26 +916,13 @@ function addToCart(pid){
 function addSetToCart(setId){
   const s=masterData.set.find(x=>x.id===setId);
   if(!s){showToast('セット商品が見つかりません','error');return;}
-  // テキーラ・他酒が含まれるかチェック
-  let hasMl=false;
-  for(let i=1;i<=8;i++){const t=s[`itemType0${i}`]||'';if(t==='tequila'||t==='other'){hasMl=true;break;}}
-  if(hasMl){
-    // ml数量モーダル（デフォルト10ml、変更可）
-    pendingProduct={_isSet:true,_setId:setId};
-    document.getElementById('qty-product-name').textContent=`${s.setName||setId}（テキーラ・他酒のml数）`;
-    document.getElementById('qty-unit-label').textContent='ml';
-    document.getElementById('qty-input').value=10;
-    document.getElementById('qty-presets').innerHTML=['10','20','30','45','60'].map(v=>
-      `<div class="qty-preset" onclick="document.getElementById('qty-input').value='${v}'">${v}</div>`
-    ).join('');
-    document.getElementById('qty-modal').classList.add('open');
-  }else{
-    _doAddSet(setId,1);
-  }
+  _doAddSet(setId);
 }
-function _doAddSet(setId,mlQty){
+function _doAddSet(setId){
   const s=masterData.set.find(x=>x.id===setId);if(!s)return;
   const isBlind=document.getElementById('blind-check').checked;
+  // 現在カート内の共通ml（既存ml商品があればそれを引き継ぐ）
+  const currentMl=getCartMl();
   for(let i=1;i<=8;i++){
     const id=s[`item0${i}`];if(!id)continue;
     const t=s[`itemType0${i}`]||'misc';
@@ -950,33 +934,36 @@ function _doAddSet(setId,mlQty){
       autoMark=free?free.id:null;
     }
     flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,
-      qty:isMl?(mlQty||10):1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:autoMark});
+      qty:isMl?currentMl:1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:autoMark});
   }
   renderCart();
   document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
   showToast('セット商品を追加しました','info');
 }
-function closeQtyModal(){document.getElementById('qty-modal').classList.remove('open');pendingProduct=null;}
-function confirmQty(){
-  if(!pendingProduct)return;
-  const qty=parseInt(document.getElementById('qty-input').value);
-  if(!qty||qty<=0){showToast('数量を入力してください','error');return;}
-  if(pendingProduct._isSet){
-    const sid=pendingProduct._setId;
-    closeQtyModal();
-    _doAddSet(sid,qty);
-    return;
-  }
+
+// カート内ml商品の共通ml数を返す（なければ10）
+function getCartMl(){
+  const ml=flow.cart.find(o=>o.productType==='tequila'||o.productType==='other');
+  return ml?ml.qty:10;
 }
+
+// カート内全ml商品のqtyを一括変更
+function setAllMl(val){
+  const qty=parseInt(val);
+  if(!qty||qty<=0)return;
+  flow.cart.forEach(o=>{
+    if(o.productType==='tequila'||o.productType==='other')o.qty=qty;
+  });
+  renderCart();
+}
+
+function closeQtyModal(){document.getElementById('qty-modal').classList.remove('open');pendingProduct=null;}
+function confirmQty(){} // 未使用（モーダル廃止）
+
 function removeCartItem(idx){flow.cart.splice(idx,1);renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;}
 function setCartMark(idx,val){if(flow.cart[idx])flow.cart[idx].blindMarkId=val||null;}
-function setCartQty(idx,val){
-  const qty=parseInt(val);
-  if(flow.cart[idx]&&qty>0){flow.cart[idx].qty=qty;renderCart();}
-}
 function toggleBlindMode(){
   flow.isBlind=document.getElementById('blind-check').checked;
-  // ブラインドON時: ml商品にマーク自動割り当て
   if(flow.isBlind){
     const mlItems=flow.cart.filter(o=>o.productType==='tequila'||o.productType==='other');
     mlItems.forEach(o=>{
@@ -994,6 +981,7 @@ function cartAmt(o){
   if(o.productType==='tequila'||o.productType==='other')return Math.round((o.unitPrice*o.qty)/10);
   return(o.unitPrice||0)*(o.qty||0);
 }
+
 function renderCart(){
   const items=flow.cart;
   const total=items.reduce((s,o)=>s+cartAmt(o),0);
@@ -1002,17 +990,25 @@ function renderCart(){
   const el=document.getElementById('cart-items');
   if(!items.length){el.innerHTML='';return;}
   const isBlind=document.getElementById('blind-check').checked;
-  el.innerHTML=items.map((o,idx)=>{
+  const hasMl=items.some(o=>o.productType==='tequila'||o.productType==='other');
+  const currentMl=getCartMl();
+
+  // ml一括変更バー（ml商品が1つでもあれば表示）
+  const mlBar=hasMl?`<div style="display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
+    <span style="font-size:11px;color:var(--ink3)">テキーラ・他酒 共通容量:</span>
+    <input class="cart-qty-input" type="number" min="1" value="${currentMl}" onchange="setAllMl(this.value)" style="width:56px">
+    <span style="font-size:11px;color:var(--ink3)">ml</span>
+    <div style="display:flex;gap:4px">${['10','20','30','45','60'].map(v=>`<div class="qty-preset" style="padding:3px 7px;font-size:11px" onclick="setAllMl('${v}')">${v}</div>`).join('')}</div>
+  </div>`:'';
+
+  el.innerHTML=mlBar+items.map((o,idx)=>{
     const isMl=o.productType==='tequila'||o.productType==='other';
     let markPicker='';
-    if(isBlind&&isMl){
-      markPicker=buildMarkPicker(idx,o.blindMarkId);
-    }
+    if(isBlind&&isMl) markPicker=buildMarkPicker(idx,o.blindMarkId);
     return`<div class="cart-item">
       ${markPicker}
       <span class="cart-item-name">${esc(o.productName)}</span>
-      <input class="cart-qty-input" type="number" min="1" value="${o.qty}" onchange="setCartQty(${idx},this.value)" title="${o.unit}">
-      <span style="font-size:11px;color:var(--ink3);flex-shrink:0">${o.unit}</span>
+      <span class="cart-item-qty" style="font-size:12px;color:var(--ink3)">${o.qty}${o.unit}</span>
       <span class="cart-item-price">¥${cartAmt(o).toLocaleString()}</span>
       <button class="cart-item-del" onclick="removeCartItem(${idx})">✕</button>
     </div>`;
