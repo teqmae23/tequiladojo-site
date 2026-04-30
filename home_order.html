@@ -999,19 +999,38 @@ function buildTableMarkPicker(mi,mki,chosenMarkId,isRevealed){
 
 function openTblPicker(pid,mi,mki,btnEl){
   _closeTblPanel();
-  const{marks}=resultState;
-  const chosenMarkId=resultState.answers[mi][mki];
-  const opts=marks.map(m=>{
+  const{marks,answers}=resultState;
+  const chosenMarkId=answers[mi][mki];
+  // この人が他の列で選んでいるマークのセット
+  const usedByOther=new Set(
+    answers[mi].filter((_,i)=>i!==mki&&answers[mi][i]).map((_,i)=>answers[mi][i])
+  );
+  // 実際は answers[mi] の filter で取得
+  const usedMarks=new Set(answers[mi].filter((m,i)=>i!==mki&&m));
+
+  const makeOpt=(m,isUsed)=>{
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-    return`<div class="tbl-mark-opt${chosenMarkId===m?' active':''}"
+    const activeCls=chosenMarkId===m?' active':'';
+    const usedStyle=isUsed?'opacity:.55;':'';
+    return`<div class="tbl-mark-opt${activeCls}" style="${usedStyle}"
       onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'${esc(m)}')">
       <span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;line-height:1">${sym}</span>
     </div>`;
-  }).join('');
+  };
+
+  const freeMarks=marks.filter(m=>!usedMarks.has(m));
+  const usedMarksList=marks.filter(m=>usedMarks.has(m));
+
+  const freeOpts=freeMarks.map(m=>makeOpt(m,false)).join('');
+  const usedOpts=usedMarksList.length
+    ?`<div style="border-top:1px solid var(--border2);margin:2px 0"></div>`
+     +usedMarksList.map(m=>makeOpt(m,true)).join('')
+    :'';
+
   const panel=document.createElement('div');
   panel.className='tbl-mark-panel open';
   panel.id=pid+'-panel';
-  panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'')">−</div>${opts}`;
+  panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'')">−</div>${freeOpts}${usedOpts}`;
   panel.addEventListener('click',e=>e.stopPropagation());
   panel.style.visibility='hidden';
   document.body.appendChild(panel);
@@ -1079,7 +1098,20 @@ function openTblWinnerPicker(pid,mi,btnEl){
 
 function setTableAnswer(mi,mki,markId){
   _closeTblPanel();
-  resultState.answers[mi][mki]=markId||null;
+  if(!markId){
+    resultState.answers[mi][mki]=null;
+    renderResultTable();
+    return;
+  }
+  // 同じ人の別の列で既に選ばれていたらswap
+  const existIdx=resultState.answers[mi].findIndex((m,i)=>i!==mki&&m===markId);
+  if(existIdx>=0){
+    // 交換：existIdxに現在のmkiの値を、mkiに新しい値をセット
+    resultState.answers[mi][existIdx]=resultState.answers[mi][mki]||null;
+    resultState.answers[mi][mki]=markId;
+  } else {
+    resultState.answers[mi][mki]=markId;
+  }
   renderResultTable();
 }
 function setTableWinner(mi,markId){
