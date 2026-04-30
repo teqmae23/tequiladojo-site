@@ -910,9 +910,11 @@ function renderResultTable(){
   // ── 凡例（マーク番号→商品名） ──
   const legendRows=marks.map((m,mi)=>{
     const o=markToOrder[m];
+    const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+    const dispColor=revealed?color:'#bbb';
     return`<div class="mark-legend-row">
       <span class="mark-legend-dot">${nums[mi]||'?'}</span>
-      <span style="font-size:16px;margin-right:4px">${markDisplay(m)}</span>
+      <span style="color:${dispColor};font-weight:700;font-size:16px;letter-spacing:-2px;margin-right:4px">${sym}</span>
       <span class="mark-legend-name">${esc(o?.productName||m)}</span>
     </div>`;
   }).join('');
@@ -975,18 +977,22 @@ function openTblPicker(pid,mi,mki,btnEl){
   panel.id=pid+'-panel';
   panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'')">−</div>${opts}`;
   panel.addEventListener('click',e=>e.stopPropagation());
+  // 非表示で追加してサイズ計測してから位置確定
+  panel.style.visibility='hidden';
   document.body.appendChild(panel);
   _tblPanel=panel;
-  // ボタン位置に合わせてfixed配置
-  const rect=btnEl.getBoundingClientRect();
-  const ph=panel.offsetHeight||200;
-  const spaceBelow=window.innerHeight-rect.bottom;
-  if(spaceBelow<ph&&rect.top>ph){
-    panel.style.top=(rect.top-ph-4)+'px';
-  }else{
-    panel.style.top=(rect.bottom+4)+'px';
-  }
-  panel.style.left=Math.max(4,rect.left)+'px';
+  requestAnimationFrame(()=>{
+    const rect=btnEl.getBoundingClientRect();
+    const ph=panel.offsetHeight;
+    const spaceBelow=window.innerHeight-rect.bottom-8;
+    if(spaceBelow<ph&&rect.top>ph){
+      panel.style.top=(rect.top-ph-4)+'px';
+    }else{
+      panel.style.top=(rect.bottom+4)+'px';
+    }
+    panel.style.left=Math.max(4,Math.min(rect.left,window.innerWidth-panel.offsetWidth-4))+'px';
+    panel.style.visibility='visible';
+  });
 }
 
 function buildTableWinnerPicker(mi,chosenMarkId,isRevealed){
@@ -1020,17 +1026,21 @@ function openTblWinnerPicker(pid,mi,btnEl){
   panel.className='tbl-mark-panel open';
   panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableWinner(${mi},'')">−</div>${opts}`;
   panel.addEventListener('click',e=>e.stopPropagation());
+  panel.style.visibility='hidden';
   document.body.appendChild(panel);
   _tblPanel=panel;
-  const rect=btnEl.getBoundingClientRect();
-  const ph=panel.offsetHeight||200;
-  const spaceBelow=window.innerHeight-rect.bottom;
-  if(spaceBelow<ph&&rect.top>ph){
-    panel.style.top=(rect.top-ph-4)+'px';
-  }else{
-    panel.style.top=(rect.bottom+4)+'px';
-  }
-  panel.style.left=Math.max(4,rect.left)+'px';
+  requestAnimationFrame(()=>{
+    const rect=btnEl.getBoundingClientRect();
+    const ph=panel.offsetHeight;
+    const spaceBelow=window.innerHeight-rect.bottom-8;
+    if(spaceBelow<ph&&rect.top>ph){
+      panel.style.top=(rect.top-ph-4)+'px';
+    }else{
+      panel.style.top=(rect.bottom+4)+'px';
+    }
+    panel.style.left=Math.max(4,Math.min(rect.left,window.innerWidth-panel.offsetWidth-4))+'px';
+    panel.style.visibility='visible';
+  });
 }
 
 function setTableAnswer(mi,mki,markId){
