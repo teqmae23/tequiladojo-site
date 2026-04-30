@@ -889,11 +889,19 @@ function filterProducts(){
   }).join('');
 }
 
-// 商品クリック→即カート追加（初期値10ml/1個）
+// 商品クリック→即カート追加（初期値10ml/1個）、ブラインド時はマーク自動割り当て
 function addToCart(pid){
   const p=[...masterData.tequila,...masterData.other,...masterData.misc].find(i=>i.id===pid);
   if(!p)return;
   const isMl=p.type==='tequila'||p.type==='other';
+  const isBlind=document.getElementById('blind-check').checked;
+  // ブラインドモードかつml商品 → 未使用マークを自動割り当て
+  let autoMark=null;
+  if(isBlind&&isMl){
+    const used=new Set(flow.cart.filter(c=>c.blindMarkId).map(c=>c.blindMarkId));
+    const free=blindMarks.find(m=>!used.has(m.id));
+    autoMark=free?free.id:null;
+  }
   flow.cart.push({
     productId:p.id,
     productName:p.bottleJa||p.bottleEs||p.name||p.id,
@@ -901,7 +909,7 @@ function addToCart(pid){
     qty:isMl?10:1,
     unit:isMl?'ml':'個',
     unitPrice:p.price||p.unitPrice||0,
-    blindMarkId:null
+    blindMarkId:autoMark
   });
   renderCart();
   document.getElementById('btn-to-step2').disabled=false;
@@ -911,10 +919,12 @@ function addToCart(pid){
 function addSetToCart(setId){
   const s=masterData.set.find(x=>x.id===setId);
   if(!s){showToast('セット商品が見つかりません','error');return;}
+  // テキーラ・他酒が含まれるかチェック
   let hasMl=false;
   for(let i=1;i<=8;i++){const t=s[`itemType0${i}`]||'';if(t==='tequila'||t==='other'){hasMl=true;break;}}
   if(hasMl){
-    pendingProduct={_isSet:true,_setId:setId,_setName:s.setName||setId};
+    // ml数量モーダル（デフォルト10ml、変更可）
+    pendingProduct={_isSet:true,_setId:setId};
     document.getElementById('qty-product-name').textContent=`${s.setName||setId}（テキーラ・他酒のml数）`;
     document.getElementById('qty-unit-label').textContent='ml';
     document.getElementById('qty-input').value=10;
@@ -923,19 +933,27 @@ function addSetToCart(setId){
     ).join('');
     document.getElementById('qty-modal').classList.add('open');
   }else{
-    _doAddSet(setId,null);
+    _doAddSet(setId,1);
   }
 }
 function _doAddSet(setId,mlQty){
   const s=masterData.set.find(x=>x.id===setId);if(!s)return;
+  const isBlind=document.getElementById('blind-check').checked;
   for(let i=1;i<=8;i++){
     const id=s[`item0${i}`];if(!id)continue;
     const t=s[`itemType0${i}`]||'misc';
     const isMl=t==='tequila'||t==='other';
+    let autoMark=null;
+    if(isBlind&&isMl){
+      const used=new Set(flow.cart.filter(c=>c.blindMarkId).map(c=>c.blindMarkId));
+      const free=blindMarks.find(m=>!used.has(m.id));
+      autoMark=free?free.id:null;
+    }
     flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,
-      qty:isMl?(mlQty||10):1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:null});
+      qty:isMl?(mlQty||10):1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:autoMark});
   }
-  renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
+  renderCart();
+  document.getElementById('btn-to-step2').disabled=flow.cart.length===0;
   showToast('セット商品を追加しました','info');
 }
 function closeQtyModal(){document.getElementById('qty-modal').classList.remove('open');pendingProduct=null;}
@@ -943,7 +961,12 @@ function confirmQty(){
   if(!pendingProduct)return;
   const qty=parseInt(document.getElementById('qty-input').value);
   if(!qty||qty<=0){showToast('数量を入力してください','error');return;}
-  if(pendingProduct._isSet){closeQtyModal();_doAddSet(pendingProduct._setId,qty);return;}
+  if(pendingProduct._isSet){
+    const sid=pendingProduct._setId;
+    closeQtyModal();
+    _doAddSet(sid,qty);
+    return;
+  }
 }
 function removeCartItem(idx){flow.cart.splice(idx,1);renderCart();document.getElementById('btn-to-step2').disabled=flow.cart.length===0;}
 function setCartMark(idx,val){if(flow.cart[idx])flow.cart[idx].blindMarkId=val||null;}
@@ -951,7 +974,21 @@ function setCartQty(idx,val){
   const qty=parseInt(val);
   if(flow.cart[idx]&&qty>0){flow.cart[idx].qty=qty;renderCart();}
 }
-function toggleBlindMode(){flow.isBlind=document.getElementById('blind-check').checked;renderCart();}
+function toggleBlindMode(){
+  flow.isBlind=document.getElementById('blind-check').checked;
+  // ブラインドON時: ml商品にマーク自動割り当て
+  if(flow.isBlind){
+    const mlItems=flow.cart.filter(o=>o.productType==='tequila'||o.productType==='other');
+    mlItems.forEach(o=>{
+      if(!o.blindMarkId){
+        const used=new Set(flow.cart.filter(c=>c.blindMarkId).map(c=>c.blindMarkId));
+        const free=blindMarks.find(m=>!used.has(m.id));
+        if(free)o.blindMarkId=free.id;
+      }
+    });
+  }
+  renderCart();
+}
 
 function cartAmt(o){
   if(o.productType==='tequila'||o.productType==='other')return Math.round((o.unitPrice*o.qty)/10);
@@ -982,15 +1019,31 @@ function renderCart(){
   }).join('');
 }
 
-// STEP2
+// STEP2（バリデーション付き）
 function goStep2(){
   if(!flow.cart.length)return;
+  const isBlind=document.getElementById('blind-check').checked;
+  if(isBlind){
+    const mlItems=flow.cart.filter(o=>o.productType==='tequila'||o.productType==='other');
+    // 未設定チェック
+    const noMark=mlItems.filter(o=>!o.blindMarkId);
+    if(noMark.length>0){
+      showToast(`マークが未設定の商品があります（${noMark.map(o=>o.productName).join('、')}）`,'error');return;
+    }
+    // 重複チェック
+    const marks=mlItems.map(o=>o.blindMarkId);
+    const dup=marks.filter((m,i)=>marks.indexOf(m)!==i);
+    if(dup.length>0){
+      showToast(`マークが重複しています（${[...new Set(dup)].join('、')}）`,'error');return;
+    }
+  }
   showStep(2);
   const names=flow.visits.map(v=>{const m=v.memberId&&allMembers[v.memberId];return m?m.name:`ゲスト（${v.id}）`;});
   document.getElementById('confirm-visitor').textContent=names.join('、');
   const total=flow.cart.reduce((s,o)=>s+cartAmt(o),0);
   document.getElementById('confirm-items').innerHTML=flow.cart.map(o=>{
-    const mark=o.blindMarkId?`<span class="item-mark" title="${esc(o.blindMarkId)}">${markDisplay(o.blindMarkId)}</span>`:'';
+    // マークは背景なし・記号のみ
+    const mark=o.blindMarkId?`<span style="font-size:15px;margin-right:2px">${markDisplay(o.blindMarkId)}</span>`:'';
     return`<div class="confirm-item">${mark}<span style="flex:1;font-size:13px">${esc(o.productName)}</span><span style="font-size:12px;color:var(--ink3)">${o.qty}${o.unit}</span><span style="font-size:13px;color:var(--gold-d);min-width:55px;text-align:right;font-weight:600">¥${cartAmt(o).toLocaleString()}</span></div>`;
   }).join('');
   const suffix=flow.visits.length>1?` <span style="font-size:12px;color:var(--ink3)">（×${flow.visits.length}人分 = ¥${(total*flow.visits.length).toLocaleString()}）</span>`:'';
@@ -1071,7 +1124,7 @@ function buildMarkPicker(cartIdx,currentMarkId){
     </div>`;
   }).join('');
   return`<div class="mark-picker" id="mp-${cartIdx}">
-    <div class="mark-picker-btn${currentMarkId?' selected':''}" onclick="event.stopPropagation();togglePicker('${panelId}',event)">
+    <div class="mark-picker-btn${currentMarkId?' selected':''}" onclick="event.stopPropagation();togglePicker('${panelId}')">
       ${btnHtml}<span class="mark-picker-caret">▾</span>
     </div>
     <div class="mark-picker-panel" id="${panelId}">
@@ -1081,8 +1134,7 @@ function buildMarkPicker(cartIdx,currentMarkId){
   </div>`;
 }
 
-function togglePicker(panelId,e){
-  if(e)e.stopPropagation();
+function togglePicker(panelId){
   const panel=document.getElementById(panelId);
   if(!panel)return;
   const wasOpen=panel.classList.contains('open');
