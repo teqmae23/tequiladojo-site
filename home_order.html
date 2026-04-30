@@ -237,10 +237,20 @@ input,select{font-family:var(--sans)}
 .result-action-bar{padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--border);background:var(--cream2)}
 .result-score-summary{padding:10px 16px;background:var(--teal-l);border-top:1px solid var(--border);font-size:13px;color:var(--ink2);display:none}
 
-/* winner-opt in table */
-.winner-opt-sm{background:var(--white);border:2px solid var(--border2);padding:3px 6px;border-radius:var(--r);cursor:pointer;font-size:16px;transition:border-color .15s;line-height:1;display:inline-block}
-.winner-opt-sm:hover{border-color:var(--gold)}
-.winner-opt-sm.selected{border-color:var(--gold-d);background:var(--cream2)}
+/* テーブル内マークピッカー専用（fixed表示） */
+.tbl-mark-picker{position:relative;display:inline-block}
+.tbl-mark-btn{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;background:var(--cream);border:1px solid var(--border2);border-radius:var(--r);cursor:pointer;min-width:40px;justify-content:center;user-select:none;transition:border-color .15s}
+.tbl-mark-btn:hover{border-color:var(--gold)}
+.tbl-mark-btn.selected{border-color:var(--gold-d);background:var(--cream2)}
+.tbl-mark-caret{font-size:9px;color:var(--ink3)}
+/* パネルはfixedでDOMルート直下に出す */
+.tbl-mark-panel{display:none;position:fixed;background:var(--white);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:9999;padding:4px;min-width:52px}
+.tbl-mark-panel.open{display:block}
+.tbl-mark-opt{display:flex;align-items:center;justify-content:center;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:18px;transition:background .1s}
+.tbl-mark-opt:hover{background:var(--cream2)}
+.tbl-mark-opt.active{background:var(--cream3)}
+.tbl-mark-none{font-size:11px;color:var(--ink3);text-align:center;padding:5px 4px;cursor:pointer;border-radius:4px}
+.tbl-mark-none:hover{background:var(--cream2)}
 
 /* ── カスタムマークドロップダウン ── */
 .mark-picker{position:relative;display:inline-block;flex-shrink:0}
@@ -862,13 +872,12 @@ function renderResultTable(){
       let cellClass='mark-cell';
       let cellContent='';
       if(revealed&&chosen){
-        // 正解判定：chosen（回答したmark）が実際にmkiのマークか
         const isCorrect=chosen===marks[mki];
         cellClass+= isCorrect?' correct':' wrong';
-        cellContent=`<span style="font-size:16px">${markDisplay(chosen)}</span>`;
+        const{sym,color}=markSym(blindMarks.find(m=>m.id===chosen)||{id:chosen});
+        cellContent=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
       } else {
-        // ピッカー表示
-        cellContent=buildTableMarkPicker(mi,mki,chosen);
+        cellContent=buildTableMarkPicker(mi,mki,chosen,revealed);
       }
       return`<td class="${cellClass}">${cellContent}</td>`;
     }).join('');
@@ -877,9 +886,10 @@ function renderResultTable(){
     const w=winners[mi];
     let winnerCell='';
     if(revealed&&w){
-      winnerCell=`<span style="font-size:16px">${markDisplay(w)}</span>`;
+      const{sym,color}=markSym(blindMarks.find(m=>m.id===w)||{id:w});
+      winnerCell=`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
     } else {
-      winnerCell=buildTableWinnerPicker(mi,w);
+      winnerCell=buildTableWinnerPicker(mi,w,revealed);
     }
 
     // 正解数
@@ -924,56 +934,113 @@ function renderResultTable(){
     </div>`;
 }
 
-// テーブル内マークピッカー（参加者mi、マーク列mki）
-function buildTableMarkPicker(mi,mki,chosenMarkId){
-  const panelId=`tp-${mi}-${mki}`;
-  const{sym,color}=chosenMarkId?markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId}):{sym:'',color:''};
-  const btnHtml=chosenMarkId
-    ?`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`
-    :`<span style="font-size:10px;color:var(--ink3)">選択</span>`;
-  const opts=resultState.marks.map(m=>{
-    const{sym:s,color:c}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-    return`<div class="mark-picker-opt${chosenMarkId===m?' active':''}"
-      onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'${esc(m)}');document.getElementById('${panelId}').classList.remove('open')">
-      <span style="color:${c};font-weight:700;font-size:16px;letter-spacing:-2px">${s}</span>
-    </div>`;
-  }).join('');
-  return`<div class="mark-picker" style="display:inline-block">
-    <div class="mark-picker-btn${chosenMarkId?' selected':''}" style="min-width:36px" onclick="event.stopPropagation();togglePicker('${panelId}')">
-      ${btnHtml}<span class="mark-picker-caret">▾</span>
+// テーブル内マークピッカー（fixed位置、overflow対応）
+// パネルはbody直下に追加してfixedで位置合わせ
+let _tblPanel=null;
+function _closeTblPanel(){
+  if(_tblPanel){_tblPanel.remove();_tblPanel=null;}
+}
+document.addEventListener('click',_closeTblPanel);
+
+function buildTableMarkPicker(mi,mki,chosenMarkId,isRevealed){
+  const pid=`tp-${mi}-${mki}`;
+  // 選択済みの記号：結果表示前は灰色、後は実色
+  let btnInner='<span style="font-size:10px;color:var(--ink3)">選択</span>';
+  if(chosenMarkId){
+    const{sym,color}=markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId});
+    const dispColor=isRevealed?color:'#aaa';
+    btnInner=`<span style="color:${dispColor};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+  }
+  return`<div class="tbl-mark-picker">
+    <div class="tbl-mark-btn${chosenMarkId?' selected':''}" id="${pid}-btn"
+      onclick="event.stopPropagation();openTblPicker('${pid}',${mi},${mki},this)">
+      ${btnInner}<span class="tbl-mark-caret">▾</span>
     </div>
-    <div class="mark-picker-panel" id="${panelId}">${opts}</div>
   </div>`;
 }
 
-// テーブル内winner選択（参加者mi）
-function buildTableWinnerPicker(mi,chosenMarkId){
-  const panelId=`tw-${mi}`;
-  const{sym,color}=chosenMarkId?markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId}):{sym:'',color:''};
-  const btnHtml=chosenMarkId
-    ?`<span style="color:${color};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`
-    :`<span style="font-size:10px;color:var(--ink3)">好き</span>`;
-  const opts=resultState.marks.map(m=>{
-    const{sym:s,color:c}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-    return`<div class="mark-picker-opt${chosenMarkId===m?' active':''}"
-      onclick="event.stopPropagation();setTableWinner(${mi},'${esc(m)}');document.getElementById('${panelId}').classList.remove('open')">
-      <span style="color:${c};font-weight:700;font-size:16px;letter-spacing:-2px">${s}</span>
+function openTblPicker(pid,mi,mki,btnEl){
+  _closeTblPanel();
+  const{marks}=resultState;
+  const chosenMarkId=resultState.answers[mi][mki];
+  const opts=marks.map(m=>{
+    const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+    return`<div class="tbl-mark-opt${chosenMarkId===m?' active':''}"
+      onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'${esc(m)}')">
+      <span style="color:${color};font-weight:700;font-size:18px;letter-spacing:-2px">${sym}</span>
     </div>`;
   }).join('');
-  return`<div class="mark-picker" style="display:inline-block">
-    <div class="mark-picker-btn${chosenMarkId?' selected':''}" style="min-width:36px" onclick="event.stopPropagation();togglePicker('${panelId}')">
-      ${btnHtml}<span class="mark-picker-caret">▾</span>
+  const panel=document.createElement('div');
+  panel.className='tbl-mark-panel open';
+  panel.id=pid+'-panel';
+  panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableAnswer(${mi},${mki},'')">−</div>${opts}`;
+  panel.addEventListener('click',e=>e.stopPropagation());
+  document.body.appendChild(panel);
+  _tblPanel=panel;
+  // ボタン位置に合わせてfixed配置
+  const rect=btnEl.getBoundingClientRect();
+  const ph=panel.offsetHeight||200;
+  const spaceBelow=window.innerHeight-rect.bottom;
+  if(spaceBelow<ph&&rect.top>ph){
+    panel.style.top=(rect.top-ph-4)+'px';
+  }else{
+    panel.style.top=(rect.bottom+4)+'px';
+  }
+  panel.style.left=Math.max(4,rect.left)+'px';
+}
+
+function buildTableWinnerPicker(mi,chosenMarkId,isRevealed){
+  const pid=`tw-${mi}`;
+  let btnInner='<span style="font-size:10px;color:var(--ink3)">好き</span>';
+  if(chosenMarkId){
+    const{sym,color}=markSym(blindMarks.find(m=>m.id===chosenMarkId)||{id:chosenMarkId});
+    const dispColor=isRevealed?color:'#aaa';
+    btnInner=`<span style="color:${dispColor};font-weight:700;font-size:16px;letter-spacing:-2px">${sym}</span>`;
+  }
+  return`<div class="tbl-mark-picker">
+    <div class="tbl-mark-btn${chosenMarkId?' selected':''}" id="${pid}-btn"
+      onclick="event.stopPropagation();openTblWinnerPicker('${pid}',${mi},this)">
+      ${btnInner}<span class="tbl-mark-caret">▾</span>
     </div>
-    <div class="mark-picker-panel" id="${panelId}">${opts}</div>
   </div>`;
+}
+
+function openTblWinnerPicker(pid,mi,btnEl){
+  _closeTblPanel();
+  const{marks}=resultState;
+  const chosenMarkId=resultState.winners[mi];
+  const opts=marks.map(m=>{
+    const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
+    return`<div class="tbl-mark-opt${chosenMarkId===m?' active':''}"
+      onclick="event.stopPropagation();setTableWinner(${mi},'${esc(m)}')">
+      <span style="color:${color};font-weight:700;font-size:18px;letter-spacing:-2px">${sym}</span>
+    </div>`;
+  }).join('');
+  const panel=document.createElement('div');
+  panel.className='tbl-mark-panel open';
+  panel.innerHTML=`<div class="tbl-mark-none" onclick="event.stopPropagation();setTableWinner(${mi},'')">−</div>${opts}`;
+  panel.addEventListener('click',e=>e.stopPropagation());
+  document.body.appendChild(panel);
+  _tblPanel=panel;
+  const rect=btnEl.getBoundingClientRect();
+  const ph=panel.offsetHeight||200;
+  const spaceBelow=window.innerHeight-rect.bottom;
+  if(spaceBelow<ph&&rect.top>ph){
+    panel.style.top=(rect.top-ph-4)+'px';
+  }else{
+    panel.style.top=(rect.bottom+4)+'px';
+  }
+  panel.style.left=Math.max(4,rect.left)+'px';
 }
 
 function setTableAnswer(mi,mki,markId){
-  resultState.answers[mi][mki]=markId;
+  _closeTblPanel();
+  resultState.answers[mi][mki]=markId||null;
   renderResultTable();
 }
 function setTableWinner(mi,markId){
-  resultState.winners[mi]=markId;
+  _closeTblPanel();
+  resultState.winners[mi]=markId||null;
   renderResultTable();
 }
 
