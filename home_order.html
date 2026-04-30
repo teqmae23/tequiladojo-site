@@ -230,6 +230,20 @@ input,select{font-family:var(--sans)}
 .result-answer-hint{margin-top:4px;padding:3px 6px;border-radius:4px;background:var(--cream2)}
 .result-score-row{padding:12px 16px;background:var(--teal-l);border-top:1px solid var(--border);text-align:center;font-size:14px;color:var(--ink2)}
 
+/* ── カスタムマークドロップダウン ── */
+.mark-picker{position:relative;display:inline-block;flex-shrink:0}
+.mark-picker-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--cream);border:1px solid var(--border2);border-radius:var(--r);cursor:pointer;font-size:16px;min-width:44px;justify-content:center;transition:border-color .15s;user-select:none}
+.mark-picker-btn:hover{border-color:var(--gold)}
+.mark-picker-btn.selected{border-color:var(--gold-d);background:var(--cream2)}
+.mark-picker-caret{font-size:9px;color:var(--ink3)}
+.mark-picker-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--white);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:400;min-width:56px;padding:4px}
+.mark-picker-panel.open{display:block}
+.mark-picker-opt{display:flex;align-items:center;justify-content:center;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:16px;transition:background .1s}
+.mark-picker-opt:hover{background:var(--cream2)}
+.mark-picker-opt.active{background:var(--cream3)}
+.mark-picker-none{font-size:11px;color:var(--ink3);text-align:center;padding:5px 4px;cursor:pointer;border-radius:4px}
+.mark-picker-none:hover{background:var(--cream2)}
+
 /* トースト */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);padding:10px 20px;border-radius:20px;font-size:13px;transition:transform .3s;z-index:999;white-space:nowrap;box-shadow:var(--shadow-lg)}
 #toast.show{transform:translateX(-50%) translateY(0)}
@@ -624,10 +638,12 @@ function openResultModal(gid){
   const opts=blindOrders.map(o=>`<option value="${esc(o.id)}">${esc(o.productName)}</option>`).join('');
 
   const rows=marks.map(m=>{
-    const color=MARK_COLOR_MAP[m.charAt(0)];
+    const cc=m.charAt(0);
+    const color=MARK_COLOR_MAP[cc]||'#555';
     const dot=markDisplay(m);
+    const bgColor=cc==='W'?'#888':color;
     return`<div class="result-row" id="rrow-${esc(m)}">
-      <span class="result-mark-label" style="background:${color||'#555'}">${dot} ${esc(m)}</span>
+      <span class="result-mark-label" style="background:${bgColor}">${dot}</span>
       <span class="result-arrow">→</span>
       <div style="flex:1;min-width:0">
         <select class="result-select" data-mark="${esc(m)}" onchange="onResultSelect(this)">
@@ -639,9 +655,8 @@ function openResultModal(gid){
   }).join('');
 
   const winnerOpts=marks.map(m=>{
-    const color=MARK_COLOR_MAP[m.charAt(0)];
     const dot=markDisplay(m);
-    return`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)" style="--wc:${color||'#555'}">${dot} ${esc(m)}</div>`;
+    return`<div class="winner-opt" data-mark="${esc(m)}" onclick="selectWinner(this)">${dot}</div>`;
   }).join('');
 
   document.getElementById('result-body').innerHTML=`
@@ -904,13 +919,11 @@ function renderCart(){
   if(!items.length){el.innerHTML='';return;}
   const isBlind=document.getElementById('blind-check').checked;
   el.innerHTML=items.map((o,idx)=>{
-    let markSel='';
-    // ブラインドモードかつテキーラ・他酒の場合にマーク選択を表示
+    let markPicker='';
     if(isBlind&&(o.productType==='tequila'||o.productType==='other')){
-      const opts=blindMarks.map(m=>`<option value="${esc(m.id)}"${o.blindMarkId===m.id?' selected':''}>${esc(markLabel(m))}</option>`).join('');
-      markSel=`<select class="cart-mark-sel" onchange="setCartMark(${idx},this.value)"><option value="">マーク選択</option>${opts}</select>`;
+      markPicker=buildMarkPicker(idx,o.blindMarkId,'cart');
     }
-    return`<div class="cart-item">${markSel}<span class="cart-item-name">${esc(o.productName)}</span><span class="cart-item-qty">${o.qty}${o.unit}</span><span class="cart-item-price">¥${cartAmt(o).toLocaleString()}</span><button class="cart-item-del" onclick="removeCartItem(${idx})">✕</button></div>`;
+    return`<div class="cart-item">${markPicker}<span class="cart-item-name">${esc(o.productName)}</span><span class="cart-item-qty">${o.qty}${o.unit}</span><span class="cart-item-price">¥${cartAmt(o).toLocaleString()}</span><button class="cart-item-del" onclick="removeCartItem(${idx})">✕</button></div>`;
   }).join('');
 }
 
@@ -963,26 +976,89 @@ async function confirmOrder(){
 // ━━━ ユーティリティ ━━━
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-// ブラインドマーク表示: 白=○/○○(黒文字)、その他=●/●●(色文字)
+// ━━━ ブラインドマーク表示ユーティリティ ━━━
 const MARK_COLOR_MAP={R:'#c0392b',G:'#1a6e3a',W:null,Y:'#b8860b',B:'#185FA5'};
+
+// ●/○のみ表示（ラベルなし）
 function markDisplay(markId){
-  // markId例: "R○" "R◎" "W○" etc.
   if(!markId)return'';
-  const colorCode=markId.charAt(0); // R/G/W/Y/B
-  const shape=markId.charAt(1);     // ○ or ◎
-  const isWhite=colorCode==='W';
-  const isDbl=shape==='◎';
-  const color=isWhite?'#18110a':(MARK_COLOR_MAP[colorCode]||'#666');
+  const cc=markId.charAt(0);
+  const isDbl=markId.charAt(1)==='◎';
+  const isWhite=cc==='W';
+  const color=isWhite?'#18110a':(MARK_COLOR_MAP[cc]||'#666');
   const sym=isWhite?(isDbl?'○○':'○'):(isDbl?'●●':'●');
-  return`<span class="blind-mark-dot" style="color:${color};font-weight:700;font-size:13px;letter-spacing:-1px">${sym}</span>`;
+  return`<span style="color:${color};font-weight:700;font-size:15px;letter-spacing:-2px;line-height:1">${sym}</span>`;
 }
-// カートのselectオプション用: ラベルテキストのみ返す
-function markLabel(m){
-  const isWhite=(m.colorCode||m.id.charAt(0))==='W';
+
+// markオブジェクトから同じ記号を返す
+function markSym(m){
+  const cc=(m.colorCode||m.id.charAt(0));
   const isDbl=(m.mark||m.id.charAt(1))==='◎';
+  const isWhite=cc==='W';
+  const color=isWhite?'#18110a':(MARK_COLOR_MAP[cc]||'#666');
   const sym=isWhite?(isDbl?'○○':'○'):(isDbl?'●●':'●');
-  return`${sym} ${m.label||m.id}`;
+  return{sym,color};
 }
+
+// ── カスタムマークピッカー ──
+// cartIdx: カートの何番目か（null=結果入力用）
+// currentMarkId: 現在の値
+// onSelect: 選択時コールバック(markId)
+// containerId: パネルを追加するコンテナのid
+let _openPicker=null;
+function buildMarkPicker(cartIdx,currentMarkId,onSelectFn){
+  const btnId=`mpbtn-${cartIdx}`;
+  const panelId=`mppanel-${cartIdx}`;
+  const current=blindMarks.find(m=>m.id===currentMarkId);
+  const btnHtml=current
+    ?`<span>${(()=>{const{sym,color}=markSym(current);return`<span style="color:${color};font-weight:700;font-size:15px;letter-spacing:-2px">${sym}</span>`;})()}</span>`
+    :`<span style="font-size:11px;color:var(--ink3)">マーク</span>`;
+
+  const opts=blindMarks.map(m=>{
+    const{sym,color}=markSym(m);
+    return`<div class="mark-picker-opt${m.id===currentMarkId?' active':''}" onclick="pickMark('${panelId}','${esc(m.id)}',${cartIdx},${onSelectFn})">
+      <span style="color:${color};font-weight:700;font-size:15px;letter-spacing:-2px">${sym}</span>
+    </div>`;
+  }).join('');
+
+  return`<div class="mark-picker" id="mp-${cartIdx}">
+    <div class="mark-picker-btn${currentMarkId?' selected':''}" id="${btnId}" onclick="togglePicker('${panelId}',event)">
+      ${btnHtml}<span class="mark-picker-caret">▾</span>
+    </div>
+    <div class="mark-picker-panel" id="${panelId}">
+      <div class="mark-picker-none" onclick="pickMark('${panelId}','',${ cartIdx},${onSelectFn})">−</div>
+      ${opts}
+    </div>
+  </div>`;
+}
+
+function togglePicker(panelId,e){
+  e.stopPropagation();
+  const panel=document.getElementById(panelId);
+  if(!panel)return;
+  const wasOpen=panel.classList.contains('open');
+  // 全パネルを閉じる
+  document.querySelectorAll('.mark-picker-panel.open').forEach(p=>p.classList.remove('open'));
+  if(!wasOpen)panel.classList.add('open');
+}
+// グローバルクリックで閉じる
+document.addEventListener('click',()=>{
+  document.querySelectorAll('.mark-picker-panel.open').forEach(p=>p.classList.remove('open'));
+});
+
+// pickMark: onSelectFnは関数名文字列ではなくインデックスで管理
+const _pickerCallbacks={};
+function registerPickerCb(key,fn){_pickerCallbacks[key]=fn;}
+function pickMark(panelId,markId,cartIdx,cbKey){
+  document.getElementById(panelId)?.classList.remove('open');
+  if(_pickerCallbacks[cbKey])_pickerCallbacks[cbKey](markId,cartIdx);
+}
+
+// カート用: setCartMarkを呼ぶコールバック登録
+registerPickerCb('cart',(markId,cartIdx)=>{
+  setCartMark(cartIdx,markId);
+  renderCart();
+});
 let toastTimer;
 function showToast(msg,type='info'){
   const el=document.getElementById('toast');
