@@ -1132,15 +1132,15 @@ function setTableWinner(mi,markId){
 }
 
 function _updateResultTitle(){
-  const{members,marks,answers,winners,revealed}=resultState;
+  const{members,marks,answers,winners,revealed,allConfirmed}=resultState;
   const title=document.getElementById('result-modal-title');
   if(!revealed){
     title.textContent='🎭 ブラインド結果入力';
     return;
   }
-  // 全項目入力済み判定（全員全マーク＋全員好き）
-  const allFilled=members.every((_,mi)=>marks.every((_,mki)=>!!answers[mi][mki]))
-                 &&members.every((_,mi)=>!!winners[mi]);
+  // allConfirmed（未入力のまま確定）または全項目入力済みなら最終結果
+  const allFilled=allConfirmed||(members.every((_,mi)=>marks.every((_,mki)=>!!answers[mi][mki]))
+                 &&members.every((_,mi)=>!!winners[mi]));
   title.textContent=allFilled
     ?'🎭 ブラインド結果表示（最終結果）'
     :'🎭 ブラインド結果表示（途中経過）';
@@ -1502,12 +1502,8 @@ function renderCart(){
   const currentMl=getCartMl();
 
   // ml一括変更バー（ml商品が1つでもあれば表示）
-  const mlBar=hasMl?`<div style="display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
-    <span style="font-size:11px;color:var(--ink3)">テキーラ・他酒 共通容量:</span>
-    <input class="cart-qty-input" type="number" min="1" value="${currentMl}" onchange="setAllMl(this.value)" style="width:56px">
-    <span style="font-size:11px;color:var(--ink3)">ml</span>
-    <div style="display:flex;gap:4px">${['10','20','30','45','60'].map(v=>`<div class="qty-preset" style="padding:3px 7px;font-size:11px" onclick="setAllMl('${v}')">${v}</div>`).join('')}</div>
-  </div>`:'';
+  const presetBtns=['10','20','30','45','60'].map(v=>'<div class="qty-preset" style="padding:3px 7px;font-size:11px" onclick="setAllMl(\''+v+'\')">'+v+'</div>').join('');
+  const mlBar=hasMl?'<div style="display:flex;align-items:center;gap:8px;padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px"><span style="font-size:11px;color:var(--ink3)">テキーラ・他酒 共通容量:</span><input class="cart-qty-input" type="number" min="1" value="'+currentMl+'" onchange="setAllMl(this.value)" style="width:56px"><span style="font-size:11px;color:var(--ink3)">ml</span><div style="display:flex;gap:4px">'+presetBtns+'</div></div>':'';
 
   el.innerHTML=mlBar+items.map((o,idx)=>{
     const isMl=o.productType==='tequila'||o.productType==='other';
