@@ -490,6 +490,7 @@ function renderVisitorList(){
 function renderVisCard(v, isDone){
   var mem=getMemberInfo(v.memberId);
   var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
+  var orders=getVisitOrders(v.id);
   var totalAmt=calcAmount(orders);
   var totalTq=calcTequila(orders);
   var orderCount=orders.length;
