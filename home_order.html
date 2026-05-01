@@ -866,23 +866,23 @@ function renderResultTable(){
 
   // 列ごとに全員入力済みか（allConfirmed時は強制的に全列true）
   const allConfirmed=resultState.allConfirmed||false;
+  // revealed: false=入力中, 'partial'=正解維持しつつ入力可, true=結果表示
+  const isRevealed=revealed===true||revealed==='partial';
   const colAllFilled=marks.map((_,mki)=>
-    allConfirmed||members.every((_,mi)=>!!answers[mi][mki])
+    (allConfirmed&&revealed===true)||members.every((_,mi)=>!!answers[mi][mki])
   );
-  // 全員の好きが全部入力済みか
   const allWinnerFilled=members.every((_,mi)=>!!winners[mi]);
 
-  // 商品ごとの好き集計（全員入力済み時のみ）
+  // 好き集計（結果表示true時のみ）
   const winnerCount={};
-  if(allWinnerFilled){
+  if(revealed===true&&allWinnerFilled){
     winners.forEach(w=>{if(w)winnerCount[w]=(winnerCount[w]||0)+1;});
   }
 
   // ── ヘッダー行 ──
   const thMarks=marks.map((m,mi)=>{
-    if(revealed&&colAllFilled[mi]){
+    if(isRevealed&&colAllFilled[mi]){
       const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-      // 数字上・マーク下
       return`<th class="mark-head"><div style="font-size:12px;color:var(--ink3)">${nums[mi]||''}</div><div style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</div></th>`;
     }
     return`<th class="mark-head" style="font-size:13px">${nums[mi]||'?'}</th>`;
@@ -900,16 +900,21 @@ function renderResultTable(){
       const chosen=answers[mi][mki];
       let cellClass='mark-cell';
       let cellContent='';
-      if(!revealed){
+      if(!isRevealed){
+        // 入力中：全ピッカー
         cellContent=buildTableMarkPicker(mi,mki,chosen,false);
       } else if(!colAllFilled[mki]){
+        // 未完了列：入力済みはマーク表示、未入力はpartialならダッシュ・trueならピッカー
         if(chosen){
           const{sym,color}=markSym(blindMarks.find(x=>x.id===chosen)||{id:chosen});
           cellContent=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;
         } else {
-          cellContent='<span style="color:var(--ink3)">—</span>';
+          cellContent=revealed==='partial'
+            ?'<span style="color:var(--ink3)">—</span>'
+            :buildTableMarkPicker(mi,mki,chosen,false);
         }
       } else {
+        // 全員入力済み列：正解/不正解色分け
         if(chosen){
           const isCorrect=chosen===marks[mki];
           cellClass+=isCorrect?' correct':' wrong';
@@ -925,13 +930,17 @@ function renderResultTable(){
 
     // 好きセル
     const w=winners[mi];
-    let winnerCell=revealed
-      ?(w?(()=>{const{sym,color}=markSym(blindMarks.find(x=>x.id===w)||{id:w});return`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;})():'—')
-      :buildTableWinnerPicker(mi,w,false);
+    let winnerCell;
+    if(isRevealed&&w){
+      const{sym,color}=markSym(blindMarks.find(x=>x.id===w)||{id:w});
+      winnerCell=`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px">${sym}</span>`;
+    } else {
+      winnerCell=buildTableWinnerPicker(mi,w,false);
+    }
 
-    // 正解数（全員入力済みの列のみ集計）
+    // 正解数（全員入力済み列のみ集計・表示はrevealed時のみ）
     let scoreCell='—';
-    if(revealed){
+    if(isRevealed){
       const filledMkis=marks.map((_,mki)=>mki).filter(mki=>colAllFilled[mki]);
       const correctCount=filledMkis.filter(mki=>answers[mi][mki]===marks[mki]).length;
       const totalFilled=filledMkis.length;
@@ -941,24 +950,30 @@ function renderResultTable(){
       }
     }
 
+    // 好き件数（結果表示true時・全員好き入力済み時のみ）
+    let winnerLabel='';
+    if(revealed===true&&allWinnerFilled&&w){
+      const wCount=members.filter((_,i)=>winners[i]===w).length;
+      winnerLabel=`<span style="font-size:10px;color:var(--ink3);margin-left:4px">好き:${wCount}</span>`;
+    }
+
     return`<tr>
-      <td class="name-cell">${esc(memberNames[mi])}</td>
+      <td class="name-cell">${esc(memberNames[mi])}${winnerLabel}</td>
       ${cells}
       <td class="winner-cell">${winnerCell}</td>
       <td class="score-cell">${scoreCell}</td>
     </tr>`;
   }).join('');
 
-  // ── 凡例（好き集計を商品名横に表示） ──
+  // ── 凡例 ──
   const legendRows=marks.map((m,mi)=>{
     const o=markToOrder[m];
     const{sym,color}=markSym(blindMarks.find(x=>x.id===m)||{id:m});
-    const markSpan=(revealed&&colAllFilled[mi])
+    const markSpan=(isRevealed&&colAllFilled[mi])
       ?`<span style="color:${color};font-weight:700;font-size:12px;letter-spacing:-1px;margin-right:4px">${sym}</span>`
       :`<span style="font-size:13px;margin-right:4px;color:var(--ink3)">?</span>`;
-    // 好き集計（全員入力済み時のみ）
     const wc=winnerCount[m];
-    const winnerTag=allWinnerFilled&&wc
+    const winnerTag=(revealed===true&&allWinnerFilled&&wc)
       ?`<span style="font-size:10px;color:var(--white);background:var(--gold-d);padding:1px 5px;border-radius:3px;margin-left:6px">好き ${wc}</span>`
       :'';
     return`<div class="mark-legend-row">
@@ -1134,11 +1149,10 @@ function setTableWinner(mi,markId){
 function _updateResultTitle(){
   const{members,marks,answers,winners,revealed,allConfirmed}=resultState;
   const title=document.getElementById('result-modal-title');
-  if(!revealed){
+  if(!revealed||revealed==='partial'){
     title.textContent='🎭 ブラインド結果入力';
     return;
   }
-  // allConfirmed（未入力のまま確定）または全項目入力済みなら最終結果
   const allFilled=allConfirmed||(members.every((_,mi)=>marks.every((_,mki)=>!!answers[mi][mki]))
                  &&members.every((_,mi)=>!!winners[mi]));
   title.textContent=allFilled
@@ -1149,17 +1163,14 @@ function _updateResultTitle(){
 function _switchToRevealed(allConfirmed){
   document.getElementById('result-action-input').style.display='none';
   document.getElementById('result-action-revealed').style.display='flex';
-  // 未入力があるかチェック
   const{members,marks,answers}=resultState;
   const hasEmpty=members.some((_,mi)=>marks.some((_,mki)=>!answers[mi][mki]));
   const saveBtn=document.getElementById('btn-save-result');
   const partialBtn=document.getElementById('btn-confirm-partial-r');
   if(hasEmpty&&!allConfirmed){
-    // 未入力あり・まだ確定していない → 保存disabled・未入力確定ボタン表示
     saveBtn.disabled=true;
     partialBtn.style.display='flex';
   } else {
-    // 全入力済み or 未入力確定済み → 保存active・未入力確定ボタン非表示
     saveBtn.disabled=false;
     partialBtn.style.display='none';
   }
@@ -1208,7 +1219,7 @@ function confirmPartialResult(){
 }
 
 function backToInput(){
-  resultState.revealed=false;
+  resultState.revealed='partial';
   resultState.allConfirmed=false;
   renderResultTable();
   document.getElementById('result-action-input').style.display='flex';
