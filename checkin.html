@@ -344,14 +344,19 @@ function closeM(id){ g(id).classList.remove('open'); }
 // 10ml単価計算
 function calcAmount(orders){
   return orders.reduce(function(s,o){
+    if(o.served===0) return s; // キャンセル除外
     var qty=parseFloat(o.qty)||0, price=parseFloat(o.unitPrice||o.price||0);
-    return s + (o.productType==='tequila'||o.productType==='other'
+    var t=o.productType||o.type||'';
+    return s + (t==='tequila'||t==='spirits'||t==='other'
       ? Math.round(price*qty/10) : Math.round(price*qty));
   },0);
 }
 function calcTequila(orders){
-  return orders.filter(function(o){ return o.productType==='tequila'; })
-    .reduce(function(s,o){ return s+(parseFloat(o.qty)||0); },0);
+  return orders.filter(function(o){
+    if(o.served===0) return false; // キャンセル除外
+    var t=o.productType||o.type||'';
+    return t==='tequila';
+  }).reduce(function(s,o){ return s+(parseFloat(o.qty)||0); },0);
 }
 
 // ── キャッシュ ──────────────────────────────────────────────────
@@ -393,10 +398,21 @@ function loadAll(){
         .filter(function(v){ return (v.visitDate||v.id.slice(0,6))===today; });
     }),
     db.collection('orders').get().then(function(s){
-      cache.orders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());})
-        .filter(function(o){ return o.orderDate===today; });
+      var allOrders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      // orderDateがある場合は当日で絞る、ない場合はvisitKeyで後から絞るため全件保持
+      cache.orders=allOrders.filter(function(o){
+        if(o.orderDate) return o.orderDate===today;
+        // orderDateなし → visitKeyが当日のvisitに属するものを含める（後でgetVisitOrdersで絞る）
+        return true;
+      });
     })
   ]).then(function(){
+    // orderDateなし対応：当日のvisitKeyセットで絞り込む
+    var todayVisitIds=new Set(cache.visits.map(function(v){ return v.id; }));
+    cache.orders=cache.orders.filter(function(o){
+      if(o.orderDate) return true; // すでにorderDateで絞り済み
+      return todayVisitIds.has(o.visitKey||o.visitId);
+    });
     renderVisitorList();
   }).catch(function(e){ toast('読み込み失敗: '+e.message,'err'); });
 }
@@ -411,10 +427,18 @@ g('btn-refresh').addEventListener('click',function(){
         .filter(function(v){ return (v.visitDate||v.id.slice(0,6))===today; });
     }),
     db.collection('orders').get().then(function(s){
-      cache.orders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());})
-        .filter(function(o){ return o.orderDate===today; });
+      var allOrders2=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      cache.orders=allOrders2.filter(function(o){
+        if(o.orderDate) return o.orderDate===today;
+        return true;
+      });
     })
   ]).then(function(){
+    var todayVisitIds2=new Set(cache.visits.map(function(v){ return v.id; }));
+    cache.orders=cache.orders.filter(function(o){
+      if(o.orderDate) return true;
+      return todayVisitIds2.has(o.visitKey||o.visitId);
+    });
     // 各来場者の注文集計を更新してFirestoreに書き込む
     var batch=db.batch();
     var updated=0;
