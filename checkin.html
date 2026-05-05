@@ -325,9 +325,15 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
         </div>
       </div>
     </div>
+    <div style="padding:8px 16px 0">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);cursor:pointer">
+        <input type="checkbox" id="co-also-checkout" style="width:16px;height:16px">
+        退店も同時に行う
+      </label>
+    </div>
     <div class="modal-foot">
       <button class="btn bs" style="flex:1" id="m-checkout-cancel">キャンセル</button>
-      <button class="btn bp" style="flex:2" id="m-checkout-save" disabled>✅ お会計確定</button>
+      <button class="btn bp" style="flex:2" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
     </div>
   </div>
 </div>
@@ -453,7 +459,7 @@ g('btn-refresh').addEventListener('click',function(){
     var batch=db.batch();
     var updated=0;
     cache.visits.forEach(function(v){
-      if(v.checkoutTime) return; // 退店済みはスキップ
+      if(v.checkoutTime || v.checkoutPayTime) return; // 会計済・退店済はスキップ
       var vOrders=cache.orders.filter(function(o){ return o.visitKey===v.id||o.visitId===v.id; });
       var totalAmt=calcAmount(vOrders);
       var totalTq=calcTequila(vOrders);
@@ -487,9 +493,14 @@ function getVisitOrders(visitId){
 
 function renderVisitorList(){
   var el=g('visitor-list');
-  var active=cache.visits.filter(function(v){ return !v.checkoutTime; });
+  // 在店中: 会計時間も退店時間も未セット
+  var active=cache.visits.filter(function(v){ return !v.checkoutPayTime && !v.checkoutTime; });
+  // 会計済: 会計時間がセット・退店時間は未セット
+  var paid=cache.visits.filter(function(v){ return !!v.checkoutPayTime && !v.checkoutTime; });
+  // 退店済: 退店時間がセット
   var done=cache.visits.filter(function(v){ return !!v.checkoutTime; });
   active.sort(function(a,b){ return (a.visitTime||a.id).localeCompare(b.visitTime||b.id); });
+  paid.sort(function(a,b){ return (a.visitTime||a.id).localeCompare(b.visitTime||b.id); });
   done.sort(function(a,b){ return (b.checkoutTime||'').localeCompare(a.checkoutTime||''); });
 
   if(!cache.visits.length){
@@ -500,11 +511,15 @@ function renderVisitorList(){
   var html='';
   if(active.length){
     html+='<div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;padding-left:4px">在店中（'+active.length+'名）</div>';
-    active.forEach(function(v){ html+=renderVisCard(v, false); });
+    active.forEach(function(v){ html+=renderVisCard(v,'active'); });
+  }
+  if(paid.length){
+    html+='<div style="font-size:11px;font-weight:500;color:var(--gold-d);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-left:4px">在店中（会計済）（'+paid.length+'名）</div>';
+    paid.forEach(function(v){ html+=renderVisCard(v,'paid'); });
   }
   if(done.length){
     html+='<div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-left:4px">退店済（'+done.length+'名）</div>';
-    done.forEach(function(v){ html+=renderVisCard(v, true); });
+    done.forEach(function(v){ html+=renderVisCard(v,'done'); });
   }
   el.innerHTML=html;
 
@@ -521,7 +536,10 @@ function renderVisitorList(){
 
 }
 
-function renderVisCard(v, isDone){
+function renderVisCard(v, status){
+  // status: 'active'=在店中, 'paid'=会計済, 'done'=退店済
+  var isDone=(status==='done');
+  var isPaid=(status==='paid');
   var mem=getMemberInfo(v.memberId);
   var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
   var orders=getVisitOrders(v.id);
@@ -532,11 +550,14 @@ function renderVisCard(v, isDone){
   var rankBadge=mem&&mem.rank?'<span class="badge bg-gold">'+escHtml(mem.rank)+'</span>':'';
   var statusBadge=isDone
     ?'<span class="badge bg-gray">退店 '+fmtHHMM(v.checkoutTime)+'</span>'
-    :'<span class="badge bg-teal">在店中</span>';
+    :isPaid
+      ?'<span class="badge" style="background:#e8b84b;color:#5a3800">会計済 '+fmtHHMM(v.checkoutPayTime)+'</span>'
+      :'<span class="badge bg-teal">在店中</span>';
 
-  // チェックボックス（退店済みは表示しない）
+  // チェックボックス: 在店中・会計済のみ表示、退店済は非表示
+  // data-status を付けてonVisitCheckChangeで種別判定
   var chk=!isDone
-    ?'<input type="checkbox" class="vis-select-chk" data-visit-id="'+v.id+'" style="margin-right:8px;width:16px;height:16px;cursor:pointer" onchange="onVisitCheckChange()">'
+    ?'<input type="checkbox" class="vis-select-chk" data-visit-id="'+v.id+'" data-status="'+(isPaid?'paid':'active')+'" style="margin-right:8px;width:16px;height:16px;cursor:pointer" onchange="onVisitCheckChange()">'
     :'';
 
   // 行1: チェックボックス / 名前 / 来店ID・顧客ID / 来店時間・注文数 / バッジ
@@ -786,15 +807,27 @@ g('m-checkin-save').addEventListener('click',function(){
 function onVisitCheckChange(){
   var chks=document.querySelectorAll('.vis-select-chk:checked');
   var n=chks.length;
-  g('selected-count').textContent=n;
-  g('selected-count2').textContent=n;
-  g('btn-bulk-checkout').disabled=(n===0);
-  g('btn-bulk-checkouttime').disabled=(n===0);
+  // お会計ボタン: 在店中のみ選択可（会計済はすでに会計済なので除外）
+  var activeChks=document.querySelectorAll('.vis-select-chk:checked[data-status="active"]');
+  var paidChks=document.querySelectorAll('.vis-select-chk:checked[data-status="paid"]');
+  var nActive=activeChks.length;
+  var nPaid=paidChks.length;
+  g('selected-count').textContent=nActive;
+  g('selected-count2').textContent=nPaid;
+  // お会計: 在店中が1人以上選択されていれば有効
+  g('btn-bulk-checkout').disabled=(nActive===0);
+  // 退店処理: 会計済が1人以上選択されていれば有効
+  g('btn-bulk-checkouttime').disabled=(nPaid===0);
+}
+
+function getSelectedByStatus(status){
+  var chks=document.querySelectorAll('.vis-select-chk:checked[data-status="'+status+'"]');
+  return Array.prototype.map.call(chks,function(c){ return c.dataset.visitId; });
 }
 
 function getSelectedVisitIds(){
-  var chks=document.querySelectorAll('.vis-select-chk:checked');
-  return Array.prototype.map.call(chks,function(c){ return c.dataset.visitId; });
+  // お会計用: 在店中のみ
+  return getSelectedByStatus('active');
 }
 
 // ── お会計（複数対応） ─────────────────────────────────────────
@@ -812,6 +845,7 @@ function openBulkCheckout(){
   g('warikan-diff').textContent='残金: ¥0';
   g('warikan-diff').style.color='var(--teal)';
   g('m-checkout-save').disabled=true;
+  var alsoChk=g('co-also-checkout'); if(alsoChk) alsoChk.checked=false;
   openM('m-checkout');
 
   db.collection('orders').get().then(function(snap){
@@ -939,46 +973,56 @@ function updateWarikanDiff(){
 g('m-checkout-close').addEventListener('click',function(){ closeM('m-checkout'); });
 g('m-checkout-cancel').addEventListener('click',function(){ closeM('m-checkout'); });
 
-g('m-checkout-save').addEventListener('click',function(){
-  if(g('m-checkout-save').disabled) return;
+// お会計確定ボタンはonclickでも対応（disabledによるlistener無効化を回避）
+function doCheckoutSave(){
+  var btn=g('m-checkout-save');
+  if(btn && btn.disabled) return;
   if(!bulkCheckoutVisitKeys.length) return;
   var payment=gv('co-payment')||'0';
   var receipt=gv('co-receipt')||'0';
-  var checkoutTime=nowHHMM();
+  var now=nowHHMM();
+  var alsoCheckout=g('co-also-checkout')&&g('co-also-checkout').checked;
 
   var fbBatch=db.batch();
   bulkCheckoutVisitKeys.forEach(function(visitKey){
     var orders=cache.orders.filter(function(o){ return o.visitKey===visitKey||o.visitId===visitKey; });
-    // 1人の場合はwarikan入力欄がないのでcalcAmountから取得
     var wkEl=g('wk-'+visitKey);
     var totalAmt=wkEl?parseInt(wkEl.value)||0:calcAmount(orders);
     var totalTq=calcTequila(orders);
-    fbBatch.update(db.collection('visits').doc(visitKey),{
+    var updateData={
       amount: totalAmt,
       tequilaAmount: totalTq,
       payment: payment,
       receiptIssued: receipt,
-      checkoutPayTime: checkoutTime   // お会計確定時間（退店時間とは別）
-    });
+      checkoutPayTime: now
+    };
+    if(alsoCheckout) updateData.checkoutTime=now;
+    fbBatch.update(db.collection('visits').doc(visitKey), updateData);
     var v=cache.visits.find(function(x){ return x.id===visitKey; });
     if(v){
       v.amount=totalAmt; v.tequilaAmount=totalTq;
       v.payment=payment; v.receiptIssued=receipt;
-      v.checkoutPayTime=checkoutTime;
+      v.checkoutPayTime=now;
+      if(alsoCheckout) v.checkoutTime=now;
     }
   });
 
   fbBatch.commit().then(function(){
     closeM('m-checkout');
-    toast('お会計確定しました（'+bulkCheckoutVisitKeys.length+'名）');
+    var msg=alsoCheckout
+      ?'お会計・退店を確定しました（'+bulkCheckoutVisitKeys.length+'名）'
+      :'お会計を確定しました（'+bulkCheckoutVisitKeys.length+'名）';
+    toast(msg);
     renderVisitorList();
   }).catch(function(e){ toast('お会計処理失敗: '+e.message,'err'); });
-});
+}
+
+g('m-checkout-save').addEventListener('click', doCheckoutSave);
 
 // ── 退店一括処理 ───────────────────────────────────────────────
 function bulkCheckoutTime(){
-  var visitIds=getSelectedVisitIds();
-  if(!visitIds.length) return;
+  var visitIds=getSelectedByStatus('paid');
+  if(!visitIds.length){ toast('会計済の方を選択してください','err'); return; }
   if(!confirm(visitIds.length+'名を退店処理しますか？')) return;
   var time=nowHHMM();
   var fbBatch=db.batch();
