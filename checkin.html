@@ -779,13 +779,13 @@ function renderWarikan(grandTotal){
     var amt=warikanAmounts[visitKey]||0;
     html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
       +'<span style="flex:1;font-size:13px">'+escHtml(name)+'</span>'
-      +'<button class="btn bs sm" onclick="adjustWarikan(''+visitKey+'', -1000)">−1000</button>'
-      +'<button class="btn bs sm" onclick="adjustWarikan(''+visitKey+'', -500)">−500</button>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', -1000)">−1000</button>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', -500)">−500</button>'
       +'<input type="number" step="100" value="'+amt+'" id="wk-'+visitKey+'"'
       +' style="width:90px;padding:6px 8px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right"'
       +' oninput="updateWarikanDiff()">'
-      +'<button class="btn bs sm" onclick="adjustWarikan(''+visitKey+'', 500)">+500</button>'
-      +'<button class="btn bs sm" onclick="adjustWarikan(''+visitKey+'', 1000)">+1000</button>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', 500)">+500</button>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', 1000)">+1000</button>'
       +'</div>';
   });
   g('warikan-area').innerHTML=html;
