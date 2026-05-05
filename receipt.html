@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>レシート・領収書 - テキーラ道場</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #1a1a1a; color: #eee; min-height: 100vh; }
+
+/* トップバー */
+.top-bar {
+  background: #111;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #333;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.back-btn {
+  background: none; border: 1px solid #555; color: #ccc;
+  padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;
+  text-decoration: none; display: inline-block;
+}
+.back-btn:hover { border-color: #999; color: #fff; }
+.top-bar h1 { font-size: 15px; font-weight: 600; flex: 1; }
+
+/* タブ */
+.tabs { display: flex; border-bottom: 1px solid #333; background: #111; }
+.tab-btn {
+  flex: 1; padding: 11px 8px; background: none; border: none; color: #888;
+  cursor: pointer; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab-btn.active { color: #e8b84b; border-bottom-color: #e8b84b; }
+
+/* コンテンツエリア */
+.tab-content { display: none; padding: 14px; }
+.tab-content.active { display: block; }
+
+/* フォームパーツ */
+.form-group { margin-bottom: 12px; }
+.form-label { font-size: 12px; color: #999; margin-bottom: 4px; display: block; }
+select, input[type="text"] {
+  width: 100%; padding: 9px 12px; background: #2a2a2a; border: 1px solid #444;
+  border-radius: 6px; color: #eee; font-size: 14px; appearance: none;
+}
+select:focus, input[type="text"]:focus { outline: none; border-color: #e8b84b; }
+
+/* 注文リスト */
+.order-list { margin-top: 4px; }
+.order-group-card {
+  background: #252525; border: 1px solid #383838; border-radius: 8px; margin-bottom: 8px; overflow: hidden;
+}
+.order-group-header {
+  padding: 8px 12px; background: #2c2c2c; display: flex; justify-content: space-between;
+  align-items: center; font-size: 12px; color: #aaa;
+}
+.order-group-header span { color: #e8b84b; font-weight: 600; }
+.order-item { padding: 7px 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #333; }
+.order-item-name { font-size: 13px; flex: 1; }
+.order-item-qty { font-size: 12px; color: #aaa; margin: 0 10px; white-space: nowrap; }
+.order-item-price { font-size: 13px; text-align: right; white-space: nowrap; }
+
+.empty-msg { text-align: center; color: #666; padding: 24px; font-size: 13px; }
+
+/* 合計エリア */
+.total-area {
+  background: #252525; border: 1px solid #444; border-radius: 8px; padding: 12px 14px;
+  margin-top: 12px;
+}
+.total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+.total-row.main { font-size: 18px; font-weight: 700; color: #e8b84b; padding-top: 8px; margin-top: 4px; border-top: 1px solid #444; }
+
+/* ボタン */
+.btn-row { display: flex; gap: 8px; margin-top: 14px; }
+.btn {
+  flex: 1; padding: 12px 8px; border: none; border-radius: 8px; font-size: 14px;
+  font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-primary { background: #c0392b; color: #fff; }
+.btn-primary:hover { background: #e74c3c; }
+.btn-secondary { background: #2a5298; color: #fff; }
+.btn-secondary:hover { background: #3563c9; }
+.btn-outline { background: none; border: 1px solid #555; color: #ccc; }
+.btn-outline:hover { border-color: #999; color: #fff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 領収書フォーム */
+.invoice-section { background: #252525; border: 1px solid #383838; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+.invoice-section h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #383838; }
+
+/* ステータスメッセージ */
+.status-msg { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-top: 10px; display: none; }
+.status-msg.ok { background: #1a3a1a; border: 1px solid #2d6a2d; color: #7adf7a; }
+.status-msg.err { background: #3a1a1a; border: 1px solid #6a2d2d; color: #df7a7a; }
+
+/* ローディング */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: none; align-items: center; justify-content: center; z-index: 999;
+}
+.loading-overlay.active { display: flex; }
+.loading-spinner { color: #e8b84b; font-size: 15px; }
+
+/* 印刷プレビューモーダル */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: none; align-items: center; justify-content: center; z-index: 200;
+  padding: 16px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: #fff; color: #111; border-radius: 8px; width: 100%;
+  max-width: 360px; max-height: 90vh; overflow-y: auto;
+}
+.modal-header {
+  padding: 12px 16px; border-bottom: 1px solid #ddd; display: flex;
+  justify-content: space-between; align-items: center;
+  background: #f5f5f5; border-radius: 8px 8px 0 0;
+}
+.modal-header h2 { font-size: 15px; color: #333; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #666; padding: 0 4px; }
+.modal-body { padding: 16px; }
+.modal-actions { padding: 12px 16px; border-top: 1px solid #ddd; display: flex; gap: 8px; }
+.modal-actions .btn { flex: 1; padding: 10px; }
+
+/* レシートプレビュー（モーダル内） */
+#receipt-preview {
+  font-family: 'Courier New', monospace; font-size: 12px; color: #111;
+  white-space: pre-wrap; line-height: 1.6;
+}
+canvas#logo-canvas { display: block; margin: 0 auto 8px; }
+</style>
+</head>
+<body>
+
+<!-- ローディング -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner">読み込み中...</div>
+</div>
+
+<!-- 印刷モーダル -->
+<div class="modal-overlay" id="print-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="print-modal-title">印刷プレビュー</h2>
+      <button class="modal-close" onclick="closePrintModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <canvas id="logo-canvas" width="200" height="60"></canvas>
+      <div id="receipt-preview"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closePrintModal()">閉じる</button>
+      <button class="btn btn-secondary" id="bt-print-btn" onclick="printBluetooth()">🔵 BT印刷</button>
+      <button class="btn btn-primary" onclick="printBrowser()">🖨️ 印刷</button>
+    </div>
+  </div>
+</div>
+
+<!-- トップバー -->
+<div class="top-bar">
+  <a href="home.html" class="back-btn">← 戻る</a>
+  <h1>🧾 レシート・領収書</h1>
+</div>
+
+<!-- タブ -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('receipt')">レシート</button>
+  <button class="tab-btn" onclick="switchTab('invoice')">領収書</button>
+</div>
+
+<!-- ======== レシートタブ ======== -->
+<div class="tab-content active" id="tab-receipt">
+
+  <div class="form-group">
+    <label class="form-label">来店を選択</label>
+    <select id="r-visit" onchange="onVisitChange()">
+      <option value="">-- 来店を選択 --</option>
+    </select>
+  </div>
+
+  <div class="form-group" id="r-group-wrap" style="display:none">
+    <label class="form-label">注文グループで絞り込み（任意）</label>
+    <select id="r-group" onchange="onGroupChange()">
+      <option value="">-- 全注文 --</option>
+    </select>
+  </div>
+
+  <div class="order-list" id="r-order-list">
+    <div class="empty-msg">来店を選択してください</div>
+  </div>
+
+  <div class="total-area" id="r-total-area" style="display:none">
+    <div class="total-row"><span>小計</span><span id="r-subtotal">¥0</span></div>
+    <div class="total-row main"><span>合計</span><span id="r-total">¥0</span></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="r-print-btn" onclick="openReceiptPrint()" disabled>🧾 レシート発行</button>
+  </div>
+
+  <div class="status-msg" id="r-status"></div>
+</div>
+
+<!-- ======== 領収書タブ ======== -->
+<div class="tab-content" id="tab-invoice">
+
+  <div class="invoice-section">
+    <h3>来店情報（任意）</h3>
+    <div class="form-group">
+      <label class="form-label">来店を選択（金額を自動取得）</label>
+      <select id="i-visit" onchange="onInvoiceVisitChange()">
+        <option value="">-- 来店を選択（任意） --</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="invoice-section">
+    <h3>領収書情報</h3>
+    <div class="form-group">
+      <label class="form-label">宛名</label>
+      <input type="text" id="i-name" placeholder="例：山田太郎 様" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">但し書き</label>
+      <input type="text" id="i-tadashi" value="お飲み物代として" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">金額（円）</label>
+      <input type="text" id="i-amount" placeholder="例：15000" oninput="formatAmount()" />
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="openInvoicePrint()">🧾 領収書発行</button>
+  </div>
+
+  <div class="status-msg" id="i-status"></div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script>
+// ===== Firebase設定 =====
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+var db = firebase.firestore();
+
+// ===== グローバル変数 =====
+var allVisits   = [];
+var allOrders   = [];
+var allMembers  = {};
+var allProducts = {};
+var currentLogoImg = null; // ロゴ画像（反転済み）
+
+// ===== ローディング =====
+function showLoading(v){ document.getElementById('loading').classList.toggle('active', v); }
+
+// ===== ステータスメッセージ =====
+function showStatus(id, msg, type){
+  var el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'status-msg ' + type;
+  el.style.display = 'block';
+  setTimeout(function(){ el.style.display = 'none'; }, 4000);
+}
+
+// ===== タブ切替 =====
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(function(b, i){
+    b.classList.toggle('active', (i===0&&tab==='receipt')||(i===1&&tab==='invoice'));
+  });
+  document.querySelectorAll('.tab-content').forEach(function(c){
+    c.classList.remove('active');
+  });
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ===== 金額計算 =====
+function calcItemAmount(item){
+  var p = allProducts[item.productId] || {};
+  var type = p.type || item.type || '';
+  var unit = Number(item.unitPrice || p.unitPrice || 0);
+  var qty  = Number(item.qty || 1);
+  if(type === 'tequila' || type === 'spirits'){
+    return Math.round(unit * qty / 10);
+  }
+  return unit * qty;
+}
+
+// ===== 来店ラベル =====
+function vLabel(visitKey){
+  var v = allVisits.find(function(x){ return x.id === visitKey; });
+  if(!v) return visitKey;
+  var mem = allMembers[v.memberId];
+  if(mem) return (mem.nickname || mem.name || v.memberId) + ' 様';
+  return v.memberId ? 'ID: ' + v.memberId + ' 様' : 'ゲスト（来店ID: ' + visitKey + '）';
+}
+
+function vDate(visitKey){
+  var v = allVisits.find(function(x){ return x.id === visitKey; });
+  if(!v || !v.checkInTime) return '';
+  var d = v.checkInTime.toDate ? v.checkInTime.toDate() : new Date(v.checkInTime);
+  return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+}
+
+// ===== 初期データロード =====
+async function loadData(){
+  showLoading(true);
+  try {
+    var vsSnap = await db.collection('visits').orderBy('checkInTime','desc').limit(100).get();
+    allVisits = vsSnap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+
+    var mbSnap = await db.collection('members').get();
+    mbSnap.docs.forEach(function(d){ allMembers[d.id] = d.data(); });
+
+    var orSnap = await db.collection('orders').get();
+    allOrders = orSnap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+
+    var prSnap = await db.collection('products').get();
+    prSnap.docs.forEach(function(d){ allProducts[d.id] = d.data(); });
+
+    buildVisitSelects();
+  } catch(e){
+    console.error(e);
+    showStatus('r-status', 'データ読み込みエラー: ' + e.message, 'err');
+  }
+  showLoading(false);
+}
+
+// ===== セレクト構築 =====
+function buildVisitSelects(){
+  var opts = ['<option value="">-- 来店を選択 --</option>'];
+  allVisits.forEach(function(v){
+    var label = vLabel(v.id);
+    var date  = vDate(v.id);
+    opts.push('<option value="' + v.id + '">' + date + ' ' + label + '</option>');
+  });
+  document.getElementById('r-visit').innerHTML = opts.join('');
+  var iopts = opts.slice();
+  iopts[0] = '<option value="">-- 来店を選択（任意） --</option>';
+  document.getElementById('i-visit').innerHTML = iopts.join('');
+}
+
+// ===== レシートタブ：来店変更 =====
+function onVisitChange(){
+  var visitKey = document.getElementById('r-visit').value;
+  buildGroupSelect(visitKey);
+  renderOrderList(visitKey, '');
+}
+
+function buildGroupSelect(visitKey){
+  var groups = {};
+  allOrders.filter(function(o){ return o.visitKey === visitKey && (o.served||0) >= 2 && o.served !== 0; })
+    .forEach(function(o){ if(o.orderGroupId) groups[o.orderGroupId] = true; });
+  var opts = ['<option value="">-- 全注文 --</option>'];
+  Object.keys(groups).forEach(function(g){
+    opts.push('<option value="' + g + '">グループ: ' + g + '</option>');
+  });
+  document.getElementById('r-group').innerHTML = opts.join('');
+  document.getElementById('r-group-wrap').style.display = visitKey ? 'block' : 'none';
+}
+
+function onGroupChange(){
+  var visitKey = document.getElementById('r-visit').value;
+  var groupId  = document.getElementById('r-group').value;
+  renderOrderList(visitKey, groupId);
+}
+
+function renderOrderList(visitKey, groupId){
+  var list     = document.getElementById('r-order-list');
+  var totalArea = document.getElementById('r-total-area');
+  var printBtn  = document.getElementById('r-print-btn');
+
+  if(!visitKey){
+    list.innerHTML = '<div class="empty-msg">来店を選択してください</div>';
+    totalArea.style.display = 'none';
+    printBtn.disabled = true;
+    return;
+  }
+
+  // served=2以上かつキャンセル(0)でない注文を対象
+  var orders = allOrders.filter(function(o){
+    if(o.visitKey !== visitKey) return false;
+    if(o.served === 0 || o.served === undefined) return false;
+    if(groupId && o.orderGroupId !== groupId) return false;
+    return true;
+  });
+
+  if(orders.length === 0){
+    list.innerHTML = '<div class="empty-msg">表示する注文がありません</div>';
+    totalArea.style.display = 'none';
+    printBtn.disabled = true;
+    return;
+  }
+
+  // グループIDでまとめる
+  var groupMap = {};
+  orders.forEach(function(o){
+    var gid = o.orderGroupId || '_';
+    if(!groupMap[gid]) groupMap[gid] = [];
+    groupMap[gid].push(o);
+  });
+
+  var html = '';
+  var total = 0;
+  Object.keys(groupMap).sort().forEach(function(gid){
+    var items = groupMap[gid];
+    var grpTotal = 0;
+    var itemHtml = '';
+    items.forEach(function(item){
+      var amt = calcItemAmount(item);
+      grpTotal += amt;
+      total    += amt;
+      var p    = allProducts[item.productId] || {};
+      var name = item.productName || p.name || item.productId || '不明';
+      var qty  = item.qty || 1;
+      var unit = item.unitPrice || p.unitPrice || 0;
+      itemHtml += '<div class="order-item">';
+      itemHtml += '<span class="order-item-name">' + name + '</span>';
+      itemHtml += '<span class="order-item-qty">×' + qty + '</span>';
+      itemHtml += '<span class="order-item-price">¥' + amt.toLocaleString() + '</span>';
+      itemHtml += '</div>';
+    });
+    html += '<div class="order-group-card">';
+    html += '<div class="order-group-header"><span>グループ: ' + (gid==='_'?'-':gid) + '</span><span>¥' + grpTotal.toLocaleString() + '</span></div>';
+    html += itemHtml;
+    html += '</div>';
+  });
+
+  list.innerHTML = html;
+  document.getElementById('r-subtotal').textContent = '¥' + total.toLocaleString();
+  document.getElementById('r-total').textContent    = '¥' + total.toLocaleString();
+  totalArea.style.display = 'block';
+  printBtn.disabled = false;
+}
+
+// ===== 領収書タブ：来店変更 =====
+function onInvoiceVisitChange(){
+  var visitKey = document.getElementById('i-visit').value;
+  if(!visitKey){ document.getElementById('i-amount').value = ''; return; }
+  var orders = allOrders.filter(function(o){
+    return o.visitKey === visitKey && o.served !== 0;
+  });
+  var total = 0;
+  orders.forEach(function(o){ total += calcItemAmount(o); });
+  document.getElementById('i-amount').value = total;
+}
+
+function formatAmount(){
+  var el = document.getElementById('i-amount');
+  el.value = el.value.replace(/[^0-9]/g, '');
+}
+
+// ===== ロゴ描画（白→黒、黒→透明） =====
+function drawLogoInverted(canvas, logoUrl, callback){
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function(){
+    var tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width  = img.width;
+    tmpCanvas.height = img.height;
+    var tmpCtx = tmpCanvas.getContext('2d');
+    tmpCtx.drawImage(img, 0, 0);
+    var imageData = tmpCtx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height);
+    var d = imageData.data;
+    for(var i = 0; i < d.length; i += 4){
+      // 白に近いピクセル(文字) → 黒に
+      var brightness = (d[i] + d[i+1] + d[i+2]) / 3;
+      if(brightness > 128){
+        d[i] = 0; d[i+1] = 0; d[i+2] = 0; d[i+3] = 255;
+      } else {
+        // 暗いピクセル(背景) → 透明に
+        d[i+3] = 0;
+      }
+    }
+    tmpCtx.putImageData(imageData, 0, 0);
+
+    // リサイズしてcanvasに描画
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var scale = Math.min(canvas.width / tmpCanvas.width, canvas.height / tmpCanvas.height);
+    var w = tmpCanvas.width * scale;
+    var h = tmpCanvas.height * scale;
+    var x = (canvas.width  - w) / 2;
+    var y = (canvas.height - h) / 2;
+    ctx.drawImage(tmpCanvas, x, y, w, h);
+    if(callback) callback();
+  };
+  img.onerror = function(){ if(callback) callback(); };
+  img.src = logoUrl;
+}
+
+// ===== 印刷テキスト生成 =====
+function buildReceiptText(visitKey, groupId){
+  var orders = allOrders.filter(function(o){
+    if(o.visitKey !== visitKey) return false;
+    if(o.served === 0 || o.served === undefined) return false;
+    if(groupId && o.orderGroupId !== groupId) return false;
+    return true;
+  });
+
+  var groupMap = {};
+  orders.forEach(function(o){
+    var gid = o.orderGroupId || '_';
+    if(!groupMap[gid]) groupMap[gid] = [];
+    groupMap[gid].push(o);
+  });
+
+  var sep  = '--------------------------------';
+  var sep2 = '================================';
+  var lines = [];
+  lines.push('　テキーラ道場');
+  lines.push(sep);
+  lines.push('日時: ' + new Date().toLocaleString('ja-JP'));
+  lines.push('来店: ' + vLabel(visitKey));
+  lines.push(sep2);
+
+  var total = 0;
+  Object.keys(groupMap).sort().forEach(function(gid){
+    if(gid !== '_') lines.push('【グループ ' + gid + '】');
+    groupMap[gid].forEach(function(item){
+      var p    = allProducts[item.productId] || {};
+      var name = item.productName || p.name || '不明';
+      var qty  = item.qty || 1;
+      var amt  = calcItemAmount(item);
+      total   += amt;
+      var line = name.substring(0, 14);
+      var qamt = '×' + qty + '  ¥' + amt.toLocaleString();
+      while((line + qamt).length < 32) line += ' ';
+      lines.push(line + qamt);
+    });
+  });
+
+  lines.push(sep2);
+  lines.push('合　計　　　　　¥' + total.toLocaleString());
+  lines.push(sep);
+  lines.push('　ありがとうございました');
+  return lines.join('\n');
+}
+
+function buildInvoiceText(name, tadashi, amount){
+  var sep  = '--------------------------------';
+  var sep2 = '================================';
+  var lines = [];
+  lines.push('　　　　領　収　書');
+  lines.push(sep2);
+  lines.push('　' + (name || '　　　　') + ' 様');
+  lines.push(sep);
+  var amtStr = '¥' + Number(amount).toLocaleString() + '　也';
+  lines.push('　金額: ' + amtStr);
+  lines.push(sep);
+  lines.push('但し　' + (tadashi || 'お飲み物代として'));
+  lines.push(sep2);
+  lines.push('発行日: ' + new Date().toLocaleDateString('ja-JP'));
+  lines.push('　　テキーラ道場');
+  lines.push(sep);
+  lines.push('　上記の金額を正に領収しました。');
+  return lines.join('\n');
+}
+
+// ===== 印刷モーダルを開く =====
+var currentPrintText = '';
+
+function openPrintModal(title, text){
+  currentPrintText = text;
+  document.getElementById('print-modal-title').textContent = title;
+  document.getElementById('receipt-preview').textContent  = text;
+
+  // ロゴCanvas描画
+  var canvas = document.getElementById('logo-canvas');
+  var logoUrl = 'https://raw.githubusercontent.com/teqmae23/tequiladojo-site/main/img/logo.png';
+  drawLogoInverted(canvas, logoUrl, null);
+
+  // Bluetooth利用可否
+  var hasBT = !!(navigator.bluetooth);
+  document.getElementById('bt-print-btn').style.display = hasBT ? 'block' : 'none';
+
+  document.getElementById('print-modal').classList.add('active');
+}
+
+function closePrintModal(){
+  document.getElementById('print-modal').classList.remove('active');
+}
+
+function openReceiptPrint(){
+  var visitKey = document.getElementById('r-visit').value;
+  var groupId  = document.getElementById('r-group').value;
+  if(!visitKey){ showStatus('r-status', '来店を選択してください', 'err'); return; }
+  var text = buildReceiptText(visitKey, groupId);
+  openPrintModal('レシートプレビュー', text);
+}
+
+function openInvoicePrint(){
+  var name    = document.getElementById('i-name').value.trim();
+  var tadashi = document.getElementById('i-tadashi').value.trim();
+  var amount  = document.getElementById('i-amount').value.trim();
+  if(!amount){ showStatus('i-status', '金額を入力してください', 'err'); return; }
+  var text = buildInvoiceText(name, tadashi, amount);
+  openPrintModal('領収書プレビュー', text);
+}
+
+// ===== ブラウザ印刷 =====
+function printBrowser(){
+  var canvas = document.getElementById('logo-canvas');
+  var logoDataUrl = canvas.toDataURL('image/png');
+  var text = currentPrintText;
+
+  var w = window.open('', '_blank', 'width=400,height=600');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+  w.document.write('<style>');
+  w.document.write('body { font-family: "Courier New", monospace; font-size: 12px; margin: 20px; }');
+  w.document.write('img.logo { display:block; margin: 0 auto 12px; max-width:160px; }');
+  w.document.write('pre { white-space: pre-wrap; word-break: break-all; }');
+  w.document.write('@media print { body { margin: 0; } button { display: none; } }');
+  w.document.write('</style></head><body>');
+  w.document.write('<img class="logo" src="' + logoDataUrl + '" />');
+  w.document.write('<pre>' + text + '</pre>');
+  w.document.write('<br><button onclick="window.print()">🖨️ 印刷</button>');
+  w.document.write('</body></html>');
+  w.document.close();
+}
+
+// ===== Bluetooth印刷（ESC/POS） =====
+async function printBluetooth(){
+  if(!navigator.bluetooth){
+    alert('このブラウザはWeb Bluetoothに対応していません。\nAndroid Chromeをご利用ください。');
+    return;
+  }
+  try {
+    var device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }]
+    });
+    var server  = await device.gatt.connect();
+    var service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+    var char    = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+
+    // ESC/POSコマンド
+    var ESC = 0x1B, GS = 0x1D;
+    var init  = new Uint8Array([ESC, 0x40]);             // 初期化
+    var center= new Uint8Array([ESC, 0x61, 0x01]);       // センター揃え
+    var left  = new Uint8Array([ESC, 0x61, 0x00]);       // 左揃え
+    var cut   = new Uint8Array([GS,  0x56, 0x42, 0x00]); // カット
+    var lf    = new Uint8Array([0x0A]);                   // 改行
+
+    var encoder = new TextEncoder();
+    var textBytes = encoder.encode(currentPrintText + '\n\n\n');
+
+    await char.writeValue(init);
+    await char.writeValue(center);
+    await char.writeValue(lf);
+    await char.writeValue(left);
+    await char.writeValue(textBytes);
+    await char.writeValue(cut);
+
+    device.gatt.disconnect();
+    alert('印刷しました！');
+    closePrintModal();
+  } catch(e){
+    if(e.name !== 'NotFoundError'){
+      alert('Bluetooth印刷エラー: ' + e.message);
+    }
+  }
+}
+
+// ===== 初期化 =====
+loadData();
+</script>
+</body>
+</html>
