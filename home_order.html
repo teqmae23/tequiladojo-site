@@ -314,6 +314,7 @@ input,select{font-family:var(--sans)}
   <div class="topbar">
     <span class="top-brand">🥃 テキーラ道場</span>
     <div class="top-right">
+      <a href="checkin.html" class="top-back">🚪 来店登録</a>
       <a href="admin.html" class="top-back">⚙ 管理</a>
       <a href="home.html" class="top-back">🏠 ホーム</a>
       <button class="top-logout" onclick="auth.signOut()">ログアウト</button>
@@ -1580,10 +1581,9 @@ async function confirmOrder(){
 
   try{
     const batch=db.batch();
+    // 同時注文の全員・全アイテムで共通のorderGroupIdを使う（= batchId）
+    const orderGroupId=batchId;
     for(const visit of flow.visits){
-      const existGs=allGroups.filter(g=>g.visitKey===visit.id);
-      const maxGSeq=existGs.reduce((m,g)=>{const s=parseInt(g.gid.slice(8))||0;return Math.max(m,s);},0);
-      const orderGroupId=visit.id+String(maxGSeq+1).padStart(2,'0');
       flow.cart.forEach((item,i)=>{
         maxSeq++;
         batch.set(db.collection('orders').doc(todayStr+String(maxSeq).padStart(3,'0')),{
