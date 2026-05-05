@@ -646,6 +646,29 @@ function toggleDoneSection(){
   icon.textContent=open?'▶ 表示':'▼ 閉じる';
 }
 
+// 選択中の来場者から言語を取得（1人でもスペイン語ならES）
+function getFlowLang(){
+  for(const v of flow.visits){
+    if(v.memberId && allMembers[v.memberId]){
+      if(allMembers[v.memberId].lang===1) return 1;
+    }
+  }
+  return 0;
+}
+
+// 言語に応じた商品名を返す（lang=1: 英語）
+function getProductName(p, lang){
+  if(lang===1) return p.bottleEn||p.bottleEs||p.bottleJa||p.name||p.id;
+  return p.bottleJa||p.bottleEn||p.bottleEs||p.name||p.id;
+}
+
+// セット商品アイテムの言語に応じた商品名
+function getSetItemName(s, i, lang){
+  const ii=String(i).padStart(2,'0');
+  if(lang===1) return s['itemNameEn'+ii]||s['itemNameJa'+ii]||s['itemName'+ii]||s['item'+ii]||'';
+  return s['itemNameJa'+ii]||s['itemNameEn'+ii]||s['itemName'+ii]||s['item'+ii]||'';
+}
+
 function vLabel(visitKey){
   const v=allVisits.find(x=>x.id===visitKey);
   if(!v)return`来店ID: ${visitKey}`;
@@ -1305,11 +1328,13 @@ function renderVisitors(){
     const m=v.memberId&&allMembers[v.memberId];
     const name=m?(m.nickname||m.name):`ゲスト（来店ID: ${v.id}）`;
     const sub=v.memberId?`会員ID: ${v.memberId}`:v.id;
+    const memLang=v.memberId&&allMembers[v.memberId]?allMembers[v.memberId].lang:0;
+    const langBadge=memLang===1?'<span style="font-size:10px;background:#1a5fa8;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">EN</span>':'';
     const checked=flow.visits.find(x=>x.id===v.id)?'checked':'';
     return`<div class="visitor-card${checked?' selected':''}" id="vc-${v.id}">
       <input type="checkbox" class="visitor-cb" id="vcb-${v.id}" ${checked} onchange="toggleVisitor('${v.id}',this)">
       <label for="vcb-${v.id}" style="flex:1;cursor:pointer">
-        <div class="visitor-name">${esc(name)}</div>
+        <div class="visitor-name">${esc(name)}${langBadge}</div>
         <div class="visitor-sub">${esc(sub)} | 来店: ${v.visitTime||''}</div>
       </label>
     </div>`;
@@ -1332,6 +1357,14 @@ function goStep0(){showStep(0);renderVisitors();}
 // STEP1
 function goStep1(){
   if(!flow.visits.length)return;
+  // 来場者が変わった場合、カート内の商品名を再適用
+  if(flow.cart.length){
+    const _reLang=getFlowLang();
+    flow.cart.forEach(item=>{
+      const p=[...masterData.tequila,...masterData.other,...masterData.misc].find(x=>x.id===item.productId);
+      if(p) item.productName=getProductName(p,_reLang);
+    });
+  }
   showStep(1);
   switchPTab('tequila',document.querySelectorAll('.ptab')[0]);
   renderCart();
@@ -1427,9 +1460,10 @@ function addToCart(pid){
   if(!p)return;
   const isMl=p.type==='tequila'||p.type==='other';
   const isBlind=document.getElementById('blind-check').checked;
+  const _lang=getFlowLang();
   flow.cart.push({
     productId:p.id,
-    productName:p.bottleJa||p.bottleEs||p.name||p.id,
+    productName:getProductName(p,_lang),
     productType:p.type,
     qty:isMl?getCartMl():1,
     unit:isMl?'ml':'個',
@@ -1455,7 +1489,8 @@ function _doAddSet(setId){
     const id=s[`item0${i}`];if(!id)continue;
     const t=s[`itemType0${i}`]||'misc';
     const isMl=t==='tequila'||t==='other';
-    flow.cart.push({productId:id,productName:s[`itemName0${i}`]||id,productType:t,
+    const _sLang=getFlowLang();
+    flow.cart.push({productId:id,productName:getSetItemName(s,i,_sLang)||id,productType:t,
       qty:isMl?currentMl:1,unit:isMl?'ml':'個',unitPrice:s[`itemPrice0${i}`]||0,blindMarkId:null});
   }
   if(isBlind)assignBlindMarks();

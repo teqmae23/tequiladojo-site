@@ -506,7 +506,10 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         <div class="fg"><label class="fl">種別<span class="req">*</span></label><select class="fs" id="mp-kind"><option value="">選択...</option></select></div>
         <div class="fg"><label class="fl">商品ID（2桁）<span class="req">*</span></label><input class="fi mono" id="mp-id" maxlength="2" placeholder="01"></div>
       </div>
-      <div class="fg"><label class="fl">商品名<span class="req">*</span></label><input class="fi" id="mp-name" placeholder="生ハム盛り合わせ"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">商品名（日本語）<span class="req">*</span></label><input class="fi" id="mp-name" placeholder="生ハム盛り合わせ"></div>
+        <div class="fg"><label class="fl">商品名（英語）</label><input class="fi" id="mp-name-en" placeholder="Iberico Ham Platter"></div>
+      </div>
       <div class="frow c3">
         <div class="fg"><label class="fl">数量（デフォルト）</label><input class="fi" id="mp-qty" type="number" min="1" placeholder="1" value="1"></div>
         <div class="fg"><label class="fl">単位</label><input class="fi" id="mp-unit" maxlength="10" placeholder="個"></div>
@@ -1290,11 +1293,11 @@ function openMproductModal(id){
   var idEl=g("mp-id");
   if(id){
     var r=cache.mproducts.find(function(x){return x.id===id;});
-    sv("mp-kind",id[0]); sv("mp-id",id.slice(1,3)); sv("mp-name",r?r.name:"");
+    sv("mp-kind",id[0]); sv("mp-id",id.slice(1,3)); sv("mp-name",r?r.name:""); sv("mp-name-en",r?r.nameEn||"":"");
     sv("mp-qty",r&&r.qty!=null?r.qty:1); sv("mp-unit",r?r.unit||"個":"個"); sv("mp-price",r?r.unitPrice:"");
     ksel.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)";
   } else {
-    sv("mp-kind",""); sv("mp-id",""); sv("mp-name",""); sv("mp-qty",1); sv("mp-unit","個"); sv("mp-price","");
+    sv("mp-kind",""); sv("mp-id",""); sv("mp-name",""); sv("mp-name-en",""); sv("mp-qty",1); sv("mp-unit","個"); sv("mp-price","");
     ksel.disabled=false; idEl.readOnly=false; idEl.style.background="";
   }
   updateMproductKey(); openM("m-mproduct");
@@ -1315,7 +1318,7 @@ g("btn-save-mproduct").addEventListener("click",function(){
   var id=k+pid;
   if(!editId.mproduct&&cache.mproducts.some(function(x){return x.id===id;})){ toast("ID「"+id+"」は既に存在します","err"); return; }
   db.collection("miscProducts").doc(id).set({
-    id:id, kindId:k, name:name,
+    id:id, kindId:k, name:name, nameEn:gv("mp-name-en")||null,
     qty:parseInt(gv("mp-qty"))||1,
     unit:gv("mp-unit")||"個",
     unitPrice:parseInt(price)||0
@@ -1358,7 +1361,8 @@ function renderSsetItemsList(){
     var bg=TBADGE[it.type]||"background:var(--cream2);color:var(--ink3)";
     return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--cream2);border-radius:var(--r)">'
       +'<span style="font-size:9px;padding:2px 6px;border-radius:20px;flex-shrink:0;'+bg+'">'+escHtml(TLABEL[it.type]||it.type||"—")+'</span>'
-      +'<span style="flex:1;font-size:13px;color:var(--ink2)">'+escHtml(it.name)+'</span>'
+      +'<span style="flex:1;font-size:13px;color:var(--ink2)">'+escHtml(it.nameJa||it.name||it.id)+'</span>'
+      +'<span style="font-size:11px;color:var(--ink3);margin-left:4px">' + (it.nameEn&&it.nameEn!==(it.nameJa||it.name)?'/ '+escHtml(it.nameEn):'') + '</span>'
       +'<span style="font-size:11px;color:var(--ink3);font-family:var(--mono);flex-shrink:0">['+escHtml(it.id)+']</span>'
       +(it.unitPrice!=null?'<span style="font-size:11px;color:var(--ink3);flex-shrink:0">¥'+Number(it.unitPrice).toLocaleString()+'</span>':'')
       +'<button class="btn bd sm" data-sset-del="'+i+'">✕</button>'
@@ -1397,7 +1401,7 @@ function openSsetModal(id){
     sv("ss-name",r?r.setName||"":""); sv("ss-memo",r?r.memo||"":"");
     if(r){ for(var i=1;i<=8;i++){
       var key="item"+String(i).padStart(2,"0");
-      if(r[key]){ _ssetItems.push({type:r["itemType"+String(i).padStart(2,"0")]||"misc",id:r[key],name:r["itemName"+String(i).padStart(2,"0")]||r[key],unitPrice:r["itemPrice"+String(i).padStart(2,"0")]||null}); }
+      if(r[key]){ _ssetItems.push({type:r["itemType"+String(i).padStart(2,"0")]||"misc",id:r[key],nameJa:r["itemNameJa"+String(i).padStart(2,"0")]||r["itemName"+String(i).padStart(2,"0")]||r[key],nameEn:r["itemNameEn"+String(i).padStart(2,"0")]||r["itemName"+String(i).padStart(2,"0")]||r[key],unitPrice:r["itemPrice"+String(i).padStart(2,"0")]||null}); }
     }}
     typeEl.disabled=true; idEl.readOnly=true; idEl.style.background="var(--cream2)";
   } else {
@@ -1503,15 +1507,15 @@ function openSsetModal(id){
     if(_ssetPickType==="tequila"){
       var bdId=gv("ss-t-bdata"); if(!bdId){toast("ボトルを選択してください","err");return;}
       var bd=cache.bottleData.find(function(x){return x.id===bdId;});
-      item={type:"tequila",id:bdId,name:bd?bd.bottleEs||bd.bottleJa||bdId:bdId,unitPrice:bd?bd.price||null:null};
+      item={type:"tequila",id:bdId,nameJa:bd?bd.bottleJa||bd.bottleEs||bdId:bdId,nameEn:bd?bd.bottleEn||bd.bottleEs||bd.bottleJa||bdId:bdId,unitPrice:bd?bd.price||null:null};
     } else if(_ssetPickType==="other"){
       var bId=gv("ss-o-bottle"); if(!bId){toast("ボトルを選択してください","err");return;}
       var b=cache.obottles.find(function(x){return x.id===bId;});
-      item={type:"other",id:bId,name:b?b.bottleName||bId:bId,unitPrice:b?b.price10||null:null};
+      item={type:"other",id:bId,nameJa:b?b.bottleNameJa||b.bottleName||bId:bId,nameEn:b?b.bottleNameEn||b.bottleName||bId:bId,unitPrice:b?b.price10||null:null};
     } else {
       var pid=gv("ss-m-product"); if(!pid){toast("商品を選択してください","err");return;}
       var p=cache.mproducts.find(function(x){return x.id===pid;});
-      item={type:"misc",id:pid,name:p?p.name||pid:pid,unitPrice:p?p.unitPrice||null:null};
+      item={type:"misc",id:pid,nameJa:p?p.name||pid:pid,nameEn:p?p.nameEn||p.name||pid:pid,unitPrice:p?p.unitPrice||null:null};
     }
     _ssetItems.push(item); renderSsetItemsList(); g("ss-item-picker").style.display="none";
     [g("ss-t-bdata"),g("ss-o-bottle"),g("ss-m-product")].forEach(function(el){if(el)el.value="";});
@@ -1529,7 +1533,10 @@ function openSsetModal(id){
     for(var i=1;i<=8;i++){
       var k=String(i).padStart(2,"0"),it=_ssetItems[i-1];
       data["item"+k]=it?it.id:null; data["itemType"+k]=it?it.type:null;
-      data["itemName"+k]=it?it.name:null; data["itemPrice"+k]=it&&it.unitPrice!=null?it.unitPrice:null;
+      data["itemNameJa"+k]=it?it.nameJa||it.name||null:null;
+      data["itemNameEn"+k]=it?it.nameEn||it.name||null:null;
+      data["itemName"+k]=it?it.nameJa||it.name||null:null;  // 互換性のため残す
+      data["itemPrice"+k]=it&&it.unitPrice!=null?it.unitPrice:null;
     }
     db.collection("setProducts").doc(fullId).set(data,{merge:true})
       .then(function(){ toast(editId.sset?"更新しました":"登録しました"); closeM("m-sset"); loadCol("ssets","setProducts",function(){}); })
