@@ -323,7 +323,7 @@ function gv(id){ var el=g(id); return el?el.value.trim():''; }
 function sv(id,val){ var el=g(id); if(el) el.value=(val==null?'':val); }
 function pad(n,l){ return String(n||'').padStart(l,'0'); }
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function nowHHMM(){ var d=new Date(); return pad(d.getHours(),2)+pad(d.getMinutes(),2); }
+function escHtml(s){ var t=String(s||''); t=t.split('&').join('&amp;'); t=t.split('<').join('&lt;'); t=t.split('>').join('&gt;'); return t; }
 function todayStr6(){ var d=new Date(); return String(d.getFullYear()).slice(2)+pad(d.getMonth()+1,2)+pad(d.getDate(),2); }
 function fmtHHMM(t){ if(!t||t.length<4) return t||''; return t.slice(0,2)+':'+t.slice(2,4); }
 function fmtDate6(d){ if(!d||d.length<6) return d||''; return '20'+d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4,6); }
