@@ -79,6 +79,7 @@ input,select{font-family:var(--sans)}
 .bd{background:var(--red-l);color:var(--red);border:1px solid rgba(140,40,24,.2)}
 .bt{background:var(--teal);color:#fff}.bt:hover{background:#1a8060}
 .btn-full{width:100%}
+.btn:disabled{opacity:.35;cursor:not-allowed}
 .sm{padding:6px 10px;font-size:11px}
 
 /* フォーム */
@@ -887,7 +888,7 @@ function adjustWarikan(visitKey, delta){
 }
 
 function updateWarikanDiff(){
-  var grandTotalStr=g('co-grand-total').textContent.replace(/[¥,]/g,'');
+  var grandTotalStr=g('co-grand-total').textContent.replace(/[^0-9]/g,'');
   var grandTotal=parseInt(grandTotalStr)||0;
   var inputSum=0;
   bulkCheckoutVisitKeys.forEach(function(visitKey){
@@ -911,6 +912,7 @@ g('m-checkout-close').addEventListener('click',function(){ closeM('m-checkout');
 g('m-checkout-cancel').addEventListener('click',function(){ closeM('m-checkout'); });
 
 g('m-checkout-save').addEventListener('click',function(){
+  if(g('m-checkout-save').disabled) return;
   if(!bulkCheckoutVisitKeys.length) return;
   var payment=gv('co-payment')||'0';
   var receipt=gv('co-receipt')||'0';
