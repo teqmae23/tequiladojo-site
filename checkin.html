@@ -199,18 +199,36 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       <button class="modal-x" id="m-checkin-close">✕</button>
     </div>
     <div class="modal-body">
+      <!-- visitKey表示 -->
       <div class="keybox" id="kb-checkin">
         <span class="kp-date" id="kb-date">——</span>
         <span class="kp-seq" id="kb-seq">—</span>
-        <span class="klabel">visitKey</span>
+        <span class="klabel">visitKey（先頭の方）</span>
+      </div>
+      <!-- グループ情報 -->
+      <div style="background:var(--cream2);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--ink3)">
+        グループID: <strong id="kb-group-id" style="color:var(--ink);font-family:var(--mono)">—</strong>
+        <span style="margin-left:12px">（同じグループで来店した全員に付与されます）</span>
       </div>
       <div class="fg">
         <label class="fl">来店時間（HHMM）<span class="req">*</span></label>
         <input class="fi" type="text" id="ci-time" maxlength="4" placeholder="1830" inputmode="numeric">
       </div>
+      <!-- 人数（グループ登録） -->
       <div class="fg">
-        <label class="fl">会員ID</label>
-        <input class="fi" type="text" id="ci-member" placeholder="250001" inputmode="numeric">
+        <label class="fl">人数 <span class="req">*</span></label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="fi" type="number" id="ci-count" min="1" max="20" value="1" style="width:80px" oninput="onCountChange()">
+          <span style="font-size:12px;color:var(--ink3)">名（複数の場合は1人ずつ続けて登録します）</span>
+        </div>
+      </div>
+      <!-- 進捗表示（複数人登録時） -->
+      <div id="ci-progress" style="display:none;background:var(--teal);color:#fff;border-radius:var(--r);padding:6px 12px;font-size:12px;margin-bottom:8px">
+        グループ登録中: <span id="ci-progress-text">1/1人目</span>
+      </div>
+      <div class="fg">
+        <label class="fl">会員ID <span id="ci-person-label" style="color:var(--ink3)"></span></label>
+        <input class="fi" type="text" id="ci-member" placeholder="250001（任意）" inputmode="numeric">
         <div id="ci-member-status" style="font-size:11px;margin-top:4px;min-height:16px"></div>
       </div>
       <div class="fg">
@@ -604,12 +622,11 @@ function refreshSingleVisit(visitKey, btn){
   });
 }
 
-// ── 来店登録 ───────────────────────────────────────────────────
+// ── 来店登録（グループ対応） ────────────────────────────────────
 var _nextSeq = 1;
+var _checkinGroup = { id: null, total: 1, current: 1 };
 
-g('btn-checkin').addEventListener('click',function(){
-  var today=todayStr6();
-  // 本日の最大通番+1
+function calcNextSeq(today){
   var maxSeq=0;
   cache.visits.forEach(function(v){
     if((v.visitDate||v.id.slice(0,6))===today){
@@ -617,13 +634,41 @@ g('btn-checkin').addEventListener('click',function(){
       if(s>maxSeq) maxSeq=s;
     }
   });
-  _nextSeq=maxSeq+1;
+  return maxSeq+1;
+}
+
+function calcNextGroupId(today){
+  // 当日の最大グループ通番+1（3桁）
+  var maxG=0;
+  cache.visits.forEach(function(v){
+    if((v.visitDate||v.id.slice(0,6))===today && v.checkinGroupId){
+      var n=parseInt(v.checkinGroupId.slice(6))||0;
+      if(n>maxG) maxG=n;
+    }
+  });
+  return today+pad(maxG+1,3);
+}
+
+function onCountChange(){
+  var count=parseInt(gv('ci-count'))||1;
+  var lbl=g('ci-person-label');
+  if(lbl) lbl.textContent=count>1?'（1人目）':'';
+}
+
+g('btn-checkin').addEventListener('click',function(){
+  var today=todayStr6();
+  _nextSeq=calcNextSeq(today);
+  _checkinGroup={ id: calcNextGroupId(today), total:1, current:1 };
   g('kb-date').textContent=today;
   g('kb-seq').textContent=pad(_nextSeq,2);
+  g('kb-group-id').textContent=_checkinGroup.id;
   sv('ci-time',nowHHMM());
   sv('ci-member','');
+  sv('ci-count','1');
   sv('ci-payment','0');
   g('ci-member-status').textContent='';
+  g('ci-progress').style.display='none';
+  var lbl=g('ci-person-label'); if(lbl) lbl.textContent='';
   openM('m-checkin');
 });
 
@@ -634,7 +679,7 @@ g('ci-member').addEventListener('input',function(){
   if(!val){ status.textContent=''; return; }
   var mem=getMemberInfo(val);
   if(mem){
-    status.textContent='✓ '+(mem.nickname||mem.name)+'（'+( mem.rank||'段位なし')+'・来店'+( mem.visitCount||0)+'回）';
+    status.textContent='✓ '+(mem.nickname||mem.name)+'（'+(mem.rank||'段位なし')+'・来店'+(mem.visitCount||0)+'回）';
     status.style.color='var(--teal)';
   } else {
     status.textContent='✕ 会員ID「'+val+'」は登録されていません（非会員として登録可）';
@@ -649,30 +694,72 @@ g('m-checkin-save').addEventListener('click',function(){
   var today=todayStr6();
   var time=gv('ci-time');
   if(!time||time.length!==4){ toast('来店時間（4桁）は必須です','err'); return; }
+
+  // 初回クリック時にグループ人数を確定
+  if(_checkinGroup.current===1){
+    _checkinGroup.total=Math.max(1,parseInt(gv('ci-count'))||1);
+    _checkinGroup.id=calcNextGroupId(today);
+    _nextSeq=calcNextSeq(today);
+    g('kb-group-id').textContent=_checkinGroup.id;
+  }
+
   var visitKey=today+pad(_nextSeq,2);
-  if(cache.visits.some(function(v){ return v.id===visitKey; })){ toast('visitKey「'+visitKey+'」は既に存在します','err'); return; }
+  if(cache.visits.some(function(v){ return v.id===visitKey; })){
+    toast('visitKey「'+visitKey+'」は既に存在します','err'); return;
+  }
   var memberId=gv('ci-member')||null;
+  var groupId=_checkinGroup.total>1?_checkinGroup.id:null;
+
   db.collection('visits').doc(visitKey).set({
     visitKey: visitKey,
     visitDate: today,
     visitTime: time,
     seq: _nextSeq,
     memberId: memberId,
+    checkinGroupId: groupId,   // グループ来店ID（1人なら null）
     tequilaAmount: 0,
     amount: 0,
     payment: gv('ci-payment')||'0',
     receiptIssued: '0',
     checkoutTime: null
   }).then(function(){
-    toast('来店を登録しました（'+visitKey+'）');
-    closeM('m-checkin');
-    // キャッシュに追加してリスト再描画
     cache.visits.push({
       id:visitKey, visitKey:visitKey, visitDate:today, visitTime:time,
-      seq:_nextSeq, memberId:memberId, tequilaAmount:0, amount:0,
+      seq:_nextSeq, memberId:memberId, checkinGroupId:groupId,
+      tequilaAmount:0, amount:0,
       payment:gv('ci-payment')||'0', receiptIssued:'0', checkoutTime:null
     });
-    renderVisitorList();
+
+    var cur=_checkinGroup.current;
+    var total=_checkinGroup.total;
+
+    if(cur>=total){
+      // 全員登録完了
+      toast(total>1?total+'名のグループ来店を登録しました（グループ: '+groupId+'）':'来店を登録しました（'+visitKey+'）');
+      closeM('m-checkin');
+      _checkinGroup={ id:null, total:1, current:1 };
+      g('ci-progress').style.display='none';
+      renderVisitorList();
+    } else {
+      // 次の人へ
+      _checkinGroup.current=cur+1;
+      _nextSeq=calcNextSeq(today);
+      g('kb-seq').textContent=pad(_nextSeq,2);
+      g('kb-group-id').textContent=_checkinGroup.id;
+      sv('ci-member','');
+      sv('ci-payment','0');
+      g('ci-member-status').textContent='';
+      // 進捗表示
+      var prog=g('ci-progress');
+      prog.style.display='block';
+      g('ci-progress-text').textContent=(cur+1)+'/'+total+'人目';
+      var lbl=g('ci-person-label');
+      if(lbl) lbl.textContent='（'+( cur+1)+'/'+total+'人目）';
+      // 人数フィールドをロック
+      var countEl=g('ci-count'); if(countEl) countEl.disabled=true;
+      toast((cur)+'人目を登録しました。続けて'+(cur+1)+'人目を入力してください','inf');
+      renderVisitorList();
+    }
   }).catch(function(e){ toast('登録失敗: '+e.message,'err'); });
 });
 
