@@ -1616,9 +1616,14 @@ async function confirmOrder(){
 
   try{
     const batch=db.batch();
-    // 同時注文の全員・全アイテムで共通のorderGroupIdを使う（= batchId）
-    const orderGroupId=batchId;
     for(const visit of flow.visits){
+      // 各人ごとに個別のorderGroupIdを採番（visitKey + 当日グループ連番2桁）
+      const existGs=allGroups.filter(g=>g.visitKey===visit.id||g.groups?.some(x=>x.visitKey===visit.id));
+      const usedSeqs=allGroups.flatMap(g=>g.orders||[])
+        .filter(o=>o.visitKey===visit.id)
+        .map(o=>parseInt((o.orderGroupId||'').slice(visit.id.length))||0);
+      const maxGSeq=usedSeqs.length?Math.max(...usedSeqs):0;
+      const orderGroupId=visit.id+String(maxGSeq+1).padStart(2,'0');
       flow.cart.forEach((item,i)=>{
         maxSeq++;
         batch.set(db.collection('orders').doc(todayStr+String(maxSeq).padStart(3,'0')),{
