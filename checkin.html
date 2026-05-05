@@ -293,12 +293,14 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
         <div><div class="cs-label">総合計金額</div><div class="cs-value" id="co-grand-total">¥0</div></div>
       </div>
 
-      <!-- 割り勘セクション -->
-      <div style="font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:6px">割り勘 / 個別金額</div>
-      <div id="warikan-area"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border2);margin-top:4px">
-        <span style="font-size:12px;color:var(--ink3)">入力合計との差</span>
-        <span id="warikan-diff" style="font-size:15px;font-weight:700;color:var(--teal)">残金: ¥0</span>
+      <!-- 割り勘セクション（複数人時のみ表示） -->
+      <div id="warikan-section">
+        <div style="font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:6px">割り勘 / 個別金額</div>
+        <div id="warikan-area"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border2);margin-top:4px">
+          <span style="font-size:12px;color:var(--ink3)">入力合計との差</span>
+          <span id="warikan-diff" style="font-size:15px;font-weight:700;color:var(--teal)">残金: ¥0</span>
+        </div>
       </div>
 
       <!-- 会計入力 -->
@@ -313,10 +315,12 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
           </select>
         </div>
         <div class="fg" style="margin-bottom:0">
-          <label class="fl">領収書</label>
+          <label class="fl">レシート・領収書</label>
           <select class="fs" id="co-receipt">
-            <option value="0">0: 未発行</option>
-            <option value="1">1: 発行</option>
+            <option value="0">不要</option>
+            <option value="1">レシートのみ</option>
+            <option value="2">領収書のみ</option>
+            <option value="3">レシートと領収書</option>
           </select>
         </div>
       </div>
@@ -360,14 +364,19 @@ function closeM(id){ g(id).classList.remove('open'); }
 // 10ml単価計算
 function calcAmount(orders){
   return orders.reduce(function(s,o){
+    if(o.served===0) return s;
     var qty=parseFloat(o.qty)||0, price=parseFloat(o.unitPrice||o.price||0);
-    return s + (o.productType==='tequila'||o.productType==='other'
+    var t=o.productType||o.type||'';
+    return s + (t==='tequila'||t==='spirits'
       ? Math.round(price*qty/10) : Math.round(price*qty));
   },0);
 }
 function calcTequila(orders){
-  return orders.filter(function(o){ return o.productType==='tequila'; })
-    .reduce(function(s,o){ return s+(parseFloat(o.qty)||0); },0);
+  return orders.filter(function(o){
+    if(o.served===0) return false;
+    var t=o.productType||o.type||'';
+    return t==='tequila';
+  }).reduce(function(s,o){ return s+(parseFloat(o.qty)||0); },0);
 }
 
 // ── キャッシュ ──────────────────────────────────────────────────
@@ -409,10 +418,15 @@ function loadAll(){
         .filter(function(v){ return (v.visitDate||v.id.slice(0,6))===today; });
     }),
     db.collection('orders').get().then(function(s){
-      cache.orders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());})
-        .filter(function(o){ return o.orderDate===today; });
+      cache.orders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
     })
   ]).then(function(){
+    // 当日visitのIDセットで絞り込む
+    var todayIds=new Set(cache.visits.map(function(v){return v.id;}));
+    cache.orders=cache.orders.filter(function(o){
+      if(o.orderDate) return o.orderDate===today;
+      return todayIds.has(o.visitKey||o.visitId);
+    });
     renderVisitorList();
   }).catch(function(e){ toast('読み込み失敗: '+e.message,'err'); });
 }
@@ -427,10 +441,14 @@ g('btn-refresh').addEventListener('click',function(){
         .filter(function(v){ return (v.visitDate||v.id.slice(0,6))===today; });
     }),
     db.collection('orders').get().then(function(s){
-      cache.orders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());})
-        .filter(function(o){ return o.orderDate===today; });
+      cache.orders=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
     })
   ]).then(function(){
+    var todayIds2=new Set(cache.visits.map(function(v){return v.id;}));
+    cache.orders=cache.orders.filter(function(o){
+      if(o.orderDate) return o.orderDate===today;
+      return todayIds2.has(o.visitKey||o.visitId);
+    });
     // 各来場者の注文集計を更新してFirestoreに書き込む
     var batch=db.batch();
     var updated=0;
@@ -844,8 +862,15 @@ function openBulkCheckout(){
     g('checkout-persons-area').innerHTML=personsHtml;
     g('co-grand-total').textContent='¥'+grandTotal.toLocaleString();
 
-    // 割り勘エリア
-    renderWarikan(grandTotal);
+    // 1人の場合は割り勘セクション非表示・確定ボタン即有効化
+    var ws=g('warikan-section');
+    if(bulkCheckoutVisitKeys.length===1){
+      if(ws) ws.style.display='none';
+      g('m-checkout-save').disabled=false;
+    } else {
+      if(ws) ws.style.display='block';
+      renderWarikan(grandTotal);
+    }
 
     // キャッシュ更新
     cache.orders=allOrders.filter(function(o){
@@ -866,15 +891,15 @@ function renderWarikan(grandTotal){
     var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
     var amt=warikanAmounts[visitKey]||0;
     html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-      +'<span style="flex:1;font-size:13px">'+escHtml(name)+'</span>'
-      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', -1000)">−1000</button>'
-      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', -500)">−500</button>'
+    html+='<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap">'
+      +'<span style="flex:1;font-size:13px;min-width:60px">'+escHtml(name)+'</span>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\''+visitKey+'\', -500)">−500</button>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\''+visitKey+'\', -100)">−100</button>'
       +'<input type="number" step="100" value="'+amt+'" id="wk-'+visitKey+'"'
-      +' style="width:90px;padding:6px 8px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right"'
+      +' style="width:85px;padding:6px 8px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;text-align:right"'
       +' oninput="updateWarikanDiff()">'
-      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', 500)">+500</button>'
-      +'<button class="btn bs sm" onclick="adjustWarikan(\'"+visitKey+"\', 1000)">+1000</button>'
-      +'</div>';
+      +'<button class="btn bs sm" onclick="adjustWarikan(\''+visitKey+'\', 100)">+100</button>'
+      +'<button class="btn bs sm" onclick="adjustWarikan(\''+visitKey+'\', 500)">+500</button>'
   });
   g('warikan-area').innerHTML=html;
   updateWarikanDiff();
@@ -921,7 +946,9 @@ g('m-checkout-save').addEventListener('click',function(){
   var fbBatch=db.batch();
   bulkCheckoutVisitKeys.forEach(function(visitKey){
     var orders=cache.orders.filter(function(o){ return o.visitKey===visitKey||o.visitId===visitKey; });
-    var totalAmt=parseInt((g('wk-'+visitKey)||{value:'0'}).value)||0;
+    // 1人の場合はwarikan入力欄がないのでcalcAmountから取得
+    var wkEl=g('wk-'+visitKey);
+    var totalAmt=wkEl?parseInt(wkEl.value)||0:calcAmount(orders);
     var totalTq=calcTequila(orders);
     fbBatch.update(db.collection('visits').doc(visitKey),{
       amount: totalAmt,
