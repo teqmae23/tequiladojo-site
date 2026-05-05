@@ -852,10 +852,13 @@ function openBulkCheckout(){
             +'</div>';
           }).join('');
 
+      var subtotalRow=bulkCheckoutVisitKeys.length>1
+        ?'<div style="text-align:right;font-size:13px;font-weight:600;color:var(--gold-d);margin-top:6px">小計: ¥'+totalAmt.toLocaleString()+'</div>'
+        :'';
       personsHtml+='<div style="background:var(--cream2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px">'
         +'<div style="font-size:14px;font-weight:500;margin-bottom:6px">'+escHtml(name)+'</div>'
         +'<div class="checkout-order-list">'+orderRows+'</div>'
-        +'<div style="text-align:right;font-size:13px;font-weight:600;color:var(--gold-d);margin-top:6px">小計: ¥'+totalAmt.toLocaleString()+'</div>'
+        +subtotalRow
         +'</div>';
     });
 
@@ -891,8 +894,8 @@ function renderWarikan(grandTotal){
     var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId?'ID: '+v.memberId:'非会員');
     var amt=warikanAmounts[visitKey]||0;
     html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-    html+='<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap">'
-      +'<span style="flex:1;font-size:13px;min-width:60px">'+escHtml(name)+'</span>'
+    html+='<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:8px;flex-wrap:wrap">'
+      +'<span style="font-size:13px;margin-right:auto">'+escHtml(name)+'</span>'
       +'<button class="btn bs sm" onclick="adjustWarikan(\''+visitKey+'\', -500)">−500</button>'
       +'<button class="btn bs sm" onclick="adjustWarikan(\''+visitKey+'\', -100)">−100</button>'
       +'<input type="number" step="100" value="'+amt+'" id="wk-'+visitKey+'"'
