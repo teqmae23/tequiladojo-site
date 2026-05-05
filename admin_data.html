@@ -287,9 +287,9 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           </div>
         </div>
         <div class="tw"><table id="tbl-visits">
-          <colgroup><col style="width:100px"><col style="width:50px"><col style="width:50px"><col style="width:120px"><col style="width:50px"><col style="width:50px"><col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:50px"><col style="width:86px"></colgroup>
-          <thead><tr><th>キー</th><th>来店時間</th><th>退店時間</th><th>会員</th><th>来店回数</th><th>段位</th><th>テキーラ量</th><th>金額</th><th>会計方法</th><th>領収書</th><th>✏️ レコード操作</th></tr></thead>
-          <tbody id="tb-visits"><tr><td colspan="11" class="ec">読み込み中...</td></tr></tbody>
+          <colgroup><col style="width:100px"><col style="width:50px"><col style="width:50px"><col style="width:55px"><col style="width:110px"><col style="width:50px"><col style="width:50px"><col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:50px"><col style="width:86px"></colgroup>
+          <thead><tr><th>キー</th><th>来店時間</th><th>退店時間</th><th>会計確定</th><th>会員</th><th>来店回数</th><th>段位</th><th>テキーラ量</th><th>金額</th><th>会計方法</th><th>領収書</th><th>✏️ 操作</th></tr></thead>
+          <tbody id="tb-visits"><tr><td colspan="12" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -371,7 +371,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         </div>
         <div class="tw"><table id="tbl-orders">
           <colgroup><col style="width:110px"><col style="width:50px"><col style="width:70px"><col style="width:80px"><col style="width:44px"><col style="width:90px"><col style="width:80px"><col style="width:120px"><col style="width:44px"><col style="width:50px"><col style="width:60px"><col style="width:36px"><col style="width:100px"></colgroup>
-          <thead><tr><th>注文ID</th><th>時間</th><th>顧客ID</th><th>来店キー</th><th>種別</th><th>注文グループ</th><th>商品コード</th><th>商品名</th><th>数量</th><th>単位</th><th>単価</th><th>盲</th><th>✏️ 操作</th></tr></thead>
+          <thead><tr><th>注文ID</th><th>時間</th><th>顧客ID</th><th>来店キー</th><th>種別</th><th>商品名</th><th>数量</th><th>単価</th><th>提供</th><th>グループID</th><th>盲</th><th>✏️ 操作</th></tr></thead>
           <tbody id="tb-orders"><tr><td colspan="11" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
@@ -540,7 +540,10 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           <option value="0">0: 未発行</option><option value="1">1: 発行</option>
         </select></div>
       </div>
-      <div class="fg"><label class="fl">退店時間（HHMM）</label><input class="fi mono" id="vis-out" placeholder="2300" maxlength="4"></div>
+      <div class="frow">
+        <div class="fg"><label class="fl">退店時間（HHMM）</label><input class="fi mono" id="vis-out" placeholder="2300" maxlength="4"></div>
+        <div class="fg"><label class="fl">お会計確定時間（HHMM）</label><input class="fi mono" id="vis-pay-time" placeholder="2230" maxlength="4"></div>
+      </div>
     </div>
     <div class="mfoot" id="visit-modal-foot"><button class="btn bg2" id="btn-cancel-visit">キャンセル</button><button class="btn bp" id="btn-save-visit">登録</button></div>
   </div>
@@ -606,14 +609,29 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         <div class="fg"><label class="fl">単価（円）</label><input class="fi" id="ord-unit-price" type="number" min="0" placeholder="0"></div>
       </div>
       <div class="frow">
-        <div class="fg"><label class="fl">注文グループID</label><input class="fi mono" id="ord-group-id" maxlength="10" placeholder="25042901-01"></div>
+        <div class="fg"><label class="fl">注文グループID</label><input class="fi mono" id="ord-group-id" placeholder="260428001"></div>
+        <div class="fg"><label class="fl">バッチID</label><input class="fi mono" id="ord-batch-id" placeholder="260428001"></div>
         <div class="fg"><label class="fl">グループ内連番</label><input class="fi" id="ord-item-seq" type="number" min="1" placeholder="1"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">提供フラグ（served）</label>
+          <select class="fs" id="ord-served">
+            <option value="1">1: 未提供</option>
+            <option value="2">2: 提供済</option>
+            <option value="0">0: キャンセル</option>
+          </select>
+        </div>
         <div class="fg"><label class="fl">ブラインド</label>
           <select class="fs" id="ord-blind">
             <option value="0">0: 通常</option>
             <option value="1">1: ブラインド</option>
           </select>
         </div>
+        <div class="fg"><label class="fl">ブラインドマークID</label><input class="fi mono" id="ord-blind-mark" placeholder="R●等"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="fl">セットID</label><input class="fi mono" id="ord-set-id" placeholder="01"></div>
+        <div class="fg"><label class="fl">visitId（来店ID）</label><input class="fi mono" id="ord-visit-id" maxlength="13" placeholder="2604281017011"></div>
       </div>
     </div>
     <div class="mfoot"><button class="btn bg2" data-close="m-order">キャンセル</button><button class="btn bp" id="btn-save-order">保存</button></div>
@@ -997,6 +1015,7 @@ function renderVisits(){
       +'<td class="mono" style="font-size:10px">'+r.id+'</td>'
       +'<td class="mono dim">'+fmtHHMM(r.visitTime)+'</td>'
       +'<td class="mono dim">'+fmtHHMM(r.checkoutTime)+'</td>'
+      +'<td class="mono dim">'+(r.checkoutPayTime?fmtHHMM(r.checkoutPayTime):"—")+'</td>'
       +'<td style="font-size:11px">'+(r.memberId?mi.name:"—")+'</td>'
       +'<td class="mono dim" style="text-align:right">'+(r.memberId?mi.visitCount:"—")+'</td>'
       +'<td class="dim" style="font-size:11px">'+(r.memberId?mi.rank:"—")+'</td>'
@@ -1038,6 +1057,7 @@ function setVisitFields(r){
   sv("vis-payment",r?r.payment||"0":"0");
   sv("vis-receipt",r?r.receiptIssued||"0":"0");
   sv("vis-out",r?r.checkoutTime||"":"");
+  sv("vis-pay-time",r?r.checkoutPayTime||"":"");
   var ti=g("vis-time-input"); if(ti) ti.value=r?r.visitTime||"":"";
 }
 
@@ -1120,7 +1140,8 @@ function doSaveVisit(onSuccess){
     amount:gv("vis-amount")!==""?parseInt(gv("vis-amount")):null,
     payment:gv("vis-payment")||"0",
     receiptIssued:gv("vis-receipt")||"0",
-    checkoutTime:gv("vis-out")||null
+    checkoutTime:gv("vis-out")||null,
+    checkoutPayTime:gv("vis-pay-time")||null
   },{merge:true})
   .then(function(){ toast(editId.visit?"来店データを更新しました":"来店登録しました"); if(onSuccess) onSuccess(); })
   .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
@@ -1947,7 +1968,7 @@ function renderOrders(){
   });
   list=applySortToList(list,"orders");
   var tb=g("tb-orders");
-  if(!list.length){ tb.innerHTML='<tr><td colspan="10" class="ec">データがありません</td></tr>'; return; }
+  if(!list.length){ tb.innerHTML='<tr><td colspan="12" class="ec">データがありません</td></tr>'; return; }
   tb.innerHTML=list.map(function(r){
     var lbl=TYPE_LABEL[r.productType];
     var typeBadge=lbl?'<span class="badge '+(TYPE_BADGE_CLS[r.productType]||"bg-gray")+'">'+lbl+'</span>':'<span class="dim">—</span>';
@@ -1955,18 +1976,19 @@ function renderOrders(){
     var isDeleted=!!r.deleted;
     var rowStyle=isDeleted?'style="opacity:.4;background:var(--cream2)"':'';
     var delBadge=isDeleted?'<span class="badge bg-red" style="font-size:9px">削除</span>':'';
+    var servedNum=parseInt(r.served!=null?r.served:1);
+    var servedLabel=servedNum===0?'<span class="badge bg-red">取消</span>':servedNum===2?'<span class="badge bg-teal">提供済</span>':'<span class="dim" style="font-size:11px">未提供</span>';
     return '<tr '+rowStyle+'>'
       +'<td class="mono" style="font-size:10px">'+r.id+' '+delBadge+'</td>'
       +'<td class="mono dim">'+fmtHHMM(r.orderTime||"")+'</td>'
       +'<td class="mono dim" style="font-size:11px">'+(r.customerId||"—")+'</td>'
-      +'<td class="mono dim" style="font-size:11px">'+(r.visitKey||"—")+'</td>'
+      +'<td class="mono dim" style="font-size:10px">'+(r.visitKey||r.visitId||"—")+'</td>'
       +'<td>'+typeBadge+'</td>'
-      +'<td class="mono dim" style="font-size:10px">'+(r.orderGroupId?r.orderGroupId+(r.itemSeq?'-'+r.itemSeq:''):"—")+'</td>'
-      +'<td class="mono dim" style="font-size:11px">'+(r.productCode||"—")+'</td>'
-      +'<td style="font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.productName||"—")+'</td>'
-      +'<td class="mono dim" style="text-align:right">'+(r.qty!=null?r.qty:"—")+'</td>'
-      +'<td class="dim" style="font-size:11px">'+(r.unit||"—")+'</td>'
+      +'<td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.productName||"—")+'</td>'
+      +'<td class="mono dim" style="text-align:right">'+(r.qty!=null?r.qty+(r.unit||""):"—")+'</td>'
       +'<td class="mono" style="text-align:right">'+(r.unitPrice!=null?"¥"+Number(r.unitPrice).toLocaleString():"—")+'</td>'
+      +'<td style="text-align:center">'+servedLabel+'</td>'
+      +'<td class="mono dim" style="font-size:10px">'+(r.orderGroupId||"—")+'</td>'
       +'<td style="text-align:center">'+blindBadge+'</td>'
       +'<td><div class="acts">'
         +(isDeleted
@@ -2042,8 +2064,13 @@ function openOrderModal(id){
     sv("ord-qty",r&&r.qty!=null?r.qty:""); sv("ord-unit",r?r.unit||"ml":"ml");
     sv("ord-unit-price",r&&r.unitPrice!=null?r.unitPrice:"");
     sv("ord-group-id",r?r.orderGroupId||"":"");
+    sv("ord-batch-id",r?r.batchId||"":"");
     sv("ord-item-seq",r&&r.itemSeq!=null?r.itemSeq:1);
+    sv("ord-served",r?String(r.served!=null?r.served:1):"1");
     sv("ord-blind",r?String(r.blindId||0):"0");
+    sv("ord-blind-mark",r?r.blindMarkId||"":"");
+    sv("ord-set-id",r?r.setId||"":"");
+    sv("ord-visit-id",r?r.visitId||r.visitKey||"":"");
     if(dEl){dEl.readOnly=true; dEl.style.background="var(--cream2)";}
     if(sEl){sEl.readOnly=true; sEl.style.background="var(--cream2)";}
   } else {
@@ -2053,7 +2080,9 @@ function openOrderModal(id){
     sv("ord-customer",""); sv("ord-visit","");
     sv("ord-type","tequila"); sv("ord-product-code",""); sv("ord-product-name","");
     sv("ord-qty",""); sv("ord-unit","ml"); sv("ord-unit-price","");
-    sv("ord-group-id",""); sv("ord-item-seq",1); sv("ord-blind","0");
+    sv("ord-group-id",""); sv("ord-batch-id",""); sv("ord-item-seq",1);
+    sv("ord-served","1"); sv("ord-blind","0"); sv("ord-blind-mark","");
+    sv("ord-set-id",""); sv("ord-visit-id","");
     if(dEl){dEl.readOnly=false; dEl.style.background="";}
     if(sEl){sEl.readOnly=false; sEl.style.background="";}
     autoSetOrderSeq(today);
@@ -2077,10 +2106,13 @@ if(_bsoBtn) _bsoBtn.addEventListener("click",function(){
   if(!qty){ toast("数量は必須です","err"); return; }
   var id=date+seq;
   if(!editId.order&&cache.orders.some(function(r){return r.id===id;})){ toast("注文ID「"+id+"」は既に存在します","err"); return; }
+  var ordDateVal=gv("ord-date");
   db.collection("orders").doc(id).set({
+    orderDate:ordDateVal||null,
     orderTime:gv("ord-time")||null,
     customerId:gv("ord-customer")||null,
     visitKey:gv("ord-visit")||null,
+    visitId:gv("ord-visit-id")||gv("ord-visit")||null,
     productType:gv("ord-type")||"tequila",
     productCode:gv("ord-product-code")||null,
     productName:gv("ord-product-name")||null,
@@ -2088,8 +2120,12 @@ if(_bsoBtn) _bsoBtn.addEventListener("click",function(){
     unit:gv("ord-unit")||"ml",
     unitPrice:gv("ord-unit-price")!==""?parseInt(gv("ord-unit-price")):null,
     orderGroupId:gv("ord-group-id")||null,
+    batchId:gv("ord-batch-id")||null,
     itemSeq:parseInt(gv("ord-item-seq"))||1,
+    served:parseInt(gv("ord-served")||"1"),
     blindId:parseInt(gv("ord-blind"))||0,
+    blindMarkId:gv("ord-blind-mark")||null,
+    setId:gv("ord-set-id")||null,
     deleted:0
   },{merge:true})
   .then(function(){ toast(editId.order?"注文データを更新しました":"注文データを登録しました"); closeM("m-order"); loadOrders(); })
