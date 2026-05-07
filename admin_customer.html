@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>テキーラ道場 — 顧客・店舗管理</title>
+<title>テキーラ道場 — 会員・店舗管理</title>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -179,7 +179,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
     <div class="page active" id="page-members">
       <div class="phead">
         <div><div class="ptitle">顧客マスタ</div><div class="pdesc">顧客番号 6桁 = 西暦下2桁 + 通番4桁</div></div>
-        <button class="btn bp" id="btn-open-member">＋ 顧客登録</button>
+        <button class="btn bp" id="btn-open-member">＋ 会員登録</button>
       </div>
       <div class="card">
         <div class="toolbar">
@@ -228,17 +228,28 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
 <!-- 顧客モーダル -->
 <div class="mbg" id="m-member">
   <div class="modal modal-lg">
-    <div class="mhead"><div class="mtitle" id="mt-member">顧客登録</div><button class="mx" data-close="m-member">✕</button></div>
+    <div class="mhead"><div class="mtitle" id="mt-member">会員登録</div><button class="mx" data-close="m-member">✕</button></div>
     <div class="mbody">
-      <div class="keybox" id="kb-member">—<span class="klabel">顧客番号</span></div>
+      <div class="keybox" id="kb-member">—<span class="klabel">会員番号</span></div>
+      <!-- Firebase Auth情報 -->
+      <div class="frow">
+        <div class="fg"><label class="fl">メールアドレス（ログイン用）</label><input class="fi" id="mem-email" type="email" placeholder="member@example.com"></div>
+        <div class="fg"><label class="fl">パスワード（新規・変更時のみ入力）</label><input class="fi" id="mem-password" type="password" placeholder="8文字以上" autocomplete="new-password"></div>
+      </div>
       <div class="frow c3">
-        <div class="fg"><label class="fl">顧客番号（6桁）<span class="req">*</span></label><input class="fi mono" id="mem-id" placeholder="250001" maxlength="6" readonly style="background:var(--cream2)"></div>
+        <div class="fg"><label class="fl">会員番号（6桁）<span class="req">*</span></label><input class="fi mono" id="mem-id" placeholder="250001" maxlength="6" readonly style="background:var(--cream2)"></div>
         <div class="fg"><label class="fl">登録日</label><div class="date-group"><input class="fi dy" id="mem-reg-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="mem-reg-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="mem-reg-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="mem-reg"></div>
         <div class="fg"><label class="fl">性別</label><select class="fs" id="mem-gender"><option value="男">男</option><option value="女">女</option><option value="他">他</option></select></div>
+        <div class="fg"><label class="fl">会員区分</label><select class="fs" id="mem-grade">
+          <option value="0">0: 無料会員</option>
+          <option value="1">1: 有料会員1</option>
+          <option value="2">2: 有料会員2</option>
+          <option value="3">3: 有料会員3</option>
+        </select></div>
       </div>
       <div class="frow">
-        <div class="fg"><label class="fl">顧客名<span class="req">*</span></label><input class="fi" id="mem-name" placeholder="田中 太郎"></div>
-        <div class="fg"><label class="fl">顧客名（カタカナ）</label><input class="fi" id="mem-kana" placeholder="タナカ タロウ"></div>
+        <div class="fg"><label class="fl">会員名<span class="req">*</span></label><input class="fi" id="mem-name" placeholder="田中 太郎"></div>
+        <div class="fg"><label class="fl">会員名（カタカナ）</label><input class="fi" id="mem-kana" placeholder="タナカ タロウ"></div>
       </div>
       <div class="fg"><label class="fl">ニックネーム</label><input class="fi" id="mem-nick" placeholder="タロ"></div>
       <div class="fg"><label class="fl">誕生日</label><div class="date-group"><input class="fi dy" id="mem-birth-y" maxlength="4" placeholder="YYYY" style="width:52px;text-align:center"><span class="date-sep">/</span><input class="fi dm" id="mem-birth-m" maxlength="2" placeholder="MM" style="width:34px;text-align:center"><span class="date-sep">/</span><input class="fi dd" id="mem-birth-d" maxlength="2" placeholder="DD" style="width:34px;text-align:center"></div><input type="hidden" id="mem-birth"></div>
@@ -254,7 +265,11 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         <option>徳島県</option><option>香川県</option><option>愛媛県</option><option>高知県</option>
         <option>福岡県</option><option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option><option>宮崎県</option><option>鹿児島県</option><option>沖縄県</option>
       </select></div>
-      <div class="fg"><label class="fl">住所</label><input class="fi" id="mem-addr" placeholder="渋谷区道玄坂1-1-1"></div>
+      <div class="frow">
+        <div class="fg" style="max-width:160px"><label class="fl">郵便番号</label><input class="fi" id="mem-zip" placeholder="150-0041" maxlength="8"></div>
+        <div class="fg"><label class="fl">住所</label><input class="fi" id="mem-addr" placeholder="渋谷区道玄坂1-1-1"></div>
+      </div>
+      <div class="fg"><label class="fl">建物・部屋番号</label><input class="fi" id="mem-addr2" placeholder="テキーラビル201"></div>
       <div class="fg"><label class="fl">電話番号</label><input class="fi" id="mem-tel" type="tel" placeholder="090-0000-0000"></div>
       <hr class="fsep">
       <div class="frow c3">
@@ -262,8 +277,20 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         <div class="fg"><label class="fl">Instagram ID</label><input class="fi" id="mem-ig" placeholder="@username"></div>
         <div class="fg"><label class="fl">Facebook ID</label><input class="fi" id="mem-fb" placeholder="username"></div>
       </div>
+      <div class="fg"><label class="fl">メインSNS</label><select class="fs" id="mem-main-sns">
+        <option value="0">— 未設定</option>
+        <option value="1">1: Twitter / X</option>
+        <option value="2">2: Instagram</option>
+        <option value="3">3: Facebook</option>
+      </select></div>
+      <hr class="fsep">
+      <div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">累積データ（自動集計・編集不可）</div>
+      <div class="frow c3">
+        <div class="fg"><label class="fl">来場回数</label><input class="fi" id="mem-visits" type="number" min="0" value="0" style="background:var(--cream2)" readonly></div>
+        <div class="fg"><label class="fl">総テキーラ量（ml）</label><input class="fi mono" id="mem-total-tequila" type="number" value="0" style="background:var(--cream2)" readonly></div>
+        <div class="fg"><label class="fl">総支払金額（円）</label><input class="fi mono" id="mem-total-amount" type="number" value="0" style="background:var(--cream2)" readonly></div>
+      </div>
       <div class="frow">
-        <div class="fg"><label class="fl">来店回数</label><input class="fi" id="mem-visits" type="number" min="0" value="0" style="background:var(--cream2)" readonly></div>
         <div class="fg"><label class="fl">段位</label><select class="fs" id="mem-rank">
           <option value="">—</option>
           <option value="初級">初級</option><option value="中級">中級</option><option value="上級">上級</option>
@@ -272,6 +299,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
           <option value="七段">七段</option><option value="八段">八段</option><option value="九段">九段</option>
         </select></div>
       </div>
+      <hr class="fsep">
       <div class="fg"><label class="fl">表示言語</label><select class="fs" id="mem-lang"><option value="0">0: 日本語</option><option value="1">1: 英語</option></select><div style="font-size:11px;color:var(--ink3);margin-top:3px">注文登録画面での商品名表示言語（1=英語名で表示）</div></div>
       <div class="fg"><label class="fl">備考</label><textarea class="fi" id="mem-note" rows="3" style="resize:vertical;font-size:13px" placeholder="自由記入..."></textarea></div>
     </div>
@@ -495,28 +523,36 @@ function genMemberId(){
 }
 
 function setMemberFields(r){
+  sv("mem-email",  r?r.email||"":"");
+  sv("mem-password", "");  // パスワードは表示しない
   sv("mem-name",   r?r.name:"");
   sv("mem-kana",   r?r.nameKana:"");
   sv("mem-nick",   r?r.nickname:"");
   sv("mem-gender", r?r.gender:"男");
+  sv("mem-grade",  r?String(r.grade||"0"):"0");
   sv("mem-reg",    r?(r.registeredAt||todayDate()):todayDate());
   sv("mem-birth",  r?r.birthday:"");
+  sv("mem-zip",    r?r.zipCode||"":"");
   sv("mem-pref",   r?r.prefecture:"");
   sv("mem-addr",   r?r.address:"");
+  sv("mem-addr2",  r?r.address2||"":"");
   sv("mem-tel",    r?r.phone:"");
   sv("mem-tw",     r?r.twitterId:"");
   sv("mem-ig",     r?r.instagramId:"");
   sv("mem-fb",     r?r.facebookId:"");
+  sv("mem-main-sns", r?String(r.mainSns||"0"):"0");
   sv("mem-visits", r?r.visitCount||0:0);
+  sv("mem-total-tequila", r?r.totalTequila||0:0);
+  sv("mem-total-amount",  r?r.totalAmount||0:0);
   sv("mem-rank",   r?r.rank||"":"");
-  sv("mem-lang", r?String(r.lang||"0"):"0");
+  sv("mem-lang",   r?String(r.lang||"0"):"0");
   var noteEl=g("mem-note"); if(noteEl) noteEl.value=r?r.note||"":"";
 }
 
 g("btn-open-member").addEventListener("click",function(){ openMemberModal(null); });
 
 function openMemberModal(id){
-  editId.member=id; g("mt-member").textContent=id?"顧客編集":"顧客登録";
+  editId.member=id; g("mt-member").textContent=id?"会員編集":"会員登録";
   var idEl=g("mem-id");
   if(id){
     sv("mem-id",id); idEl.readOnly=true; idEl.style.background="var(--cream2)";
@@ -524,22 +560,22 @@ function openMemberModal(id){
   } else {
     var newId=genMemberId(); sv("mem-id",newId); idEl.readOnly=false; idEl.style.background=""; setMemberFields(null);
   }
-  g("kb-member").innerHTML='<span class="keypart kp-nom">'+gv("mem-id")+'</span><span class="klabel">顧客番号</span>';
+  g("kb-member").innerHTML='<span class="keypart kp-nom">'+gv("mem-id")+'</span><span class="klabel">会員番号</span>';
   openM("m-member");
 }
 
 var memIdEl=g("mem-id"); if(memIdEl) memIdEl.addEventListener("input",function(){
   var v=this.value.replace(/[^0-9]/g,"").slice(0,6); this.value=v;
-  g("kb-member").innerHTML=v?'<span class="keypart kp-nom">'+v+'</span><span class="klabel">顧客番号</span>':'—<span class="klabel">顧客番号</span>';
+  g("kb-member").innerHTML=v?'<span class="keypart kp-nom">'+v+'</span><span class="klabel">会員番号</span>':'—<span class="klabel">会員番号</span>';
 });
 
 function copyMemberModal(id){
   var r=cache.members.find(function(m){return m.id===id;});
-  editId.member=null; g("mt-member").textContent="顧客登録（コピー）";
+  editId.member=null; g("mt-member").textContent="会員登録（コピー）";
   var newId=genMemberId(); sv("mem-id",newId);
   var idEl=g("mem-id"); idEl.readOnly=true; idEl.style.background="var(--cream2)";
   setMemberFields(r); sv("mem-reg",todayDate());
-  g("kb-member").innerHTML='<span class="keypart kp-nom">'+newId+'</span><span class="klabel">顧客番号</span>';
+  g("kb-member").innerHTML='<span class="keypart kp-nom">'+newId+'</span><span class="klabel">会員番号</span>';
   openM("m-member");
 }
 
@@ -553,27 +589,56 @@ function findNextMemberId(conflictId){
   return null;
 }
 
-g("btn-save-member").addEventListener("click",function(){
+g("btn-save-member").addEventListener("click",async function(){
   var id=gv("mem-id"), name=gv("mem-name");
-  if(!id||id.length!==6){ toast("顧客番号が不正です","err"); return; }
-  if(!name){ toast("顧客名は必須です","err"); return; }
+  if(!id||id.length!==6){ toast("会員番号が不正です","err"); return; }
+  if(!name){ toast("会員名は必須です","err"); return; }
   if(!editId.member && cache.members.some(function(m){return m.id===id;})){
     var suggest=findNextMemberId(id);
-    if(suggest && confirm("顧客番号「"+id+"」は既に存在します。\n\n代わりに「"+suggest+"」を使いますか？")){
-      sv("mem-id",suggest); g("kb-member").innerHTML='<span class="keypart kp-nom">'+suggest+'</span><span class="klabel">顧客番号</span>'; id=suggest;
+    if(suggest && confirm("会員番号「"+id+"」は既に存在します。\n\n代わりに「"+suggest+"」を使いますか？")){
+      sv("mem-id",suggest); g("kb-member").innerHTML='<span class="keypart kp-nom">'+suggest+'</span><span class="klabel">会員番号</span>'; id=suggest;
     } else { return; }
   }
+  var email=gv("mem-email")||null;
+  var password=gv("mem-password")||null;
   var noteEl=g("mem-note");
+
+  // Firebase Auth: 新規登録時はメール＋パスワードでアカウント作成
+  if(!editId.member && email && password){
+    try{
+      var cred=await auth.createUserWithEmailAndPassword(email, password);
+      // UIDをauthUidとして保存
+      var uid=cred.user.uid;
+      await db.collection("members").doc(id).set({authUid:uid},{merge:true});
+    } catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        toast("このメールアドレスは既に登録されています","err"); return;
+      }
+      toast("Auth登録失敗: "+e.message,"err"); return;
+    }
+  } else if(editId.member && password){
+    // 既存会員のパスワード変更（管理者操作：現在のユーザーを再認証不要で変更するにはAdmin SDKが必要なため案内）
+    toast("パスワード変更は会員本人のログイン後またはAdmin SDKが必要です","inf");
+  }
+
   db.collection("members").doc(id).set({
-    memberId:id, name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
-    gender:gv("mem-gender")||"男", registeredAt:gv("mem-reg")||todayDate(), birthday:gv("mem-birth")||null,
-    prefecture:gv("mem-pref")||null, address:gv("mem-addr")||null, phone:gv("mem-tel")||null,
+    memberId:id, email:email,
+    name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
+    gender:gv("mem-gender")||"男", grade:parseInt(gv("mem-grade"))||0,
+    registeredAt:gv("mem-reg")||todayDate(), birthday:gv("mem-birth")||null,
+    zipCode:gv("mem-zip")||null, prefecture:gv("mem-pref")||null,
+    address:gv("mem-addr")||null, address2:gv("mem-addr2")||null,
+    phone:gv("mem-tel")||null,
     twitterId:gv("mem-tw")||null, instagramId:gv("mem-ig")||null, facebookId:gv("mem-fb")||null,
-    visitCount:parseInt(gv("mem-visits"))||0, rank:gv("mem-rank")||null,
+    mainSns:parseInt(gv("mem-main-sns"))||0,
+    visitCount:parseInt(gv("mem-visits"))||0,
+    totalTequila:parseInt(gv("mem-total-tequila"))||0,
+    totalAmount:parseInt(gv("mem-total-amount"))||0,
+    rank:gv("mem-rank")||null,
     lang:parseInt(gv("mem-lang"))||0,
     note:noteEl?noteEl.value||null:null
   },{merge:true})
-  .then(function(){ toast(editId.member?"顧客を更新しました":"顧客を登録しました"); closeM("m-member"); loadMembers(); })
+  .then(function(){ toast(editId.member?"会員を更新しました":"会員を登録しました"); closeM("m-member"); loadMembers(); })
   .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
 });
 

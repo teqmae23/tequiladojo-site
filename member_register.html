@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>テキーラ道場 — 会員登録</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script>
+var FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
+  authDomain:        "tequiladojo.firebaseapp.com",
+  projectId:         "tequiladojo",
+  storageBucket:     "tequiladojo.firebasestorage.app",
+  messagingSenderId: "56663296233",
+  appId:             "1:56663296233:web:c8cac2fcbeb4faa09e0878",
+  measurementId:     "G-KMS18946JQ"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#18110a;--ink2:#4a3820;--ink3:#9a8470;
+  --gold:#c8921e;--gold-l:#e8b84a;--gold-d:#7a5610;
+  --teal:#1a6e58;--red:#8c2818;--red-l:#fae8e4;
+  --cream:#faf7f1;--cream2:#f0ebe0;--cream3:#e4ddd0;--white:#fff;
+  --border:rgba(160,130,100,.18);--border2:rgba(160,130,100,.32);
+  --shadow:0 1px 12px rgba(24,17,10,.07);--shadow-lg:0 6px 36px rgba(24,17,10,.13);
+  --r:8px;--rl:16px;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--sans);background:var(--cream);color:var(--ink);min-height:100vh}
+button,input,select,textarea{font-family:var(--sans)}
+
+/* ── ログイン画面 ── */
+#login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse 80% 60% at 30% 60%,rgba(200,146,30,.1),transparent),var(--cream);
+  padding:24px;
+}
+.login-wrap{width:100%;max-width:400px;}
+.login-logo{text-align:center;margin-bottom:32px;}
+.login-logo .logo-icon{font-size:52px;display:block;margin-bottom:6px;}
+.login-logo h1{font-family:var(--serif);font-size:28px;font-weight:600;color:var(--gold-d);letter-spacing:.14em;}
+.login-logo p{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);margin-top:4px;}
+.login-card{background:var(--white);border:1px solid var(--border2);border-radius:var(--rl);padding:36px 32px;box-shadow:var(--shadow-lg);}
+.login-tabs{display:flex;margin-bottom:24px;border-bottom:1px solid var(--border);}
+.ltab{flex:1;padding:10px;background:none;border:none;font-size:13px;font-weight:500;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;}
+.ltab.active{color:var(--gold-d);border-bottom-color:var(--gold-d);}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+.fi{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;background:var(--cream);color:var(--ink);outline:none;transition:.15s;}
+.fi:focus{border-color:var(--gold);}
+.fl{display:block;font-size:10px;font-weight:500;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:14px;}
+.fl:first-child{margin-top:0;}
+.btn-primary{width:100%;margin-top:20px;padding:13px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;}
+.btn-primary:hover{background:var(--gold);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.err-msg{min-height:16px;font-size:12px;color:var(--red);margin-top:8px;text-align:center;}
+.info-msg{font-size:12px;color:var(--ink3);margin-top:8px;text-align:center;}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--ink3);font-size:11px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── 登録フォーム ── */
+#app{display:none;min-height:100vh;background:var(--cream);}
+.page-header{
+  background:var(--ink);padding:14px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.page-header h1{font-family:var(--serif);font-size:18px;color:var(--gold-l);letter-spacing:.1em;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.user-chip{font-size:11px;color:rgba(255,255,255,.5);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-logout{padding:5px 12px;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:none;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;}
+.btn-logout:hover{border-color:rgba(255,255,255,.5);color:#fff;}
+
+.form-container{max-width:640px;margin:0 auto;padding:24px 16px 80px;}
+.section{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+.section-title{font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.frow{display:flex;gap:12px;flex-wrap:wrap;}
+.fg{flex:1;min-width:120px;}
+.req{color:var(--red);margin-left:2px;}
+.readonly-field{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--cream2);color:var(--ink2);font-family:var(--mono);}
+
+/* アイコン・顔写真 */
+.img-upload-area{
+  border:2px dashed var(--border2);border-radius:var(--r);
+  padding:16px;text-align:center;cursor:pointer;transition:.15s;
+  position:relative;overflow:hidden;
+}
+.img-upload-area:hover{border-color:var(--gold);background:rgba(200,146,30,.03);}
+.img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;}
+.img-preview{width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border2);margin:0 auto 8px;display:block;}
+.img-preview-rect{width:120px;height:90px;border-radius:var(--r);object-fit:cover;border:2px solid var(--border2);margin:0 auto 8px;display:block;}
+.img-placeholder{width:80px;height:80px;border-radius:50%;background:var(--cream2);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;border:2px solid var(--border);}
+.img-placeholder-rect{width:120px;height:90px;border-radius:var(--r);background:var(--cream2);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;border:2px solid var(--border);}
+.img-label{font-size:11px;color:var(--ink3);}
+.img-clear{font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;margin-top:4px;text-decoration:underline;}
+
+/* 累積データ */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+.stat-card{background:var(--cream2);border-radius:var(--r);padding:12px 16px;text-align:center;}
+.stat-label{font-size:10px;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.stat-value{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--gold-d);}
+.stat-unit{font-size:10px;color:var(--ink3);margin-left:2px;}
+
+/* 保存バー */
+.save-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--white);border-top:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;gap:12px;
+  box-shadow:0 -4px 16px rgba(24,17,10,.08);z-index:100;
+}
+.save-bar .status{flex:1;font-size:12px;color:var(--ink3);}
+.btn-save{padding:11px 28px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;}
+.btn-save:hover{background:var(--gold);}
+.btn-save:disabled{opacity:.5;cursor:not-allowed;}
+
+/* トースト */
+#toasts{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:360px;}
+.toast{padding:10px 16px;border-radius:var(--r);font-size:13px;text-align:center;box-shadow:var(--shadow-lg);animation:fadeIn .2s;}
+.tok{background:#1a3a1a;color:#7adf7a;border:1px solid #2d6a2d;}
+.terr{background:#3a1a1a;color:#df7a7a;border:1px solid #6a2d2d;}
+.tinf{background:#1a2a3a;color:#7ab8df;border:1px solid #2d4a6a;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* 都道府県 */
+select.fi{cursor:pointer;}
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-logo">
+      <span class="logo-icon">🥃</span>
+      <h1>テキーラ道場</h1>
+      <p>Member Portal</p>
+    </div>
+
+    <div class="login-card">
+      <div class="login-tabs">
+        <button class="ltab active" onclick="switchLoginTab('login')">ログイン</button>
+        <button class="ltab" onclick="switchLoginTab('register')">新規会員登録</button>
+      </div>
+
+      <!-- ログインタブ -->
+      <div class="tab-panel active" id="tab-login">
+        <label class="fl">メールアドレス</label>
+        <input type="email" class="fi" id="login-email" placeholder="member@example.com" autocomplete="email">
+        <label class="fl">パスワード</label>
+        <input type="password" class="fi" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+        <div class="err-msg" id="login-err"></div>
+        <button class="btn-primary" id="btn-login" onclick="doLogin()">ログイン</button>
+        <p class="info-msg" style="margin-top:12px">
+          <a href="#" onclick="doResetPassword()" style="color:var(--gold-d)">パスワードをお忘れの方</a>
+        </p>
+      </div>
+
+      <!-- 新規登録タブ -->
+      <div class="tab-panel" id="tab-register">
+        <label class="fl">メールアドレス <span class="req">*</span></label>
+        <input type="email" class="fi" id="reg-email" placeholder="member@example.com" autocomplete="email">
+        <label class="fl">パスワード <span class="req">*</span></label>
+        <input type="password" class="fi" id="reg-pass" placeholder="8文字以上" autocomplete="new-password">
+        <label class="fl">パスワード（確認） <span class="req">*</span></label>
+        <input type="password" class="fi" id="reg-pass2" placeholder="パスワードを再入力" autocomplete="new-password">
+        <div class="err-msg" id="reg-err"></div>
+        <button class="btn-primary" id="btn-register" onclick="doRegister()">アカウントを作成</button>
+        <p class="info-msg" style="margin-top:12px">登録後、プロフィールを設定してください。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 登録・編集フォーム -->
+<div id="app">
+  <div class="page-header">
+    <h1>🥃 会員プロフィール</h1>
+    <div class="header-right">
+      <span class="user-chip" id="header-email"></span>
+      <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+    </div>
+  </div>
+
+  <div id="loading-overlay" style="text-align:center;padding:60px;color:var(--ink3);">読み込み中...</div>
+
+  <div class="form-container" id="form-area" style="display:none">
+
+    <!-- アイコン・顔写真 -->
+    <div class="section">
+      <div class="section-title">プロフィール画像</div>
+      <div class="frow" style="justify-content:center;gap:32px">
+        <div style="text-align:center">
+          <div class="img-upload-area" style="width:120px;margin:0 auto">
+            <div class="img-placeholder" id="icon-placeholder">👤</div>
+            <img id="icon-preview" class="img-preview" style="display:none">
+            <input type="file" id="icon-file" accept="image/*" onchange="previewImg('icon')">
+            <div class="img-label">アイコン画像</div>
+          </div>
+          <button class="img-clear" id="icon-clear" style="display:none" onclick="clearImg('icon')">削除</button>
+        </div>
+        <div style="text-align:center">
+          <div class="img-upload-area" style="width:160px;margin:0 auto">
+            <div class="img-placeholder-rect" id="photo-placeholder">📷</div>
+            <img id="photo-preview" class="img-preview-rect" style="display:none">
+            <input type="file" id="photo-file" accept="image/*" onchange="previewImg('photo')">
+            <div class="img-label">顔写真</div>
+          </div>
+          <button class="img-clear" id="photo-clear" style="display:none" onclick="clearImg('photo')">削除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 基本情報 -->
+    <div class="section">
+      <div class="section-title">基本情報</div>
+      <div class="frow">
+        <div class="fg">
+          <label class="fl">会員名 <span class="req">*</span></label>
+          <input type="text" class="fi" id="f-name" placeholder="田中 太郎">
+        </div>
+        <div class="fg">
+          <label class="fl">会員名（カタカナ）</label>
+          <input type="text" class="fi" id="f-kana" placeholder="タナカ タロウ">
+        </div>
+      </div>
+      <label class="fl">ニックネーム</label>
+      <input type="text" class="fi" id="f-nick" placeholder="タロ">
+      <div class="frow" style="margin-top:14px">
+        <div class="fg">
+          <label class="fl">性別</label>
+          <select class="fi" id="f-gender">
+            <option value="男">男</option>
+            <option value="女">女</option>
+            <option value="他">他</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label class="fl">誕生日</label>
+          <input type="date" class="fi" id="f-birth">
+        </div>
+      </div>
+    </div>
+
+    <!-- 連絡先 -->
+    <div class="section">
+      <div class="section-title">連絡先・住所</div>
+      <label class="fl">電話番号</label>
+      <input type="tel" class="fi" id="f-tel" placeholder="090-0000-0000">
+      <div class="frow" style="margin-top:14px">
+        <div class="fg" style="max-width:160px">
+          <label class="fl">郵便番号</label>
+          <input type="text" class="fi" id="f-zip" placeholder="150-0041" maxlength="8">
+        </div>
+        <div class="fg">
+          <label class="fl">都道府県</label>
+          <select class="fi" id="f-pref">
+            <option value="">選択...</option>
+            <option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option><option>秋田県</option><option>山形県</option><option>福島県</option>
+            <option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option>
+            <option>新潟県</option><option>富山県</option><option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option>
+            <option>岐阜県</option><option>静岡県</option><option>愛知県</option><option>三重県</option>
+            <option>滋賀県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option><option>奈良県</option><option>和歌山県</option>
+            <option>鳥取県</option><option>島根県</option><option>岡山県</option><option>広島県</option><option>山口県</option>
+            <option>徳島県</option><option>香川県</option><option>愛媛県</option><option>高知県</option>
+            <option>福岡県</option><option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option><option>宮崎県</option><option>鹿児島県</option><option>沖縄県</option>
+          </select>
+        </div>
+      </div>
+      <label class="fl">住所</label>
+      <input type="text" class="fi" id="f-addr" placeholder="渋谷区道玄坂1-1-1">
+      <label class="fl">建物・部屋番号</label>
+      <input type="text" class="fi" id="f-addr2" placeholder="テキーラビル201">
+    </div>
+
+    <!-- SNS -->
+    <div class="section">
+      <div class="section-title">SNS</div>
+      <div class="frow">
+        <div class="fg">
+          <label class="fl">Twitter / X ID</label>
+          <input type="text" class="fi" id="f-tw" placeholder="@username">
+        </div>
+        <div class="fg">
+          <label class="fl">Instagram ID</label>
+          <input type="text" class="fi" id="f-ig" placeholder="@username">
+        </div>
+        <div class="fg">
+          <label class="fl">Facebook ID</label>
+          <input type="text" class="fi" id="f-fb" placeholder="username">
+        </div>
+      </div>
+      <label class="fl" style="margin-top:14px">メインSNS</label>
+      <select class="fi" id="f-main-sns">
+        <option value="0">— 未設定</option>
+        <option value="1">1: Twitter / X</option>
+        <option value="2">2: Instagram</option>
+        <option value="3">3: Facebook</option>
+      </select>
+    </div>
+
+    <!-- 表示設定 -->
+    <div class="section">
+      <div class="section-title">表示設定</div>
+      <label class="fl">商品名表示言語</label>
+      <select class="fi" id="f-lang">
+        <option value="0">日本語</option>
+        <option value="1">英語</option>
+      </select>
+    </div>
+
+    <!-- 累積データ（閲覧のみ） -->
+    <div class="section">
+      <div class="section-title">累積データ</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">来場回数</div>
+          <div class="stat-value" id="stat-visits">0<span class="stat-unit">回</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">総テキーラ量</div>
+          <div class="stat-value" id="stat-tequila">0<span class="stat-unit">ml</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">段位</div>
+          <div class="stat-value" id="stat-rank" style="font-size:16px">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">総支払金額</div>
+          <div class="stat-value" id="stat-amount" style="font-size:16px">¥0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- パスワード変更 -->
+    <div class="section">
+      <div class="section-title">パスワード変更</div>
+      <label class="fl">新しいパスワード</label>
+      <input type="password" class="fi" id="f-new-pass" placeholder="8文字以上（変更する場合のみ入力）" autocomplete="new-password">
+      <label class="fl">新しいパスワード（確認）</label>
+      <input type="password" class="fi" id="f-new-pass2" placeholder="パスワードを再入力" autocomplete="new-password">
+      <button class="btn-primary" style="max-width:200px;margin-top:14px" onclick="doChangePassword()">パスワードを変更</button>
+      <div class="err-msg" id="pass-err"></div>
+    </div>
+
+    <!-- 会員番号（読み取り専用） -->
+    <div class="section" style="background:var(--cream2)">
+      <div class="section-title">会員情報（変更不可）</div>
+      <label class="fl">会員番号</label>
+      <div class="readonly-field" id="f-member-id">—</div>
+      <label class="fl" style="margin-top:12px">会員区分</label>
+      <div class="readonly-field" id="f-grade">無料会員</div>
+    </div>
+
+  </div><!-- /form-area -->
+
+  <!-- 保存バー -->
+  <div class="save-bar">
+    <span class="status" id="save-status"></span>
+    <button class="btn-save" id="btn-save" onclick="saveProfile()">保存する</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+var auth    = firebase.auth();
+var db      = firebase.firestore();
+var storage = firebase.storage();
+
+var currentUser = null;
+var memberDoc   = null;
+var iconFile    = null;
+var photoFile   = null;
+
+// ── ユーティリティ ──────────────────────────────────────────────
+function g(id){ return document.getElementById(id); }
+function gv(id){ var el=g(id); return el?el.value.trim():''; }
+function sv(id,val){ var el=g(id); if(el) el.value=(val==null?'':val); }
+function toast(msg,type){
+  var el=document.createElement('div');
+  el.className='toast '+(type==='err'?'terr':type==='inf'?'tinf':'tok');
+  el.textContent=msg;
+  g('toasts').appendChild(el);
+  setTimeout(function(){ el.remove(); },(type==='err'?8000:3000));
+}
+
+var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'];
+
+// ── タブ切替 ──────────────────────────────────────────────────
+function switchLoginTab(tab){
+  document.querySelectorAll('.ltab').forEach(function(b,i){
+    b.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register'));
+  });
+  document.querySelectorAll('.tab-panel').forEach(function(p,i){
+    p.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register'));
+  });
+}
+
+// ── Firebase Auth ───────────────────────────────────────────────
+auth.onAuthStateChanged(function(user){
+  if(user){
+    currentUser=user;
+    g('login-screen').style.display='none';
+    g('app').style.display='block';
+    g('header-email').textContent=user.email;
+    loadProfile();
+  } else {
+    currentUser=null;
+    g('login-screen').style.display='flex';
+    g('app').style.display='none';
+  }
+});
+
+function doLogin(){
+  var email=gv('login-email'), pass=gv('login-pass');
+  g('login-err').textContent='';
+  if(!email||!pass){ g('login-err').textContent='メールとパスワードを入力してください'; return; }
+  var btn=g('btn-login'); btn.disabled=true; btn.textContent='ログイン中...';
+  auth.signInWithEmailAndPassword(email,pass)
+    .catch(function(e){
+      g('login-err').textContent=
+        e.code==='auth/user-not-found'?'このメールアドレスは登録されていません':
+        e.code==='auth/wrong-password'?'パスワードが違います':
+        'ログイン失敗: '+e.message;
+      btn.disabled=false; btn.textContent='ログイン';
+    });
+}
+
+function doRegister(){
+  var email=gv('reg-email'), pass=gv('reg-pass'), pass2=gv('reg-pass2');
+  g('reg-err').textContent='';
+  if(!email||!pass){ g('reg-err').textContent='必須項目を入力してください'; return; }
+  if(pass.length<8){ g('reg-err').textContent='パスワードは8文字以上にしてください'; return; }
+  if(pass!==pass2){ g('reg-err').textContent='パスワードが一致しません'; return; }
+  var btn=g('btn-register'); btn.disabled=true; btn.textContent='登録中...';
+  auth.createUserWithEmailAndPassword(email,pass)
+    .then(function(cred){
+      // 新規Firestoreドキュメントを作成
+      return db.collection('members').doc(cred.user.uid).set({
+        authUid: cred.user.uid,
+        email: email,
+        grade: 0,
+        visitCount: 0,
+        totalTequila: 0,
+        totalAmount: 0,
+        lang: 0,
+        registeredAt: new Date().toISOString().slice(0,10).replace(/-/g,''),
+      },{merge:true});
+    })
+    .catch(function(e){
+      g('reg-err').textContent=
+        e.code==='auth/email-already-in-use'?'このメールアドレスは既に登録されています':
+        '登録失敗: '+e.message;
+      btn.disabled=false; btn.textContent='アカウントを作成';
+    });
+}
+
+function doLogout(){
+  auth.signOut();
+}
+
+function doResetPassword(){
+  var email=gv('login-email');
+  if(!email){ g('login-err').textContent='メールアドレスを入力してください'; return; }
+  auth.sendPasswordResetEmail(email)
+    .then(function(){ toast('パスワードリセットメールを送信しました'); })
+    .catch(function(e){ toast('送信失敗: '+e.message,'err'); });
+}
+
+// ── プロフィール読み込み ─────────────────────────────────────────
+async function loadProfile(){
+  g('loading-overlay').style.display='block';
+  g('form-area').style.display='none';
+  try{
+    // まずUIDで検索、なければemailで検索
+    var snap=await db.collection('members').doc(currentUser.uid).get();
+    if(!snap.exists){
+      var q=await db.collection('members').where('email','==',currentUser.email).limit(1).get();
+      if(!q.empty) snap=q.docs[0];
+    }
+    memberDoc=snap.exists?snap.data():null;
+    fillForm(memberDoc);
+  }catch(e){
+    toast('プロフィールの読み込みに失敗しました: '+e.message,'err');
+  }
+  g('loading-overlay').style.display='none';
+  g('form-area').style.display='block';
+}
+
+function fillForm(d){
+  sv('f-name',    d?d.name||'':'');
+  sv('f-kana',    d?d.nameKana||'':'');
+  sv('f-nick',    d?d.nickname||'':'');
+  sv('f-gender',  d?d.gender||'男':'男');
+  sv('f-birth',   d&&d.birthday?formatDateInput(d.birthday):'');
+  sv('f-zip',     d?d.zipCode||'':'');
+  sv('f-pref',    d?d.prefecture||'':'');
+  sv('f-addr',    d?d.address||'':'');
+  sv('f-addr2',   d?d.address2||'':'');
+  sv('f-tel',     d?d.phone||'':'');
+  sv('f-tw',      d?d.twitterId||'':'');
+  sv('f-ig',      d?d.instagramId||'':'');
+  sv('f-fb',      d?d.facebookId||'':'');
+  sv('f-main-sns',d?String(d.mainSns||0):'0');
+  sv('f-lang',    d?String(d.lang||0):'0');
+  // 読み取り専用
+  g('f-member-id').textContent=d&&d.memberId?d.memberId:(d&&d.authUid?d.authUid.slice(0,8)+'...':'—');
+  g('f-grade').textContent=GRADE_LABELS[d&&d.grade?d.grade:0]||'無料会員';
+  // 累積データ
+  g('stat-visits').innerHTML=(d?d.visitCount||0:0)+'<span class="stat-unit">回</span>';
+  g('stat-tequila').innerHTML=(d?d.totalTequila||0:0)+'<span class="stat-unit">ml</span>';
+  g('stat-rank').textContent=d&&d.rank?d.rank:'—';
+  g('stat-amount').textContent='¥'+(d?d.totalAmount||0:0).toLocaleString();
+  // 画像
+  if(d&&d.iconUrl){
+    g('icon-preview').src=d.iconUrl;
+    g('icon-preview').style.display='block';
+    g('icon-placeholder').style.display='none';
+    g('icon-clear').style.display='inline';
+  }
+  if(d&&d.photoUrl){
+    g('photo-preview').src=d.photoUrl;
+    g('photo-preview').style.display='block';
+    g('photo-placeholder').style.display='none';
+    g('photo-clear').style.display='inline';
+  }
+}
+
+function formatDateInput(dateStr){
+  // YYYYMMDD → YYYY-MM-DD
+  if(!dateStr||dateStr.length<8) return '';
+  return dateStr.slice(0,4)+'-'+dateStr.slice(4,6)+'-'+dateStr.slice(6,8);
+}
+function parseDateInput(dateStr){
+  // YYYY-MM-DD → YYYYMMDD
+  return dateStr?dateStr.replace(/-/g,''):'';
+}
+
+// ── 画像プレビュー ──────────────────────────────────────────────
+function previewImg(type){
+  var fileEl=g(type+'-file');
+  var file=fileEl.files[0];
+  if(!file) return;
+  if(type==='icon') iconFile=file;
+  else photoFile=file;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var prev=g(type+'-preview');
+    var ph=g(type+'-placeholder');
+    prev.src=e.target.result;
+    prev.style.display='block';
+    if(ph) ph.style.display='none';
+    g(type+'-clear').style.display='inline';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImg(type){
+  if(type==='icon'){ iconFile=null; g('icon-file').value=''; g('icon-preview').style.display='none'; g('icon-placeholder').style.display='flex'; g('icon-clear').style.display='none'; }
+  else{ photoFile=null; g('photo-file').value=''; g('photo-preview').style.display='none'; g('photo-placeholder').style.display='flex'; g('photo-clear').style.display='none'; }
+}
+
+// ── 画像アップロード ────────────────────────────────────────────
+async function uploadImage(file, path){
+  var ref=storage.ref(path);
+  await ref.put(file);
+  return await ref.getDownloadURL();
+}
+
+// ── プロフィール保存 ────────────────────────────────────────────
+async function saveProfile(){
+  var name=gv('f-name');
+  if(!name){ toast('会員名は必須です','err'); return; }
+  var btn=g('btn-save'); btn.disabled=true; btn.textContent='保存中...';
+  g('save-status').textContent='保存中...';
+  try{
+    var uid=currentUser.uid;
+    var updateData={
+      name:name, nameKana:gv('f-kana')||null, nickname:gv('f-nick')||null,
+      gender:gv('f-gender')||'男',
+      birthday:parseDateInput(gv('f-birth'))||null,
+      zipCode:gv('f-zip')||null, prefecture:gv('f-pref')||null,
+      address:gv('f-addr')||null, address2:gv('f-addr2')||null,
+      phone:gv('f-tel')||null,
+      twitterId:gv('f-tw')||null, instagramId:gv('f-ig')||null, facebookId:gv('f-fb')||null,
+      mainSns:parseInt(gv('f-main-sns'))||0,
+      lang:parseInt(gv('f-lang'))||0,
+      email:currentUser.email,
+      authUid:uid,
+    };
+    // 画像アップロード
+    if(iconFile){
+      updateData.iconUrl=await uploadImage(iconFile,'member-images/'+uid+'/icon');
+      iconFile=null;
+    }
+    if(photoFile){
+      updateData.photoUrl=await uploadImage(photoFile,'member-images/'+uid+'/photo');
+      photoFile=null;
+    }
+    // 既存ドキュメントIDを確認（UIDで保存）
+    await db.collection('members').doc(uid).set(updateData,{merge:true});
+    memberDoc=Object.assign(memberDoc||{},updateData);
+    toast('プロフィールを保存しました');
+    g('save-status').textContent='保存済み';
+  }catch(e){
+    toast('保存失敗: '+e.message,'err');
+    g('save-status').textContent='保存に失敗しました';
+  }
+  btn.disabled=false; btn.textContent='保存する';
+}
+
+// ── パスワード変更 ──────────────────────────────────────────────
+async function doChangePassword(){
+  var pass=gv('f-new-pass'), pass2=gv('f-new-pass2');
+  g('pass-err').textContent='';
+  if(!pass){ g('pass-err').textContent='新しいパスワードを入力してください'; return; }
+  if(pass.length<8){ g('pass-err').textContent='パスワードは8文字以上にしてください'; return; }
+  if(pass!==pass2){ g('pass-err').textContent='パスワードが一致しません'; return; }
+  try{
+    await currentUser.updatePassword(pass);
+    sv('f-new-pass',''); sv('f-new-pass2','');
+    toast('パスワードを変更しました');
+  }catch(e){
+    if(e.code==='auth/requires-recent-login'){
+      g('pass-err').textContent='セキュリティのため、一度ログアウトして再ログイン後に変更してください';
+    } else {
+      g('pass-err').textContent='変更失敗: '+e.message;
+    }
+  }
+}
+
+// ── Enter キーでログイン ────────────────────────────────────────
+document.getElementById('login-pass').addEventListener('keydown',function(e){ if(e.key==='Enter') doLogin(); });
+document.getElementById('reg-pass2').addEventListener('keydown',function(e){ if(e.key==='Enter') doRegister(); });
+</script>
+</body>
+</html>
