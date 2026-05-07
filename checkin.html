@@ -297,7 +297,13 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 
       <!-- 割り勘セクション（複数人時のみ表示） -->
       <div id="warikan-section">
-        <div style="font-size:11px;font-weight:600;color:var(--ink2);margin-bottom:6px">割り勘 / 個別金額</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:600;color:var(--ink2)">割り勘 / 個別金額</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn bs sm" onclick="applyWarikan('split')">÷ 割り勘</button>
+            <button class="btn bs sm" onclick="applyWarikan('individual')">👤 個別会計</button>
+          </div>
+        </div>
         <div id="warikan-area"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border2);margin-top:4px">
           <span style="font-size:12px;color:var(--ink3)">入力合計との差</span>
@@ -952,6 +958,33 @@ function openBulkCheckout(){
     }));
 
   }).catch(function(e){ toast('注文読込失敗: '+e.message,'err'); });
+}
+
+function applyWarikan(mode){
+  var grandTotalStr=g('co-grand-total').textContent.replace(/[^0-9]/g,'');
+  var grandTotal=parseInt(grandTotalStr)||0;
+  var n=bulkCheckoutVisitKeys.length;
+  if(!n) return;
+
+  if(mode==='split'){
+    // 100円未満切り捨て
+    var each=Math.floor(grandTotal/n/100)*100;
+    var remainder=grandTotal-(each*n);
+    bulkCheckoutVisitKeys.forEach(function(vk){
+      var el=g('wk-'+vk); if(el) el.value=each;
+      warikanAmounts[vk]=each;
+    });
+    // 残りは残金欄に表示（自動で差分として出る）
+  } else {
+    // 個別会計: 各人の実際の注文合計を再セット
+    bulkCheckoutVisitKeys.forEach(function(vk){
+      var orders=cache.orders.filter(function(o){ return o.visitKey===vk||o.visitId===vk; });
+      var amt=calcAmount(orders);
+      var el=g('wk-'+vk); if(el) el.value=amt;
+      warikanAmounts[vk]=amt;
+    });
+  }
+  updateWarikanDiff();
 }
 
 function renderWarikan(grandTotal){
