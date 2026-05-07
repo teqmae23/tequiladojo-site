@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>テキーラ道場 — 来店・退店</title>
+<title>テキーラ道場 — 来場者一覧</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -101,7 +101,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 .vis-row2{display:flex;align-items:center;gap:8px}
 .vis-stat-inline{display:flex;align-items:baseline;gap:4px;background:var(--cream2);border-radius:var(--r);padding:5px 10px;flex-shrink:0}
 .vis-stat-label{font-size:10px;color:var(--ink3)}
-.vis-stat-val{font-size:14px;font-weight:600;color:var(--ink);font-family:var(--mono)}
+.vis-stat-val{font-size:14px;font-weight:400;color:var(--ink);font-family:var(--mono)}
 .vis-actions{display:flex;gap:6px;margin-left:auto;flex-shrink:0}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap;flex-shrink:0}
 .bg-teal{background:var(--teal-l);color:var(--teal);border:1px solid rgba(26,110,88,.3)}
@@ -153,7 +153,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
   <div class="lcard">
     <div class="llogo">🚪</div>
     <div class="lbrand">テキーラ道場</div>
-    <div class="lsub">来店・退店</div>
+    <div class="lsub">来場者一覧</div>
     <label>メールアドレス</label>
     <input type="email" id="lemail" placeholder="owner@example.com">
     <label>パスワード</label>
@@ -165,7 +165,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 
 <div id="app">
   <div class="topbar">
-    <div class="top-brand">🚪 来店・退店</div>
+    <div class="top-brand">👥 来場者一覧</div>
     <div class="top-right">
       <a href="home.html" class="top-back">← ホーム</a>
       <button class="top-logout" id="btn-logout">ログアウト</button>
@@ -176,14 +176,14 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="page-head">
       <div class="page-title">来場者一覧</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="home_order.html" class="btn bs">📋 新規注文</a>
+        <button class="btn bs" onclick="goOrderPage()">📋 新規注文</button>
         <button class="btn bs" id="btn-refresh">🔄 更新</button>
-        <button class="btn bp" id="btn-checkin">＋ 新規来店</button>
+        <button class="btn bp" id="btn-checkin">＋ 新規来場</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn bt" id="btn-bulk-checkout" style="flex:1" onclick="openBulkCheckout()" disabled>💳 お会計（選択中: <span id="selected-count">0</span>名）</button>
-      <button class="btn bs" id="btn-bulk-checkouttime" style="flex:1" onclick="bulkCheckoutTime()" disabled>🚪 退店処理（選択中: <span id="selected-count2">0</span>名）</button>
+      <button class="btn bs" id="btn-bulk-checkouttime" style="flex:1" onclick="bulkCheckoutTime()" disabled>🚪 退場処理（選択中: <span id="selected-count2">0</span>名）</button>
     </div>
 
     <div id="today-date" style="font-size:12px;color:var(--ink3);margin-bottom:12px;text-align:right"></div>
@@ -198,7 +198,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 <div class="mbg" id="m-checkin">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">新規来店</div>
+      <div class="modal-title">新規来場</div>
       <button class="modal-x" id="m-checkin-close">✕</button>
     </div>
     <div class="modal-body">
@@ -211,10 +211,10 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       <!-- グループ情報 -->
       <div style="background:var(--cream2);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--ink3)">
         グループID: <strong id="kb-group-id" style="color:var(--ink);font-family:var(--mono)">—</strong>
-        <span style="margin-left:12px">（同じグループで来店した全員に付与されます）</span>
+        <span style="margin-left:12px">（同じグループで来場した全員に付与されます）</span>
       </div>
       <div class="fg">
-        <label class="fl">来店時間（HHMM）<span class="req">*</span></label>
+        <label class="fl">来場時間（HHMM）<span class="req">*</span></label>
         <input class="fi" type="text" id="ci-time" maxlength="4" placeholder="1830" inputmode="numeric">
       </div>
       <!-- 人数（グループ登録） -->
@@ -337,7 +337,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       <button class="btn bs" style="flex:1;min-width:80px" id="m-checkout-cancel">キャンセル</button>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer;white-space:nowrap">
         <input type="checkbox" id="co-also-checkout" style="width:16px;height:16px">
-        退店も同時に行う
+        退場も同時に行う
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
     </div>
@@ -465,7 +465,7 @@ g('btn-refresh').addEventListener('click',function(){
     var batch=db.batch();
     var updated=0;
     cache.visits.forEach(function(v){
-      if(v.checkoutTime || v.checkoutPayTime) return; // 会計済・退店済はスキップ
+      if(v.checkoutTime || v.checkoutPayTime) return; // 会計済・退場済はスキップ
       var vOrders=cache.orders.filter(function(o){ return o.visitKey===v.id||o.visitId===v.id; });
       var totalAmt=calcAmount(vOrders);
       var totalTq=calcTequila(vOrders);
@@ -499,11 +499,11 @@ function getVisitOrders(visitId){
 
 function renderVisitorList(){
   var el=g('visitor-list');
-  // 在店中: 会計時間も退店時間も未セット
+  // 来場中: 会計時間も退場時間も未セット
   var active=cache.visits.filter(function(v){ return !v.checkoutPayTime && !v.checkoutTime; });
-  // 会計済: 会計時間がセット・退店時間は未セット
+  // 会計済: 会計時間がセット・退場時間は未セット
   var paid=cache.visits.filter(function(v){ return !!v.checkoutPayTime && !v.checkoutTime; });
-  // 退店済: 退店時間がセット
+  // 退場済: 退場時間がセット
   var done=cache.visits.filter(function(v){ return !!v.checkoutTime; });
   active.sort(function(a,b){ return (a.visitTime||a.id).localeCompare(b.visitTime||b.id); });
   paid.sort(function(a,b){ return (a.visitTime||a.id).localeCompare(b.visitTime||b.id); });
@@ -516,15 +516,15 @@ function renderVisitorList(){
 
   var html='';
   if(active.length){
-    html+='<div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;padding-left:4px">在店中（'+active.length+'名）</div>';
+    html+='<div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;padding-left:4px">来場中（'+active.length+'名）</div>';
     active.forEach(function(v){ html+=renderVisCard(v,'active'); });
   }
   if(paid.length){
-    html+='<div style="font-size:11px;font-weight:500;color:var(--gold-d);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-left:4px">在店中（会計済）（'+paid.length+'名）</div>';
+    html+='<div style="font-size:11px;font-weight:500;color:var(--gold-d);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-left:4px">来場中（会計済）（'+paid.length+'名）</div>';
     paid.forEach(function(v){ html+=renderVisCard(v,'paid'); });
   }
   if(done.length){
-    html+='<div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-left:4px">退店済（'+done.length+'名）</div>';
+    html+='<div style="font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-left:4px">退場済（'+done.length+'名）</div>';
     done.forEach(function(v){ html+=renderVisCard(v,'done'); });
   }
   el.innerHTML=html;
@@ -543,7 +543,7 @@ function renderVisitorList(){
 }
 
 function renderVisCard(v, status){
-  // status: 'active'=在店中, 'paid'=会計済, 'done'=退店済
+  // status: 'active'=来場中, 'paid'=会計済, 'done'=退場済
   var isDone=(status==='done');
   var isPaid=(status==='paid');
   var mem=getMemberInfo(v.memberId);
@@ -555,12 +555,12 @@ function renderVisCard(v, status){
 
   var rankBadge=mem&&mem.rank?'<span class="badge bg-gold">'+escHtml(mem.rank)+'</span>':'';
   var statusBadge=isDone
-    ?'<span class="badge bg-gray">退店 '+fmtHHMM(v.checkoutTime)+'</span>'
+    ?'<span class="badge bg-gray">退場 '+fmtHHMM(v.checkoutTime)+'</span>'
     :isPaid
       ?'<span class="badge" style="background:#e8b84b;color:#5a3800">会計済 '+fmtHHMM(v.checkoutPayTime)+'</span>'
       :'<span class="badge bg-teal">在店中</span>';
 
-  // チェックボックス: 在店中・会計済のみ表示、退店済は非表示
+  // チェックボックス: 来場中・会計済のみ表示、退場済は非表示
   // data-status を付けてonVisitCheckChangeで種別判定
   var chk=!isDone
     ?'<input type="checkbox" class="vis-select-chk" data-visit-id="'+v.id+'" data-status="'+(isPaid?'paid':'active')+'" style="margin-right:8px;width:16px;height:16px;cursor:pointer" onchange="onVisitCheckChange()">'
@@ -573,7 +573,7 @@ function renderVisCard(v, status){
     +'<div class="vis-meta-inline">'
       +'<span class="vis-key">'+v.id+'</span>'
       +(v.memberId?'<span class="vis-key">'+escHtml(v.memberId)+'</span>':'')
-      +'<span>来店: '+fmtHHMM(v.visitTime||'—')+'</span>'
+      +'<span>来場: '+fmtHHMM(v.visitTime||'—')+'</span>'
       +'<span>注文 '+orderCount+'品</span>'
     +'</div>'
     +rankBadge
@@ -725,7 +725,7 @@ g('ci-member').addEventListener('input',function(){
   if(!val){ status.textContent=''; return; }
   var mem=getMemberInfo(val);
   if(mem){
-    status.textContent='✓ '+(mem.nickname||mem.name)+'（'+(mem.rank||'段位なし')+'・来店'+(mem.visitCount||0)+'回）';
+    status.textContent='✓ '+(mem.nickname||mem.name)+'（'+(mem.rank||'段位なし')+'・来場'+(mem.visitCount||0)+'回）';
     status.style.color='var(--teal)';
   } else {
     status.textContent='✕ 会員ID「'+val+'」は登録されていません（非会員として登録可）';
@@ -739,7 +739,7 @@ g('m-checkin-cancel').addEventListener('click',function(){ closeM('m-checkin'); 
 g('m-checkin-save').addEventListener('click',function(){
   var today=todayStr6();
   var time=gv('ci-time');
-  if(!time||time.length!==4){ toast('来店時間（4桁）は必須です','err'); return; }
+  if(!time||time.length!==4){ toast('来場時間（4桁）は必須です','err'); return; }
 
   // 初回クリック時にグループ人数を確定
   if(_checkinGroup.current===1){
@@ -795,7 +795,7 @@ g('m-checkin-save').addEventListener('click',function(){
 
     if(cur>=total){
       // 全員登録完了
-      toast(total>1?total+'名のグループ来店を登録しました（グループ: '+groupId+'）':'来店を登録しました（'+visitKey+'）');
+      toast(total>1?total+'名のグループ来場を登録しました（グループ: '+groupId+'）':'来場を登録しました（'+visitKey+'）');
       closeM('m-checkin');
       _checkinGroup={ id:null, total:1, current:1 };
       g('ci-progress').style.display='none';
@@ -822,6 +822,19 @@ g('m-checkin-save').addEventListener('click',function(){
     }
   }).catch(function(e){ toast('登録失敗: '+e.message,'err'); });
 });
+
+// ── 新規注文ボタン ────────────────────────────────────────────
+function goOrderPage(){
+  var chks=document.querySelectorAll('.vis-select-chk:checked[data-status="active"]');
+  if(chks.length===0){
+    // チェックなし → STEP0（来場者選択画面）
+    window.location.href='home_order.html';
+    return;
+  }
+  // チェックあり → visitKeyをクエリパラメータで渡してSTEP1へ
+  var visitKeys=Array.prototype.map.call(chks,function(c){ return c.dataset.visitId; });
+  window.location.href='home_order.html?visits='+encodeURIComponent(visitKeys.join(','));
+}
 
 // ── チェックボックス管理 ───────────────────────────────────────
 function onVisitCheckChange(){
@@ -1078,7 +1091,7 @@ function doCheckoutSave(){
   fbBatch.commit().then(function(){
     closeM('m-checkout');
     var msg=alsoCheckout
-      ?'お会計・退店を確定しました（'+bulkCheckoutVisitKeys.length+'名）'
+      ?'お会計・退場を確定しました（'+bulkCheckoutVisitKeys.length+'名）'
       :'お会計を確定しました（'+bulkCheckoutVisitKeys.length+'名）';
     toast(msg);
     renderVisitorList();
@@ -1091,7 +1104,7 @@ g('m-checkout-save').addEventListener('click', doCheckoutSave);
 function bulkCheckoutTime(){
   var visitIds=getSelectedByStatus('paid');
   if(!visitIds.length){ toast('会計済の方を選択してください','err'); return; }
-  if(!confirm(visitIds.length+'名を退店処理しますか？')) return;
+  if(!confirm(visitIds.length+'名を退場処理しますか？')) return;
   var time=nowHHMM();
   var fbBatch=db.batch();
   visitIds.forEach(function(visitKey){
@@ -1100,9 +1113,9 @@ function bulkCheckoutTime(){
     if(v) v.checkoutTime=time;
   });
   fbBatch.commit().then(function(){
-    toast(visitIds.length+'名を退店処理しました（'+fmtHHMM(time)+'）');
+    toast(visitIds.length+'名を退場処理しました（'+fmtHHMM(time)+'）');
     renderVisitorList();
-  }).catch(function(e){ toast('退店処理失敗: '+e.message,'err'); });
+  }).catch(function(e){ toast('退場処理失敗: '+e.message,'err'); });
 }
 </script>
 </body>

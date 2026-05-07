@@ -544,6 +544,34 @@ async function init(){
   document.getElementById('loading').style.display='none';
   document.getElementById('content-area').style.display='block';
   renderOrderList();
+
+  // checkin.htmlから来場者指定で遷移してきた場合はSTEP1へ直接ジャンプ
+  const params=new URLSearchParams(window.location.search);
+  const visitsParam=params.get('visits');
+  if(visitsParam){
+    const visitKeys=visitsParam.split(',').filter(Boolean);
+    if(visitKeys.length>0){
+      flow={visits:[],cart:[],isBlind:false};
+      document.getElementById('blind-check').checked=false;
+      visitKeys.forEach(function(vk){
+        const v=allVisits.find(x=>x.id===vk);
+        if(v&&!flow.visits.find(x=>x.id===vk)) flow.visits.push(v);
+      });
+      if(flow.visits.length>0){
+        document.getElementById('order-modal').classList.add('open');
+        showStep(1);
+        renderProducts();
+        // チェックボックスを反映
+        flow.visits.forEach(function(v){
+          const cb=document.getElementById('vcb-'+v.id);
+          if(cb) cb.checked=true;
+        });
+        document.getElementById('btn-to-step1').disabled=false;
+      }
+    }
+    // URLをクリーン（ブラウザ履歴に残さない）
+    window.history.replaceState({},document.title,window.location.pathname);
+  }
 }
 
 // ━━━ マスタ ━━━
