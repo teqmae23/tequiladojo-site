@@ -121,6 +121,8 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 
 /* 退店モーダル内の注文リスト */
 .checkout-order-list{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.co-group{border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;margin-bottom:4px}
+.co-group-label{font-size:10px;color:var(--ink3);padding:2px 8px;background:var(--cream3);border-bottom:1px solid var(--border);letter-spacing:.04em}
 .checkout-order-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--cream2);border-radius:var(--r);font-size:12px}
 .co-type{padding:2px 6px;border-radius:20px;font-size:9px;font-weight:500;flex-shrink:0}
 .co-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}
@@ -176,7 +178,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a href="home_order.html" class="btn bs">📋 新規注文</a>
         <button class="btn bs" id="btn-refresh">🔄 更新</button>
-        <button class="btn bp" id="btn-checkin">＋ 来店登録</button>
+        <button class="btn bp" id="btn-checkin">＋ 新規来店</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -196,7 +198,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 <div class="mbg" id="m-checkin">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title">来店登録</div>
+      <div class="modal-title">新規来店</div>
       <button class="modal-x" id="m-checkin-close">✕</button>
     </div>
     <div class="modal-body">
@@ -244,7 +246,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     </div>
     <div class="modal-foot">
       <button class="btn bs" style="flex:1" id="m-checkin-cancel">キャンセル</button>
-      <button class="btn bp" style="flex:2" id="m-checkin-save">来店登録</button>
+      <button class="btn bp" style="flex:2" id="m-checkin-save">登録</button>
     </div>
   </div>
 </div>
@@ -746,6 +748,20 @@ g('m-checkin-save').addEventListener('click',function(){
     toast('visitKey「'+visitKey+'」は既に存在します','err'); return;
   }
   var memberId=gv('ci-member')||null;
+
+  // 同一会員が既に在店中かチェック（非会員はスキップ）
+  if(memberId){
+    var alreadyIn=cache.visits.find(function(v){
+      return v.memberId===memberId && !v.checkoutTime;
+    });
+    if(alreadyIn){
+      var mem=getMemberInfo(memberId);
+      var memName=mem?(mem.nickname||mem.name||memberId):memberId;
+      toast('「'+memName+'」は既に在店中です（'+alreadyIn.id+'）','err');
+      return;
+    }
+  }
+
   var groupId=_checkinGroup.total>1?_checkinGroup.id:null;
 
   db.collection('visits').doc(visitKey).set({
@@ -867,11 +883,26 @@ function openBulkCheckout(){
       grandTotal+=totalAmt;
       warikanAmounts[visitKey]=totalAmt;
 
-      // 注文リスト
-      var orderRows=orders.length===0
-        ?'<div style="font-size:12px;color:var(--ink3);padding:8px">注文なし</div>'
-        :orders.sort(function(a,b){return(a.orderTime||'').localeCompare(b.orderTime||'');})
-          .map(function(o){
+      // 注文リスト（orderGroupId単位で枠囲み）
+      var orderRows='';
+      if(orders.length===0){
+        orderRows='<div style="font-size:12px;color:var(--ink3);padding:8px">注文なし</div>';
+      } else {
+        // orderGroupIdでグループ化（時刻順）
+        var sortedOrders=orders.slice().sort(function(a,b){
+          return(a.orderGroupId||a.orderTime||'').localeCompare(b.orderGroupId||b.orderTime||'');
+        });
+        var groupMap={}, groupOrder=[];
+        sortedOrders.forEach(function(o){
+          var gid=o.orderGroupId||'_';
+          if(!groupMap[gid]){ groupMap[gid]=[]; groupOrder.push(gid); }
+          groupMap[gid].push(o);
+        });
+        groupOrder.forEach(function(gid){
+          var gitems=groupMap[gid];
+          var gTime=gitems[0].orderTime||'';
+          var gTimeStr=gTime?gTime.slice(0,2)+':'+gTime.slice(2,4):'';
+          var itemsHtml=gitems.map(function(o){
             var lbl=TYPE_LABEL[o.productType]||o.productType||'—';
             var bg=TYPE_BG[o.productType]||'background:var(--cream2);color:var(--ink3)';
             var t=o.productType||o.type||'';
@@ -881,8 +912,14 @@ function openBulkCheckout(){
               +'<span class="co-name">'+escHtml(o.productName||'—')+'</span>'
               +'<span class="co-qty">'+escHtml((o.qty||0)+(o.unit||'ml'))+'</span>'
               +'<span class="co-price">¥'+amt.toLocaleString()+'</span>'
-            +'</div>';
+              +'</div>';
           }).join('');
+          orderRows+='<div class="co-group">'
+            +'<div class="co-group-label">'+escHtml(gTimeStr)+'</div>'
+            +itemsHtml
+            +'</div>';
+        });
+      }
 
       var subtotalRow=bulkCheckoutVisitKeys.length>1
         ?'<div style="text-align:right;font-size:13px;font-weight:600;color:var(--gold-d);margin-top:6px">小計: ¥'+totalAmt.toLocaleString()+'</div>'
