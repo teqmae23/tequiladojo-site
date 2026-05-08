@@ -157,8 +157,8 @@ select.fi{cursor:pointer;}
 
       <!-- ログインタブ -->
       <div class="tab-panel active" id="tab-login">
-        <label class="fl">メールアドレス</label>
-        <input type="email" class="fi" id="login-email" placeholder="member@example.com" autocomplete="email">
+        <label class="fl">メールアドレスまたは会員ID</label>
+        <input type="text" class="fi" id="login-email" placeholder="member@example.com または 260001" autocomplete="username">
         <label class="fl">パスワード</label>
         <input type="password" class="fi" id="login-pass" placeholder="••••••••" autocomplete="current-password">
         <div class="err-msg" id="login-err"></div>
@@ -319,6 +319,14 @@ select.fi{cursor:pointer;}
         <option value="0">日本語</option>
         <option value="1">英語</option>
       </select>
+      <label class="fl" style="margin-top:14px">プロフィール公開区分</label>
+      <select class="fi" id="f-visibility">
+        <option value="0">0: 非公開</option>
+        <option value="1">1: フォロワーのみ公開</option>
+        <option value="2">2: 匿名公開</option>
+        <option value="3">3: 全公開</option>
+      </select>
+      <div style="font-size:11px;color:var(--ink3);margin-top:4px">プロフィール情報の公開範囲を設定します</div>
     </div>
 
     <!-- 累積データ（閲覧のみ） -->
@@ -410,6 +418,15 @@ function switchLoginTab(tab){
   });
 }
 
+// ── ユーティリティ: 仮想メール変換 ────────────────────────────────
+var VIRTUAL_DOMAIN = '@tequiladojo.member';
+
+function toAuthEmail(input){
+  // @が含まれていればそのままメール、なければ会員IDとして仮想メールに変換
+  if(!input) return '';
+  return input.indexOf('@') >= 0 ? input : input + VIRTUAL_DOMAIN;
+}
+
 // ── Firebase Auth ───────────────────────────────────────────────
 auth.onAuthStateChanged(function(user){
   if(user){
@@ -426,34 +443,38 @@ auth.onAuthStateChanged(function(user){
 });
 
 function doLogin(){
-  var email=gv('login-email'), pass=gv('login-pass');
+  var input=gv('login-email'), pass=gv('login-pass');
   g('login-err').textContent='';
-  if(!email||!pass){ g('login-err').textContent='メールとパスワードを入力してください'; return; }
+  if(!input||!pass){ g('login-err').textContent='会員IDまたはメールアドレスとパスワードを入力してください'; return; }
+  var email=toAuthEmail(input);
   var btn=g('btn-login'); btn.disabled=true; btn.textContent='ログイン中...';
   auth.signInWithEmailAndPassword(email,pass)
     .catch(function(e){
       g('login-err').textContent=
-        e.code==='auth/user-not-found'?'このメールアドレスは登録されていません':
-        e.code==='auth/wrong-password'?'パスワードが違います':
+        e.code==='auth/user-not-found'?'登録されていないIDまたはメールアドレスです':
+        e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'?'パスワードが違います':
         'ログイン失敗: '+e.message;
       btn.disabled=false; btn.textContent='ログイン';
     });
 }
 
 function doRegister(){
-  var email=gv('reg-email'), pass=gv('reg-pass'), pass2=gv('reg-pass2');
+  var emailInput=gv('reg-email'), pass=gv('reg-pass'), pass2=gv('reg-pass2');
   g('reg-err').textContent='';
-  if(!email||!pass){ g('reg-err').textContent='必須項目を入力してください'; return; }
+  if(!emailInput||!pass){ g('reg-err').textContent='必須項目を入力してください'; return; }
   if(pass.length<8){ g('reg-err').textContent='パスワードは8文字以上にしてください'; return; }
   if(pass!==pass2){ g('reg-err').textContent='パスワードが一致しません'; return; }
+  var authEmail=toAuthEmail(emailInput);
+  var realEmail=emailInput.indexOf('@')>=0?emailInput:null; // 本物のメールか会員IDか
   var btn=g('btn-register'); btn.disabled=true; btn.textContent='登録中...';
-  auth.createUserWithEmailAndPassword(email,pass)
+  auth.createUserWithEmailAndPassword(authEmail,pass)
     .then(function(cred){
-      // 新規Firestoreドキュメントを作成
       return db.collection('members').doc(cred.user.uid).set({
         authUid: cred.user.uid,
-        email: email,
+        email: realEmail,
+        authEmail: authEmail,
         grade: 0,
+        visibility: 0,
         visitCount: 0,
         totalTequila: 0,
         totalAmount: 0,
@@ -463,7 +484,7 @@ function doRegister(){
     })
     .catch(function(e){
       g('reg-err').textContent=
-        e.code==='auth/email-already-in-use'?'このメールアドレスは既に登録されています':
+        e.code==='auth/email-already-in-use'?'このIDまたはメールアドレスは既に登録されています':
         '登録失敗: '+e.message;
       btn.disabled=false; btn.textContent='アカウントを作成';
     });
@@ -474,9 +495,12 @@ function doLogout(){
 }
 
 function doResetPassword(){
-  var email=gv('login-email');
-  if(!email){ g('login-err').textContent='メールアドレスを入力してください'; return; }
-  auth.sendPasswordResetEmail(email)
+  var input=gv('login-email');
+  if(!input){ g('login-err').textContent='メールアドレスを入力してください'; return; }
+  if(input.indexOf('@')<0){
+    g('login-err').textContent='パスワードリセットはメールアドレス登録の方のみ可能です。店舗スタッフにお問い合わせください'; return;
+  }
+  auth.sendPasswordResetEmail(input)
     .then(function(){ toast('パスワードリセットメールを送信しました'); })
     .catch(function(e){ toast('送信失敗: '+e.message,'err'); });
 }
@@ -517,6 +541,7 @@ function fillForm(d){
   sv('f-fb',      d?d.facebookId||'':'');
   sv('f-main-sns',d?String(d.mainSns||0):'0');
   sv('f-lang',    d?String(d.lang||0):'0');
+  sv('f-visibility', d?String(d.visibility||0):'0');
   // 読み取り専用
   g('f-member-id').textContent=d&&d.memberId?d.memberId:(d&&d.authUid?d.authUid.slice(0,8)+'...':'—');
   g('f-grade').textContent=GRADE_LABELS[d&&d.grade?d.grade:0]||'無料会員';
@@ -599,6 +624,7 @@ async function saveProfile(){
       twitterId:gv('f-tw')||null, instagramId:gv('f-ig')||null, facebookId:gv('f-fb')||null,
       mainSns:parseInt(gv('f-main-sns'))||0,
       lang:parseInt(gv('f-lang'))||0,
+      visibility:parseInt(gv('f-visibility'))||0,
       email:currentUser.email,
       authUid:uid,
     };

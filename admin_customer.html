@@ -233,7 +233,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <div class="keybox" id="kb-member">—<span class="klabel">会員番号</span></div>
       <!-- Firebase Auth情報 -->
       <div class="frow">
-        <div class="fg"><label class="fl">メールアドレス（ログイン用）</label><input class="fi" id="mem-email" type="email" placeholder="member@example.com"></div>
+        <div class="fg"><label class="fl">メールアドレス（ログイン用）</label><input class="fi" id="mem-email" type="text" placeholder="member@example.com または 会員IDのみ（メールなし）"></div>
         <div class="fg"><label class="fl">パスワード（新規・変更時のみ入力）</label><input class="fi" id="mem-password" type="password" placeholder="8文字以上" autocomplete="new-password"></div>
       </div>
       <div class="frow c3">
@@ -301,6 +301,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       </div>
       <hr class="fsep">
       <div class="fg"><label class="fl">表示言語</label><select class="fs" id="mem-lang"><option value="0">0: 日本語</option><option value="1">1: 英語</option></select><div style="font-size:11px;color:var(--ink3);margin-top:3px">注文登録画面での商品名表示言語（1=英語名で表示）</div></div>
+      <div class="fg"><label class="fl">公開区分</label><select class="fs" id="mem-visibility"><option value="0">0: 非公開</option><option value="1">1: フォロワーのみ公開</option><option value="2">2: 匿名公開</option><option value="3">3: 全公開</option></select></div>
       <div class="fg"><label class="fl">備考</label><textarea class="fi" id="mem-note" rows="3" style="resize:vertical;font-size:13px" placeholder="自由記入..."></textarea></div>
     </div>
     <div class="mfoot"><button class="btn bg2" data-close="m-member">キャンセル</button><button class="btn bp" id="btn-save-member">保存</button></div>
@@ -546,6 +547,7 @@ function setMemberFields(r){
   sv("mem-total-amount",  r?r.totalAmount||0:0);
   sv("mem-rank",   r?r.rank||"":"");
   sv("mem-lang",   r?String(r.lang||"0"):"0");
+  sv("mem-visibility", r?String(r.visibility||"0"):"0");
   var noteEl=g("mem-note"); if(noteEl) noteEl.value=r?r.note||"":"";
 }
 
@@ -603,26 +605,29 @@ g("btn-save-member").addEventListener("click",async function(){
   var password=gv("mem-password")||null;
   var noteEl=g("mem-note");
 
-  // Firebase Auth: 新規登録時はメール＋パスワードでアカウント作成
-  if(!editId.member && email && password){
+  // 仮想メール変換（メールなし会員は会員ID@tequiladojo.memberで登録）
+  var VDOMAIN='@tequiladojo.member';
+  var authEmail=email?(email.indexOf('@')>=0?email:email+VDOMAIN):id+VDOMAIN;
+  var realEmail=(email&&email.indexOf('@')>=0)?email:null;
+
+  // Firebase Auth: 新規登録時
+  if(!editId.member && password){
     try{
-      var cred=await auth.createUserWithEmailAndPassword(email, password);
-      // UIDをauthUidとして保存
+      var cred=await auth.createUserWithEmailAndPassword(authEmail, password);
       var uid=cred.user.uid;
-      await db.collection("members").doc(id).set({authUid:uid},{merge:true});
+      await db.collection("members").doc(id).set({authUid:uid, authEmail:authEmail},{merge:true});
     } catch(e){
       if(e.code==="auth/email-already-in-use"){
-        toast("このメールアドレスは既に登録されています","err"); return;
+        toast("このIDまたはメールアドレスは既に登録されています","err"); return;
       }
       toast("Auth登録失敗: "+e.message,"err"); return;
     }
   } else if(editId.member && password){
-    // 既存会員のパスワード変更（管理者操作：現在のユーザーを再認証不要で変更するにはAdmin SDKが必要なため案内）
     toast("パスワード変更は会員本人のログイン後またはAdmin SDKが必要です","inf");
   }
 
   db.collection("members").doc(id).set({
-    memberId:id, email:email,
+    memberId:id, email:realEmail, authEmail:authEmail,
     name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
     gender:gv("mem-gender")||"男", grade:parseInt(gv("mem-grade"))||0,
     registeredAt:gv("mem-reg")||todayDate(), birthday:gv("mem-birth")||null,
@@ -631,6 +636,7 @@ g("btn-save-member").addEventListener("click",async function(){
     phone:gv("mem-tel")||null,
     twitterId:gv("mem-tw")||null, instagramId:gv("mem-ig")||null, facebookId:gv("mem-fb")||null,
     mainSns:parseInt(gv("mem-main-sns"))||0,
+    visibility:parseInt(gv("mem-visibility"))||0,
     visitCount:parseInt(gv("mem-visits"))||0,
     totalTequila:parseInt(gv("mem-total-tequila"))||0,
     totalAmount:parseInt(gv("mem-total-amount"))||0,
