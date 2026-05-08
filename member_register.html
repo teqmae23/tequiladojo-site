@@ -203,32 +203,35 @@ select.fi{cursor:pointer;}
       <div class="section-title">プロフィール画像</div>
       <div class="frow" style="justify-content:center;gap:32px">
         <div style="text-align:center">
-          <div class="img-upload-area" style="width:120px;margin:0 auto">
-            <div class="img-placeholder" id="icon-placeholder">👤</div>
-            <img id="icon-preview" class="img-preview" style="display:none">
-            <input type="file" id="icon-file" accept="image/*" onchange="previewImg('icon')">
+          <div class="img-upload-area" style="width:120px;margin:0 auto" id="icon-drop">
+            <img id="icon-preview" class="img-preview">
+            <input type="file" id="icon-file" accept="image/*,.gif" onchange="previewImg('icon')">
             <div class="img-label">アイコン画像</div>
           </div>
           <button class="img-clear" id="icon-clear" style="display:none" onclick="clearImg('icon')">削除</button>
+          <div style="font-size:10px;color:var(--ink3);margin-top:4px">※200×200pxに自動圧縮</div>
         </div>
         <div style="text-align:center">
-          <div class="img-upload-area" style="width:160px;margin:0 auto">
-            <div class="img-placeholder-rect" id="photo-placeholder">📷</div>
-            <img id="photo-preview" class="img-preview-rect" style="display:none">
-            <input type="file" id="photo-file" accept="image/*" onchange="previewImg('photo')">
+          <div class="img-upload-area" style="width:160px;margin:0 auto" id="photo-drop">
+            <img id="photo-preview" class="img-preview-rect">
+            <input type="file" id="photo-file" accept="image/*,.gif" onchange="previewImg('photo')">
             <div class="img-label">顔写真</div>
           </div>
           <button class="img-clear" id="photo-clear" style="display:none" onclick="clearImg('photo')">削除</button>
+          <div style="font-size:10px;color:var(--ink3);margin-top:4px">※大きな画像は自動圧縮されます</div>
         </div>
       </div>
+      <div style="font-size:11px;color:var(--ink3);text-align:center;margin-top:8px">画像はクリック・ドラッグ&ドロップ・ペースト（Ctrl+V）で登録できます</div>
     </div>
 
     <!-- 基本情報 -->
     <div class="section">
       <div class="section-title">基本情報</div>
-      <div class="frow">
+      <label class="fl">ニックネーム <span class="req">*</span></label>
+      <input type="text" class="fi" id="f-nick" placeholder="タロ">
+      <div class="frow" style="margin-top:14px">
         <div class="fg">
-          <label class="fl">会員名 <span class="req">*</span></label>
+          <label class="fl">会員名</label>
           <input type="text" class="fi" id="f-name" placeholder="田中 太郎">
         </div>
         <div class="fg">
@@ -236,15 +239,13 @@ select.fi{cursor:pointer;}
           <input type="text" class="fi" id="f-kana" placeholder="タナカ タロウ">
         </div>
       </div>
-      <label class="fl">ニックネーム</label>
-      <input type="text" class="fi" id="f-nick" placeholder="タロ">
       <div class="frow" style="margin-top:14px">
         <div class="fg">
           <label class="fl">性別</label>
           <select class="fi" id="f-gender">
-            <option value="男">男</option>
-            <option value="女">女</option>
-            <option value="他">他</option>
+            <option value="男">男性</option>
+            <option value="女">女性</option>
+            <option value="他">その他</option>
           </select>
         </div>
         <div class="fg">
@@ -329,28 +330,7 @@ select.fi{cursor:pointer;}
       <div style="font-size:11px;color:var(--ink3);margin-top:4px">プロフィール情報の公開範囲を設定します</div>
     </div>
 
-    <!-- 累積データ（閲覧のみ） -->
-    <div class="section">
-      <div class="section-title">累積データ</div>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">来場回数</div>
-          <div class="stat-value" id="stat-visits">0<span class="stat-unit">回</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">総テキーラ量</div>
-          <div class="stat-value" id="stat-tequila">0<span class="stat-unit">ml</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">段位</div>
-          <div class="stat-value" id="stat-rank" style="font-size:16px">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">総支払金額</div>
-          <div class="stat-value" id="stat-amount" style="font-size:16px">¥0</div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- パスワード変更 -->
     <div class="section">
@@ -363,14 +343,7 @@ select.fi{cursor:pointer;}
       <div class="err-msg" id="pass-err"></div>
     </div>
 
-    <!-- 会員番号（読み取り専用） -->
-    <div class="section" style="background:var(--cream2)">
-      <div class="section-title">会員情報（変更不可）</div>
-      <label class="fl">会員番号</label>
-      <div class="readonly-field" id="f-member-id">—</div>
-      <label class="fl" style="margin-top:12px">会員区分</label>
-      <div class="readonly-field" id="f-grade">無料会員</div>
-    </div>
+
 
   </div><!-- /form-area -->
 
@@ -550,19 +523,11 @@ function fillForm(d){
   g('stat-tequila').innerHTML=(d?d.totalTequila||0:0)+'<span class="stat-unit">ml</span>';
   g('stat-rank').textContent=d&&d.rank?d.rank:'—';
   g('stat-amount').textContent='¥'+(d?d.totalAmount||0:0).toLocaleString();
-  // 画像
-  if(d&&d.iconUrl){
-    g('icon-preview').src=d.iconUrl;
-    g('icon-preview').style.display='block';
-    g('icon-placeholder').style.display='none';
-    g('icon-clear').style.display='inline';
-  }
-  if(d&&d.photoUrl){
-    g('photo-preview').src=d.photoUrl;
-    g('photo-preview').style.display='block';
-    g('photo-placeholder').style.display='none';
-    g('photo-clear').style.display='inline';
-  }
+  // 画像（デフォルト画像または登録済み画像）
+  g('icon-preview').src = (d&&d.iconUrl) ? d.iconUrl : DEFAULT_ICON_SVG;
+  if(d&&d.iconUrl) g('icon-clear').style.display='inline';
+  g('photo-preview').src = (d&&d.photoUrl) ? d.photoUrl : DEFAULT_PHOTO_SVG;
+  if(d&&d.photoUrl) g('photo-clear').style.display='inline';
 }
 
 function formatDateInput(dateStr){
@@ -576,28 +541,100 @@ function parseDateInput(dateStr){
 }
 
 // ── 画像プレビュー ──────────────────────────────────────────────
+// ── デフォルト画像（SVG） ──────────────────────────────────────
+var DEFAULT_ICON_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><circle cx="40" cy="40" r="40" fill="%23e4ddd0"/><circle cx="40" cy="30" r="14" fill="%239a8470"/><ellipse cx="40" cy="68" rx="22" ry="16" fill="%239a8470"/></svg>';
+var DEFAULT_PHOTO_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90"><rect width="120" height="90" fill="%23e4ddd0"/><circle cx="60" cy="34" r="18" fill="%239a8470"/><ellipse cx="60" cy="80" rx="30" ry="18" fill="%239a8470"/></svg>';
+
+// ── 画像圧縮 ────────────────────────────────────────────────────
+function compressImage(file, maxW, maxH, quality){
+  return new Promise(function(resolve){
+    // GIFはそのまま（アニメーション維持のため圧縮しない）
+    if(file.type==='image/gif'){
+      if(file.size > 2*1024*1024){ alert('GIFは2MB以下にしてください'); resolve(null); return; }
+      resolve(file); return;
+    }
+    var img=new Image();
+    var url=URL.createObjectURL(file);
+    img.onload=function(){
+      var w=img.width, h=img.height;
+      if(w>maxW){ h=Math.round(h*maxW/w); w=maxW; }
+      if(h>maxH){ w=Math.round(w*maxH/h); h=maxH; }
+      var canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob){ resolve(blob); }, 'image/jpeg', quality);
+    };
+    img.src=url;
+  });
+}
+
+// ── 画像をセット（圧縮→プレビュー→File保存） ───────────────────
+async function setImage(type, file){
+  var maxW = type==='icon' ? 200 : 800;
+  var maxH = type==='icon' ? 200 : 800;
+  var blob = await compressImage(file, maxW, maxH, 0.8);
+  if(!blob) return;  // サイズ超過でキャンセル
+  var isGif = file.type==='image/gif';
+  var compressed = isGif ? file : new File([blob], file.name||'image.jpg', {type:'image/jpeg'});
+  if(type==='icon') iconFile=compressed;
+  else photoFile=compressed;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    g(type+'-preview').src=e.target.result;
+    g(type+'-clear').style.display='inline';
+  };
+  reader.readAsDataURL(compressed);
+}
+
 function previewImg(type){
   var fileEl=g(type+'-file');
   var file=fileEl.files[0];
   if(!file) return;
-  if(type==='icon') iconFile=file;
-  else photoFile=file;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var prev=g(type+'-preview');
-    var ph=g(type+'-placeholder');
-    prev.src=e.target.result;
-    prev.style.display='block';
-    if(ph) ph.style.display='none';
-    g(type+'-clear').style.display='inline';
-  };
-  reader.readAsDataURL(file);
+  setImage(type, file);
 }
 
 function clearImg(type){
-  if(type==='icon'){ iconFile=null; g('icon-file').value=''; g('icon-preview').style.display='none'; g('icon-placeholder').style.display='flex'; g('icon-clear').style.display='none'; }
-  else{ photoFile=null; g('photo-file').value=''; g('photo-preview').style.display='none'; g('photo-placeholder').style.display='flex'; g('photo-clear').style.display='none'; }
+  if(type==='icon'){
+    iconFile=null; g('icon-file').value='';
+    g('icon-preview').src=DEFAULT_ICON_SVG;
+    g('icon-clear').style.display='none';
+  } else {
+    photoFile=null; g('photo-file').value='';
+    g('photo-preview').src=DEFAULT_PHOTO_SVG;
+    g('photo-clear').style.display='none';
+  }
 }
+
+// ── ペースト対応 ─────────────────────────────────────────────────
+document.addEventListener('paste', function(e){
+  var items = e.clipboardData && e.clipboardData.items;
+  if(!items) return;
+  for(var i=0;i<items.length;i++){
+    if(items[i].type.indexOf('image')!==-1){
+      var file=items[i].getAsFile();
+      // フォーカスされているエリアに応じてtype判定（デフォルトはicon）
+      var activeEl=document.activeElement;
+      var type='icon';
+      if(activeEl && (activeEl.id==='photo-drop' || (activeEl.closest && activeEl.closest('#photo-drop')))) type='photo';
+      setImage(type, file);
+      break;
+    }
+  }
+});
+
+// ── ドラッグ&ドロップ ─────────────────────────────────────────────
+['icon','photo'].forEach(function(type){
+  var area=g(type+'-drop');
+  if(!area) return;
+  area.addEventListener('dragover',function(e){ e.preventDefault(); area.style.borderColor='var(--gold)'; });
+  area.addEventListener('dragleave',function(){ area.style.borderColor=''; });
+  area.addEventListener('drop',function(e){
+    e.preventDefault(); area.style.borderColor='';
+    var file=e.dataTransfer.files[0];
+    if(file && file.type.indexOf('image')!==-1) setImage(type, file);
+  });
+});
 
 // ── 画像アップロード ────────────────────────────────────────────
 async function uploadImage(file, path){
@@ -608,8 +645,9 @@ async function uploadImage(file, path){
 
 // ── プロフィール保存 ────────────────────────────────────────────
 async function saveProfile(){
+  var nick=gv('f-nick');
+  if(!nick){ toast('ニックネームは必須です','err'); return; }
   var name=gv('f-name');
-  if(!name){ toast('会員名は必須です','err'); return; }
   var btn=g('btn-save'); btn.disabled=true; btn.textContent='保存中...';
   g('save-status').textContent='保存中...';
   try{
