@@ -522,9 +522,7 @@ var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'
 async function syncEmailToFirestore(user){
   if(!user||!user.email||user.email.indexOf(VIRTUAL_DOMAIN)>=0) return;
   try{
-    // memberDocがロード済みの場合のみ同期
-    if(!memberDoc) return;
-    var docId=memberDoc.memberId||user.uid;
+    var docId=memberDoc?memberDoc.memberId||user.uid:user.uid;
     var storedEmail=memberDoc.email;
     // Firebase AuthのメールとFirestoreが異なる場合は更新
     if(storedEmail!==user.email){
@@ -610,8 +608,6 @@ auth.onAuthStateChanged(function(user){
     g('app').style.display='block';
     g('header-email').textContent=user.email||'仮登録会員';
     loadProfile();
-    // メール変更後にFirestoreのemailフィールドを同期
-    syncEmailToFirestore(user);
     // 会員IDをヘッダーに表示（loadProfile完了後にprofile-member-idから取得）
   } else {
     currentUser=null;
@@ -800,6 +796,9 @@ async function loadProfile(){
     }
     memberDoc=snap.exists?snap.data():null;
     fillForm(memberDoc);
+
+    // メール変更後にFirestoreのemailフィールドを同期
+    await syncEmailToFirestore(currentUser);
 
     // バナー表示
     var isTemp = memberDoc && memberDoc.isTemp;
