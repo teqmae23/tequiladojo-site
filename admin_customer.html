@@ -179,7 +179,10 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
     <div class="page active" id="page-members">
       <div class="phead">
         <div><div class="ptitle">顧客マスタ</div><div class="pdesc">顧客番号 6桁 = 西暦下2桁 + 通番4桁</div></div>
-        <button class="btn bp" id="btn-open-member">＋ 会員登録</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn bp" id="btn-open-member">＋ 会員登録</button>
+          <button class="btn bs" onclick="checkMemberConsistency()">🔧 整合性チェック</button>
+        </div>
       </div>
       <div class="card">
         <div class="toolbar">
@@ -194,8 +197,8 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
         </div>
         <div class="tw"><table id="tbl-members">
           <colgroup><col style="width:70px"><col><col><col><col style="width:60px"><col style="width:60px"><col style="width:90px"><col style="width:86px"></colgroup>
-          <thead><tr><th>顧客番号</th><th>顧客名</th><th>ニックネーム</th><th>カタカナ</th><th>性別</th><th>言語</th><th>都道府県</th><th>登録日</th><th>✏️ 操作</th></tr></thead>
-          <tbody id="tb-members"><tr><td colspan="9" class="ec">読み込み中...</td></tr></tbody>
+          <thead><tr><th>顧客番号</th><th>顧客名</th><th>ニックネーム</th><th>カタカナ</th><th>性別</th><th>種別</th><th>言語</th><th>都道府県</th><th>登録日</th><th>✏️ 操作</th></tr></thead>
+          <tbody id="tb-members"><tr><td colspan="10" class="ec">読み込み中...</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -234,7 +237,6 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <!-- Firebase Auth情報 -->
       <div class="frow">
         <div class="fg"><label class="fl">メールアドレス（ログイン用）</label><input class="fi" id="mem-email" type="text" placeholder="member@example.com または 会員IDのみ（メールなし）"></div>
-        <div class="fg"><label class="fl">パスワード（新規・変更時のみ入力）</label><input class="fi" id="mem-password" type="password" placeholder="8文字以上" autocomplete="new-password"></div>
       </div>
       <div class="frow c3">
         <div class="fg"><label class="fl">会員番号（6桁）<span class="req">*</span></label><input class="fi mono" id="mem-id" placeholder="250001" maxlength="6" readonly style="background:var(--cream2)"></div>
@@ -471,7 +473,7 @@ function renderMembers(){
   if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="ec">データがありません</td></tr>'; return; }
   tb.innerHTML=list.map(function(r){
     var gBadge=r.gender==="男"?'<span class="badge bg-blue">男</span>':r.gender==="女"?'<span class="badge bg-teal">女</span>':'<span class="badge bg-gray">他</span>';
-    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+(r.isTemp?'<span style="font-size:10px;background:#6a3a6a;color:#cc88cc;padding:1px 5px;border-radius:3px;margin-left:4px">仮登録</span>':'<span style="font-size:10px;background:#1a3a2a;color:#7adf7a;padding:1px 5px;border-radius:3px;margin-left:4px">本登録</span>')+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td><td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
+    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:11px;text-align:center">'+(r.isGuest||!r.authUid?'<span style="background:#3a3a1a;color:#cccc44;padding:1px 5px;border-radius:3px">ゲスト</span>':r.isTemp?'<span style="background:#3a1a3a;color:#cc88cc;padding:1px 5px;border-radius:3px">仮登録</span>':'<span style="background:#1a3a1a;color:#7adf7a;padding:1px 5px;border-radius:3px">本登録</span>')+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
   }).join("");
 }
 
@@ -503,6 +505,96 @@ document.addEventListener("click",function(e){
 });
 
 // ── 顧客マスタ ───────────────────────────────────────────────────
+// ── 整合性チェック ─────────────────────────────────────────────
+async function checkMemberConsistency(){
+  var btn=document.querySelector('button[onclick="checkMemberConsistency()"]');
+  if(btn){ btn.disabled=true; btn.textContent='チェック中...'; }
+
+  var snap=await db.collection('members').get();
+  var fixes=[], guestRenames=[];
+
+  // ゲスト用採番：0+5桁の最大値を取得
+  var maxGuestNum=0;
+  snap.forEach(function(doc){
+    var mid=doc.data().memberId||'';
+    if(mid.charAt(0)==='0'){
+      var num=parseInt(mid.slice(1))||0;
+      if(num>maxGuestNum) maxGuestNum=num;
+    }
+  });
+
+  snap.forEach(function(doc){
+    var d=doc.data();
+    var mid=d.memberId||doc.id;
+    var hasAuth=!!d.authUid;
+
+    // authUidなし → ゲスト
+    if(!hasAuth){
+      var isGuest=d.isGuest||false;
+      if(!isGuest){
+        fixes.push({id:doc.id, memberId:mid, type:'guest', data:d});
+      }
+    } else {
+      // authUidあり → メールあり=本登録、なし=仮登録
+      var shouldBeTemp=!d.email;
+      if(d.isTemp!==shouldBeTemp||d.isGuest){
+        fixes.push({id:doc.id, memberId:mid, type:shouldBeTemp?'temp':'full', data:d});
+      }
+    }
+  });
+
+  if(fixes.length===0){
+    toast('整合性チェック完了：問題なし ✅');
+    if(btn){ btn.disabled=false; btn.textContent='🔧 整合性チェック'; }
+    return;
+  }
+
+  // ゲストで会員IDが0始まりでないものは確認
+  for(var i=0;i<fixes.length;i++){
+    var f=fixes[i];
+    if(f.type==='guest' && f.memberId.charAt(0)!=='0'){
+      maxGuestNum++;
+      var newId='0'+String(maxGuestNum).padStart(5,'0');
+      var ok=confirm('【ゲスト会員ID変更確認】\n変更前: '+f.memberId+'\n変更後: '+newId+'\n\nこの会員IDを変更しますか？');
+      if(ok){
+        guestRenames.push({docId:f.id, oldId:f.memberId, newId:newId, fix:f});
+      } else {
+        // 変更しない場合もisGuestはtrueにする
+        guestRenames.push({docId:f.id, oldId:f.memberId, newId:f.memberId, fix:f});
+      }
+    }
+  }
+
+  // バッチ更新
+  var batch=db.batch();
+  var count=0;
+
+  fixes.forEach(function(f){
+    var rename=guestRenames.find(function(r){ return r.docId===f.id; });
+    if(f.type==='guest'){
+      var newMid=rename?rename.newId:f.memberId;
+      if(rename&&rename.newId!==rename.oldId){
+        // 新しいドキュメントIDで作成、古いものは削除
+        batch.set(db.collection('members').doc(rename.newId),
+          Object.assign({},f.data,{memberId:newMid,isGuest:true,isTemp:false,authUid:null}));
+        batch.delete(db.collection('members').doc(f.id));
+      } else {
+        batch.update(db.collection('members').doc(f.id),{isGuest:true,isTemp:false});
+      }
+    } else if(f.type==='temp'){
+      batch.update(db.collection('members').doc(f.id),{isTemp:true,isGuest:false});
+    } else if(f.type==='full'){
+      batch.update(db.collection('members').doc(f.id),{isTemp:false,isGuest:false});
+    }
+    count++;
+  });
+
+  await batch.commit();
+  toast('整合性チェック完了：'+count+'件を修正しました ✅');
+  loadMembers();
+  if(btn){ btn.disabled=false; btn.textContent='🔧 整合性チェック'; }
+}
+
 function loadMembers(cb){
   db.collection("members").get()
     .then(function(snap){
@@ -525,7 +617,6 @@ function genMemberId(){
 
 function setMemberFields(r){
   sv("mem-email",  r?r.email||"":"");
-  sv("mem-password", "");  // パスワードは表示しない
   sv("mem-name",   r?r.name:"");
   sv("mem-kana",   r?r.nameKana:"");
   sv("mem-nick",   r?r.nickname:"");
@@ -602,29 +693,12 @@ g("btn-save-member").addEventListener("click",async function(){
     } else { return; }
   }
   var email=gv("mem-email")||null;
-  var password=gv("mem-password")||null;
   var noteEl=g("mem-note");
 
   // 仮想メール変換（メールなし会員は会員ID@tequiladojo.memberで登録）
   var VDOMAIN='@tequiladojo.member';
-  var authEmail=email?(email.indexOf('@')>=0?email:email+VDOMAIN):id+VDOMAIN;
+  var authEmail=email?(email.indexOf('@')>=0?email:email+VDOMAIN):null;
   var realEmail=(email&&email.indexOf('@')>=0)?email:null;
-
-  // Firebase Auth: 新規登録時
-  if(!editId.member && password){
-    try{
-      var cred=await auth.createUserWithEmailAndPassword(authEmail, password);
-      var uid=cred.user.uid;
-      await db.collection("members").doc(id).set({authUid:uid, authEmail:authEmail},{merge:true});
-    } catch(e){
-      if(e.code==="auth/email-already-in-use"){
-        toast("このIDまたはメールアドレスは既に登録されています","err"); return;
-      }
-      toast("Auth登録失敗: "+e.message,"err"); return;
-    }
-  } else if(editId.member && password){
-    toast("パスワード変更は会員本人のログイン後またはAdmin SDKが必要です","inf");
-  }
 
   db.collection("members").doc(id).set({
     memberId:id, email:realEmail, authEmail:authEmail,
