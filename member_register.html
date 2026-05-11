@@ -777,18 +777,25 @@ async function loadProfile(){
   g('loading-overlay').style.display='block';
   g('form-area').style.display='none';
   try{
-    // まずUIDで検索、なければauthUidフィールドで検索、なければemailで検索
-    await currentUser.reload(); // 最新の認証状態を取得
+    await currentUser.reload();
+    var memberData=null;
+
+    // 1. UIDをドキュメントIDとして検索
     var snap=await db.collection('members').doc(currentUser.uid).get();
-    if(!snap.exists){
+    if(snap.exists){
+      memberData=snap.data();
+    } else {
+      // 2. authUidフィールドで検索
       var q=await db.collection('members').where('authUid','==',currentUser.uid).limit(1).get();
-      if(!q.empty){ snap=q.docs[0]; }
-      else if(currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0){
+      if(!q.empty){
+        memberData=q.docs[0].data();
+      } else if(currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0){
+        // 3. emailフィールドで検索
         var q2=await db.collection('members').where('email','==',currentUser.email).limit(1).get();
-        if(!q2.empty) snap=q2.docs[0];
+        if(!q2.empty) memberData=q2.docs[0].data();
       }
     }
-    memberDoc=snap.exists?snap.data():null;
+    memberDoc=memberData;
     fillForm(memberDoc);
 
     // メール変更後にFirestoreのemailフィールドを同期
