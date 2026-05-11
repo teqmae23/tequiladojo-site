@@ -1038,7 +1038,9 @@ async function doEmailChange(){
       ?currentUser.email:null;
 
     // 新しいメールに確認リンク送信
-    await currentUser.verifyBeforeUpdateEmail(newEmail);
+    // verifyBeforeUpdateEmailはcompat SDKで未対応のためupdateEmail+sendEmailVerificationを使用
+    await currentUser.updateEmail(newEmail);
+    await currentUser.sendEmailVerification();
 
     // 古いメールに通知（メールアドレスがある場合）
     if(oldEmail){
