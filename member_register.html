@@ -585,11 +585,15 @@ async function loadProfile(){
     var isVerified = currentUser.emailVerified;
     var hasRealEmail = currentUser.email && currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
 
-    g('temp-banner').style.display = isTemp ? 'flex' : 'none';
-    g('verify-banner').style.display = (!isTemp && hasRealEmail && !isVerified) ? 'flex' : 'none';
+    var tb=g('temp-banner'); if(tb) tb.style.display = isTemp ? 'flex' : 'none';
+    var vb=g('verify-banner'); if(vb) vb.style.display = (!isTemp && hasRealEmail && !isVerified) ? 'flex' : 'none';
 
   }catch(e){
-    toast('プロフィールの読み込みに失敗しました: '+e.message,'err');
+    console.error('loadProfile error:', e);
+    // 新規登録直後など初回はドキュメントがない場合があるので空フォームで表示
+    fillForm(null);
+    var tb=g('temp-banner'); if(tb) tb.style.display='none';
+    var vb=g('verify-banner'); if(vb) vb.style.display='none';
   }
   g('loading-overlay').style.display='none';
   g('form-area').style.display='block';
