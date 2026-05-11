@@ -155,10 +155,14 @@ body::before{
     document.getElementById("ml-email").focus();
   }
   function closeMemberLogin(){
-    document.getElementById("member-modal-overlay").style.display="none";
-    document.getElementById("ml-err").textContent="";
-    document.getElementById("ml-email").value="";
-    document.getElementById("ml-pass").value="";
+    var ov=document.getElementById("member-modal-overlay");
+    var err=document.getElementById("ml-err");
+    var em=document.getElementById("ml-email");
+    var ps=document.getElementById("ml-pass");
+    if(ov) ov.style.display="none";
+    if(err) err.textContent="";
+    if(em) em.value="";
+    if(ps) ps.value="";
   }
   function showMemberReset(){
     document.getElementById("ml-login-area").style.display="none";
@@ -579,9 +583,8 @@ function doMemberReset(){
 }
 
 // オーバーレイクリックで閉じる
-document.getElementById('member-modal-overlay').addEventListener('click',function(e){
-  if(e.target===this) closeMemberLogin();
-});
+var _mo=document.getElementById('member-modal-overlay');
+if(_mo) _mo.addEventListener('click',function(e){ if(e.target===this) closeMemberLogin(); });
 </script>
 </body>
 </html>
