@@ -520,28 +520,23 @@ var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'
 // ── 会員番号自動採番 ──────────────────────────────────────────
 // ── Firebase AuthのメールをFirestoreに同期 ──────────────────────
 async function syncEmailToFirestore(user){
+  // 仮想メール・未ログインはスキップ
   if(!user||!user.email||user.email.indexOf(VIRTUAL_DOMAIN)>=0) return;
   try{
     var docId=memberDoc?memberDoc.memberId||user.uid:user.uid;
-    var storedEmail=memberDoc.email;
-    // Firebase AuthのメールとFirestoreが異なる場合は更新
+    var storedEmail=memberDoc?memberDoc.email:null;
+
+    // Firebase Authのemailと異なる場合のみFirestoreを更新
     if(storedEmail!==user.email){
       await db.collection('members').doc(docId).update({
         email: user.email,
-        authEmail: user.email,
-        isTemp: false,
-        isVerified: user.emailVerified
+        isTemp: false
       });
-      memberDoc.email=user.email;
-      memberDoc.isTemp=false;
+      if(memberDoc){ memberDoc.email=user.email; memberDoc.isTemp=false; }
       // メール表示を更新
       var ped=g('profile-email-disp');
       if(ped){ ped.textContent=user.email; ped.style.color='rgba(255,255,255,.7)'; }
-    }
-    // emailVerifiedの状態を同期
-    if(memberDoc.isVerified!==user.emailVerified){
-      await db.collection('members').doc(docId).update({isVerified:user.emailVerified});
-      memberDoc.isVerified=user.emailVerified;
+      console.log('email同期完了:', user.email);
     }
   }catch(e){
     console.error('syncEmailToFirestore:', e);
@@ -710,9 +705,7 @@ async function doRegister(){
       authUid: uid,
       memberId: memberId,
       email: realEmail,
-      authEmail: authEmail,
       isTemp: isTemp,
-      isVerified: false,
       name: name||null,
       nameKana: kana||null,
       nickname: nick,
@@ -806,13 +799,6 @@ async function loadProfile(){
     // reload()で最新のemailVerifiedを取得済み
     var isVerified = currentUser.emailVerified;
     var hasRealEmail = currentUser.email && currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
-
-    // FirestoreのisVerifiedも同期
-    if(memberDoc && memberDoc.isVerified !== isVerified){
-      var docId2=memberDoc.memberId||currentUser.uid;
-      db.collection('members').doc(docId2).update({isVerified:isVerified}).catch(function(){});
-      memberDoc.isVerified=isVerified;
-    }
 
     var tb=g('temp-banner'); if(tb) tb.style.display = (!isGuest&&isTemp) ? 'flex' : 'none';
     var showVerify = !isGuest && !isTemp && hasRealEmail && !isVerified;
@@ -1104,11 +1090,16 @@ async function doEmailChange(){
       });
     }
 
-    // Firestoreにpendingメール変更を記録（ドキュメントIDはmemberDocから取得）
-    var memberDocId = memberDoc && memberDoc.memberId ? memberDoc.memberId : currentUser.uid;
-    await db.collection('members').doc(memberDocId).update({
-      pendingEmail: newEmail
-    });
+    // メール変更リクエストを記録（古いアドレスへの通知用）
+    if(oldEmail){
+      db.collection('emailChangeRequests').add({
+        uid: currentUser.uid,
+        oldEmail: oldEmail,
+        newEmail: newEmail,
+        requestedAt: new Date().toISOString(),
+        status: 'pending'
+      }).catch(function(){});
+    }
 
     toast('確認メールを '+newEmail+' に送信しました。メール内のリンクをクリックして変更を完了してください。','inf');
     closeEmailChange();

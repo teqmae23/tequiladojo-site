@@ -473,7 +473,7 @@ function renderMembers(){
   if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="ec">データがありません</td></tr>'; return; }
   tb.innerHTML=list.map(function(r){
     var gBadge=r.gender==="男"?'<span class="badge bg-blue">男</span>':r.gender==="女"?'<span class="badge bg-teal">女</span>':'<span class="badge bg-gray">他</span>';
-    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:10px;text-align:center;white-space:nowrap">'+(r.isGuest||(!r.authUid&&!r.authEmail)?'<span style="background:#3a3a1a;color:#cccc44;padding:1px 4px;border-radius:3px;font-size:10px">ゲスト</span>':r.isTemp?'<span style="background:#3a1a3a;color:#cc88cc;padding:1px 4px;border-radius:3px;font-size:10px">仮登録</span>':'<span style="background:#1a3a1a;color:#7adf7a;padding:1px 4px;border-radius:3px;font-size:10px">本登録</span>')+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
+    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:10px;text-align:center;white-space:nowrap">'+(r.isGuest||(!r.authUid&&!r.authEmail&&!r.email)?'<span style="background:#3a3a1a;color:#cccc44;padding:1px 4px;border-radius:3px;font-size:10px">ゲスト</span>':r.isTemp?'<span style="background:#3a1a3a;color:#cc88cc;padding:1px 4px;border-radius:3px;font-size:10px">仮登録</span>':'<span style="background:#1a3a1a;color:#7adf7a;padding:1px 4px;border-radius:3px;font-size:10px">本登録</span>')+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
   }).join("");
 }
 
@@ -527,7 +527,7 @@ async function checkMemberConsistency(){
     var d=doc.data();
     var mid=d.memberId||doc.id;
     var hasAuth=!!d.authUid;
-    var hasAuthEmail=!!d.authEmail; // authEmailがあればFirebase Authアカウントあり
+    var hasAuthEmail=!!d.authEmail||!!d.authUid; // authUidまたはauthEmailがあればAuth登録あり
 
     // authUidもauthEmailもない → ゲスト（ログイン不可）
     // ただし既にisGuest=trueのものはスキップ
@@ -617,13 +617,7 @@ function genMemberId(){
 }
 
 function setMemberFields(r){
-  // email: 本メールアドレス優先、なければauthEmailから仮想ドメインを除いて表示
-  var displayEmail="";
-  if(r){
-    if(r.email) displayEmail=r.email;
-    else if(r.authEmail&&r.authEmail.indexOf("@tequiladojo.member")<0) displayEmail=r.authEmail;
-  }
-  sv("mem-email", displayEmail);
+  sv("mem-email", r?r.email||"":"");
   sv("mem-name",   r?r.name:"");
   sv("mem-kana",   r?r.nameKana:"");
   sv("mem-nick",   r?r.nickname:"");
@@ -703,11 +697,10 @@ g("btn-save-member").addEventListener("click",async function(){
   var email=gv("mem-email")||null;
   var noteEl=g("mem-note");
   var VDOMAIN='@tequiladojo.member';
-  var authEmail=email?(email.indexOf('@')>=0?email:email+VDOMAIN):null;
   var realEmail=(email&&email.indexOf('@')>=0)?email:null;
 
   var saveData={
-    memberId:id, email:realEmail, authEmail:authEmail,
+    memberId:id, email:realEmail,
     name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
     gender:gv("mem-gender")||"男", grade:parseInt(gv("mem-grade"))||0,
     registeredAt:gv("mem-reg")||todayDate(), birthday:gv("mem-birth")||null,
