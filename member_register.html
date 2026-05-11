@@ -523,7 +523,8 @@ async function syncEmailToFirestore(user){
   // 仮想メール・未ログインはスキップ
   if(!user||!user.email||user.email.indexOf(VIRTUAL_DOMAIN)>=0) return;
   try{
-    var docId=memberDoc?memberDoc.memberId||user.uid:user.uid;
+    // ドキュメントIDはmemberIdを優先（UIDキーではなくmemberIdキーのドキュメントの場合）
+    var docId=memberDoc&&memberDoc.memberId?memberDoc.memberId:user.uid;
     var storedEmail=memberDoc?memberDoc.email:null;
 
     // Firebase Authのemailと異なる場合のみFirestoreを更新
