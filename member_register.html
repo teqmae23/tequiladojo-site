@@ -480,23 +480,32 @@ var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'
 
 // ── 会員番号自動採番 ──────────────────────────────────────────
 async function fetchNextMemberId(){
-  var year=String(new Date().getFullYear()).slice(2); // 西暦下2桁
+  var year=String(new Date().getFullYear()).slice(2);
+  var dispEl=document.getElementById('reg-memberid-disp');
+  var hidEl=document.getElementById('reg-memberid');
+  if(!dispEl||!hidEl) return;
   try{
-    var snap=await db.collection('members')
-      .orderBy('memberId','desc').limit(10).get();
+    // memberIdフィールドがある全ドキュメントから最大番号を取得
+    // ※未ログイン状態でもpublicReadが許可されている前提
+    var snap=await firebase.firestore().collection('members').get();
     var maxNum=0;
     snap.forEach(function(doc){
       var mid=doc.data().memberId||'';
-      if(mid.slice(0,2)===year){
+      // 今年度のIDのみ対象
+      if(typeof mid==='string'&&mid.slice(0,2)===year){
         var num=parseInt(mid.slice(2))||0;
         if(num>maxNum) maxNum=num;
       }
     });
     var nextId=year+String(maxNum+1).padStart(4,'0');
-    document.getElementById('reg-memberid').value=nextId;
-    document.getElementById('reg-memberid-disp').textContent=nextId;
+    hidEl.value=nextId;
+    dispEl.textContent=nextId;
   }catch(e){
-    document.getElementById('reg-memberid-disp').textContent='取得失敗';
+    console.error('fetchNextMemberId:', e);
+    // Firestoreにアクセスできない場合は年+0001をデフォルトに
+    var fallback=year+'0001';
+    hidEl.value=fallback;
+    dispEl.textContent=fallback+'（仮）';
   }
 }
 
@@ -547,8 +556,13 @@ auth.onAuthStateChanged(function(user){
     currentUser=null;
     g('login-screen').style.display='flex';
     g('app').style.display='none';
-    g('verify-banner').style.display='none';
-    g('temp-banner').style.display='none';
+    var vb=g('verify-banner'); if(vb) vb.style.display='none';
+    var tb=g('temp-banner'); if(tb) tb.style.display='none';
+    // URLパラメータ?tab=registerで登録タブを直接表示
+    var params=new URLSearchParams(window.location.search);
+    if(params.get('tab')==='register'){
+      switchLoginTab('register');
+    }
   }
 });
 
