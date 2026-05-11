@@ -616,14 +616,13 @@ function fillForm(d){
   sv('f-main-sns',d?String(d.mainSns||0):'0');
   sv('f-lang',    d?String(d.lang||0):'0');
   sv('f-visibility', d?String(d.visibility||0):'0');
-  // 読み取り専用
-  g('f-member-id').textContent=d&&d.memberId?d.memberId:(d&&d.authUid?d.authUid.slice(0,8)+'...':'—');
-  g('f-grade').textContent=GRADE_LABELS[d&&d.grade?d.grade:0]||'無料会員';
-  // 累積データ
-  g('stat-visits').innerHTML=(d?d.visitCount||0:0)+'<span class="stat-unit">回</span>';
-  g('stat-tequila').innerHTML=(d?d.totalTequila||0:0)+'<span class="stat-unit">ml</span>';
-  g('stat-rank').textContent=d&&d.rank?d.rank:'—';
-  g('stat-amount').textContent='¥'+(d?d.totalAmount||0:0).toLocaleString();
+  // 読み取り専用（要素が存在する場合のみ）
+  var fmid=g('f-member-id'); if(fmid) fmid.textContent=d&&d.memberId?d.memberId:(d&&d.authUid?d.authUid.slice(0,8)+'...':'—');
+  var fgrd=g('f-grade'); if(fgrd) fgrd.textContent=GRADE_LABELS[d&&d.grade?d.grade:0]||'無料会員';
+  var sv1=g('stat-visits'); if(sv1) sv1.innerHTML=(d?d.visitCount||0:0)+'<span class="stat-unit">回</span>';
+  var sv2=g('stat-tequila'); if(sv2) sv2.innerHTML=(d?d.totalTequila||0:0)+'<span class="stat-unit">ml</span>';
+  var sv3=g('stat-rank'); if(sv3) sv3.textContent=d&&d.rank?d.rank:'—';
+  var sv4=g('stat-amount'); if(sv4) sv4.textContent='¥'+(d?d.totalAmount||0:0).toLocaleString();
   // 画像（デフォルト画像または登録済み画像）
   g('icon-preview').src = (d&&d.iconUrl) ? d.iconUrl : DEFAULT_ICON_SVG;
   if(d&&d.iconUrl) g('icon-clear').style.display='inline';
