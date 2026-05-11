@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>テキーラ道場 — 会員登録</title>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script>
 var FIREBASE_CONFIG = {
   apiKey:            "AIzaSyD6a3i-N1RyXyAfXmztPQrYtx4x62YGth0",
@@ -1049,9 +1049,8 @@ async function doEmailChange(){
     var oldEmail=currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0
       ?currentUser.email:null;
 
-    // メールアドレス更新＋確認メール送信
-    await currentUser.updateEmail(newEmail);
-    await currentUser.sendEmailVerification();
+    // 新しいアドレスに確認リンク送信（クリック後に変更が完了）
+    await currentUser.verifyBeforeUpdateEmail(newEmail);
 
     // 古いメールに通知（メールアドレスがある場合）
     if(oldEmail){
