@@ -763,11 +763,11 @@ function fillForm(d){
   var sv2=g('stat-tequila'); if(sv2) sv2.innerHTML=(d?d.totalTequila||0:0)+'<span class="stat-unit">ml</span>';
   var sv3=g('stat-rank'); if(sv3) sv3.textContent=d&&d.rank?d.rank:'—';
   var sv4=g('stat-amount'); if(sv4) sv4.textContent='¥'+(d?d.totalAmount||0:0).toLocaleString();
-  // 画像（デフォルト画像または登録済み画像）
-  g('icon-preview').src = (d&&d.iconUrl) ? d.iconUrl : DEFAULT_ICON_SVG;
-  if(d&&d.iconUrl) g('icon-clear').style.display='inline';
-  g('photo-preview').src = (d&&d.photoUrl) ? d.photoUrl : DEFAULT_PHOTO_SVG;
-  if(d&&d.photoUrl) g('photo-clear').style.display='inline';
+  // 画像（要素が存在する場合のみ）
+  var iconPrev=g('icon-preview'); if(iconPrev) iconPrev.src=(d&&d.iconUrl)?d.iconUrl:DEFAULT_ICON_SVG;
+  var iconClr=g('icon-clear'); if(iconClr&&d&&d.iconUrl) iconClr.style.display='inline';
+  var photoPrev=g('photo-preview'); if(photoPrev) photoPrev.src=(d&&d.photoUrl)?d.photoUrl:DEFAULT_PHOTO_SVG;
+  var photoClr=g('photo-clear'); if(photoClr&&d&&d.photoUrl) photoClr.style.display='inline';
 }
 
 function formatDateInput(dateStr){
@@ -836,13 +836,15 @@ function previewImg(type){
 
 function clearImg(type){
   if(type==='icon'){
-    iconFile=null; g('icon-file').value='';
-    g('icon-preview').src=DEFAULT_ICON_SVG;
-    g('icon-clear').style.display='none';
+    iconFile=null;
+    var f=g('icon-file'); if(f) f.value='';
+    var p=g('icon-preview'); if(p) p.src=DEFAULT_ICON_SVG;
+    var c=g('icon-clear'); if(c) c.style.display='none';
   } else {
-    photoFile=null; g('photo-file').value='';
-    g('photo-preview').src=DEFAULT_PHOTO_SVG;
-    g('photo-clear').style.display='none';
+    photoFile=null;
+    var f=g('photo-file'); if(f) f.value='';
+    var p=g('photo-preview'); if(p) p.src=DEFAULT_PHOTO_SVG;
+    var c=g('photo-clear'); if(c) c.style.display='none';
   }
 }
 
