@@ -617,7 +617,13 @@ function genMemberId(){
 }
 
 function setMemberFields(r){
-  sv("mem-email",  r?r.email||"":"");
+  // email: 本メールアドレス優先、なければauthEmailから仮想ドメインを除いて表示
+  var displayEmail="";
+  if(r){
+    if(r.email) displayEmail=r.email;
+    else if(r.authEmail&&r.authEmail.indexOf("@tequiladojo.member")<0) displayEmail=r.authEmail;
+  }
+  sv("mem-email", displayEmail);
   sv("mem-name",   r?r.name:"");
   sv("mem-kana",   r?r.nameKana:"");
   sv("mem-nick",   r?r.nickname:"");

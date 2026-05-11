@@ -518,6 +518,38 @@ function toast(msg,type){
 var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'];
 
 // ── 会員番号自動採番 ──────────────────────────────────────────
+// ── Firebase AuthのメールをFirestoreに同期 ──────────────────────
+async function syncEmailToFirestore(user){
+  if(!user||!user.email||user.email.indexOf(VIRTUAL_DOMAIN)>=0) return;
+  try{
+    // memberDocがロード済みの場合のみ同期
+    if(!memberDoc) return;
+    var docId=memberDoc.memberId||user.uid;
+    var storedEmail=memberDoc.email;
+    // Firebase AuthのメールとFirestoreが異なる場合は更新
+    if(storedEmail!==user.email){
+      await db.collection('members').doc(docId).update({
+        email: user.email,
+        authEmail: user.email,
+        isTemp: false,
+        isVerified: user.emailVerified
+      });
+      memberDoc.email=user.email;
+      memberDoc.isTemp=false;
+      // メール表示を更新
+      var ped=g('profile-email-disp');
+      if(ped){ ped.textContent=user.email; ped.style.color='rgba(255,255,255,.7)'; }
+    }
+    // emailVerifiedの状態を同期
+    if(memberDoc.isVerified!==user.emailVerified){
+      await db.collection('members').doc(docId).update({isVerified:user.emailVerified});
+      memberDoc.isVerified=user.emailVerified;
+    }
+  }catch(e){
+    console.error('syncEmailToFirestore:', e);
+  }
+}
+
 async function fetchNextMemberId(){
   var year=String(new Date().getFullYear()).slice(2);
   try{
@@ -578,6 +610,8 @@ auth.onAuthStateChanged(function(user){
     g('app').style.display='block';
     g('header-email').textContent=user.email||'仮登録会員';
     loadProfile();
+    // メール変更後にFirestoreのemailフィールドを同期
+    syncEmailToFirestore(user);
     // 会員IDをヘッダーに表示（loadProfile完了後にprofile-member-idから取得）
   } else {
     currentUser=null;
@@ -770,11 +804,18 @@ async function loadProfile(){
     // バナー表示
     var isTemp = memberDoc && memberDoc.isTemp;
     var isGuest = memberDoc && memberDoc.isGuest;
+    // reload()で最新のemailVerifiedを取得済み
     var isVerified = currentUser.emailVerified;
     var hasRealEmail = currentUser.email && currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
 
+    // FirestoreのisVerifiedも同期
+    if(memberDoc && memberDoc.isVerified !== isVerified){
+      var docId2=memberDoc.memberId||currentUser.uid;
+      db.collection('members').doc(docId2).update({isVerified:isVerified}).catch(function(){});
+      memberDoc.isVerified=isVerified;
+    }
+
     var tb=g('temp-banner'); if(tb) tb.style.display = (!isGuest&&isTemp) ? 'flex' : 'none';
-    // 本登録（isTemp=false）かつメールあり、かつ未認証の場合のみバナー表示
     var showVerify = !isGuest && !isTemp && hasRealEmail && !isVerified;
     var vb=g('verify-banner'); if(vb) vb.style.display = showVerify ? 'flex' : 'none';
 
