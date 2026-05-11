@@ -210,8 +210,8 @@ select.fi{cursor:pointer;}
 
         <div style="display:flex;gap:10px;margin-top:10px">
           <div style="flex:1">
-            <label class="fl">性別 <span class="req">*</span></label>
-            <select class="fi" id="reg-gender" onchange="checkRegReady()">
+            <label class="fl">性別</label>
+            <select class="fi" id="reg-gender">
               <option value="">選択...</option>
               <option value="男">男性</option>
               <option value="女">女性</option>
@@ -219,8 +219,8 @@ select.fi{cursor:pointer;}
             </select>
           </div>
           <div style="flex:1">
-            <label class="fl">誕生日 <span class="req">*</span></label>
-            <input type="date" class="fi" id="reg-birth" onchange="checkRegReady()">
+            <label class="fl">誕生日</label>
+            <input type="date" class="fi" id="reg-birth">
           </div>
         </div>
 
@@ -297,7 +297,10 @@ select.fi{cursor:pointer;}
 <!-- 登録・編集フォーム -->
 <div id="app">
   <div class="page-header">
-    <h1>🥃 会員プロフィール</h1>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <h1>🥃 会員プロフィール</h1>
+      <div id="header-member-id" style="font-family:var(--mono);font-size:13px;color:var(--gold-l);letter-spacing:.1em;display:none"></div>
+    </div>
     <div class="header-right">
       <span class="user-chip" id="header-email"></span>
       <button class="btn-logout" onclick="doLogout()">ログアウト</button>
@@ -316,6 +319,18 @@ select.fi{cursor:pointer;}
   <div id="loading-overlay" style="text-align:center;padding:60px;color:var(--ink3);">読み込み中...</div>
 
   <div class="form-container" id="form-area" style="display:none">
+
+    <!-- 会員IDカード -->
+    <div style="background:var(--ink);border-radius:var(--rl);padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-lg);">
+      <div>
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:4px;">会員番号</div>
+        <div id="profile-member-id" style="font-family:var(--mono);font-size:28px;font-weight:500;color:var(--gold-l);letter-spacing:.12em;">—</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:4px;">ステータス</div>
+        <div id="profile-status-badge" style="font-size:12px;color:var(--gold-l);">—</div>
+      </div>
+    </div>
 
     <!-- 基本情報 -->
     <div class="section">
@@ -498,11 +513,9 @@ async function fetchNextMemberId(){
 // ── 会員登録ボタンのアクティブ/非アクティブ切替 ────────────────
 function checkRegReady(){
   var nick=document.getElementById('reg-nick').value.trim();
-  var gender=document.getElementById('reg-gender').value;
-  var birth=document.getElementById('reg-birth').value;
   var pass=document.getElementById('reg-pass').value;
   var pass2=document.getElementById('reg-pass2').value;
-  var ready=nick&&gender&&birth&&pass&&pass2&&pass===pass2&&pass.length>=8;
+  var ready=nick&&pass&&pass2&&pass===pass2&&pass.length>=8;
   var btn=document.getElementById('btn-register');
   var btn2=document.getElementById('btn-register2');
   if(btn){ btn.disabled=!ready; btn.style.opacity=ready?'1':'.5'; }
@@ -537,6 +550,7 @@ auth.onAuthStateChanged(function(user){
     g('app').style.display='block';
     g('header-email').textContent=user.email||'仮登録会員';
     loadProfile();
+    // 会員IDをヘッダーに表示（loadProfile完了後にprofile-member-idから取得）
   } else {
     currentUser=null;
     g('login-screen').style.display='flex';
@@ -561,7 +575,7 @@ function doLogin(){
     .catch(function(e){
       g('login-err').textContent=
         e.code==='auth/user-not-found'?'登録されていないIDまたはメールアドレスです':
-        e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'?'パスワードが違います':
+        e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'?'メールアドレス/会員IDとパスワードが一致しません':
         'ログイン失敗: '+e.message;
       btn.disabled=false; btn.textContent='ログイン';
     });
@@ -588,7 +602,7 @@ async function doRegister(){
   var errEl=g('reg-err');
   errEl.textContent='';
 
-  if(!nick||!gender||!birth||!pass){ errEl.textContent='必須項目を入力してください'; return; }
+  if(!nick||!pass){ errEl.textContent='ニックネームとパスワードは必須です'; return; }
   if(nickByteLen(nick)>16){ errEl.textContent='ニックネームは全角8文字（半角16文字）以内にしてください'; return; }
   if(pass.length<8){ errEl.textContent='パスワードは8文字以上にしてください'; return; }
   if(pass!==pass2){ errEl.textContent='パスワードが一致しません'; return; }
@@ -742,6 +756,23 @@ async function loadProfile(){
 function fillForm(d){
   sv('f-name',    d?d.name||'':'');
   sv('f-kana',    d?d.nameKana||'':'');
+  // 会員IDカード
+  var pmid=g('profile-member-id');
+  if(pmid) pmid.textContent=d&&d.memberId?d.memberId:'—';
+  // ヘッダーにも会員IDを表示
+  var hmid=g('header-member-id');
+  if(hmid&&d&&d.memberId){
+    hmid.textContent='会員番号: '+d.memberId;
+    hmid.style.display='block';
+  }
+  var psb=g('profile-status-badge');
+  if(psb){
+    if(d&&d.isTemp) psb.textContent='仮登録';
+    else if(d&&!d.isTemp&&currentUser&&!currentUser.emailVerified) psb.textContent='メール未認証';
+    else psb.textContent='✓ 本登録';
+    psb.style.color=d&&d.isTemp?'#cc88cc':(currentUser&&!currentUser.emailVerified?'#e8b84a':'#7adf7a');
+  }
+
   sv('f-nick',    d?d.nickname||'':'');
   sv('f-gender',  d?d.gender||'男':'男');
   sv('f-birth',   d&&d.birthday?formatDateInput(d.birthday):'');
