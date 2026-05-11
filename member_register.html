@@ -1052,8 +1052,9 @@ async function doEmailChange(){
       });
     }
 
-    // Firestoreにpendingメール変更を記録
-    await db.collection('members').doc(currentUser.uid).update({
+    // Firestoreにpendingメール変更を記録（ドキュメントIDはmemberDocから取得）
+    var memberDocId = memberDoc && memberDoc.memberId ? memberDoc.memberId : currentUser.uid;
+    await db.collection('members').doc(memberDocId).update({
       pendingEmail: newEmail
     });
 
