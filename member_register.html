@@ -478,16 +478,17 @@ var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'
 async function fetchNextMemberId(){
   var year=String(new Date().getFullYear()).slice(2);
   try{
-    var snap=await firebase.firestore().collection('members').get();
-    var maxNum=0;
-    snap.forEach(function(doc){
-      var mid=doc.data().memberId||'';
-      if(typeof mid==='string'&&mid.slice(0,2)===year){
-        var num=parseInt(mid.slice(2))||0;
-        if(num>maxNum) maxNum=num;
-      }
+    // トランザクションでcounters/membersのlastIdをインクリメント
+    var counterRef=firebase.firestore().collection('counters').doc('members');
+    var newId=null;
+    await firebase.firestore().runTransaction(async function(tx){
+      var doc=await tx.get(counterRef);
+      var last=doc.exists?doc.data().lastId||0:0;
+      var next=last+1;
+      tx.update(counterRef,{lastId:next});
+      newId=year+String(next).padStart(4,'0');
     });
-    return year+String(maxNum+1).padStart(4,'0');
+    return newId;
   }catch(e){
     console.error('fetchNextMemberId:', e);
     return null;
