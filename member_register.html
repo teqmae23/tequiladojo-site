@@ -751,22 +751,30 @@ async function loadProfile(){
   g('loading-overlay').style.display='block';
   g('form-area').style.display='none';
   try{
-    // まずUIDで検索、なければemailで検索
+    // まずUIDで検索、なければauthUidフィールドで検索、なければemailで検索
+    await currentUser.reload(); // 最新の認証状態を取得
     var snap=await db.collection('members').doc(currentUser.uid).get();
     if(!snap.exists){
-      var q=await db.collection('members').where('email','==',currentUser.email).limit(1).get();
-      if(!q.empty) snap=q.docs[0];
+      var q=await db.collection('members').where('authUid','==',currentUser.uid).limit(1).get();
+      if(!q.empty){ snap=q.docs[0]; }
+      else if(currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0){
+        var q2=await db.collection('members').where('email','==',currentUser.email).limit(1).get();
+        if(!q2.empty) snap=q2.docs[0];
+      }
     }
     memberDoc=snap.exists?snap.data():null;
     fillForm(memberDoc);
 
     // バナー表示
     var isTemp = memberDoc && memberDoc.isTemp;
+    var isGuest = memberDoc && memberDoc.isGuest;
     var isVerified = currentUser.emailVerified;
     var hasRealEmail = currentUser.email && currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
 
-    var tb=g('temp-banner'); if(tb) tb.style.display = isTemp ? 'flex' : 'none';
-    var vb=g('verify-banner'); if(vb) vb.style.display = (!isTemp && hasRealEmail && !isVerified) ? 'flex' : 'none';
+    var tb=g('temp-banner'); if(tb) tb.style.display = (!isGuest&&isTemp) ? 'flex' : 'none';
+    // 本登録（isTemp=false）かつメールあり、かつ未認証の場合のみバナー表示
+    var showVerify = !isGuest && !isTemp && hasRealEmail && !isVerified;
+    var vb=g('verify-banner'); if(vb) vb.style.display = showVerify ? 'flex' : 'none';
 
   }catch(e){
     console.error('loadProfile error:', e);
@@ -801,10 +809,11 @@ function fillForm(d){
   }
   var psb=g('profile-status-badge');
   if(psb){
-    if(d&&d.isTemp) psb.textContent='仮登録';
-    else if(d&&!d.isTemp&&currentUser&&!currentUser.emailVerified) psb.textContent='メール未認証';
+    if(d&&d.isGuest) psb.textContent='ゲスト';
+    else if(d&&d.isTemp) psb.textContent='仮登録';
+    else if(currentUser&&!currentUser.emailVerified) psb.textContent='メール未認証';
     else psb.textContent='✓ 本登録';
-    psb.style.color=d&&d.isTemp?'#cc88cc':(currentUser&&!currentUser.emailVerified?'#e8b84a':'#7adf7a');
+    psb.style.color=(d&&d.isGuest)?'#cccc44':(d&&d.isTemp)?'#cc88cc':(!currentUser||!currentUser.emailVerified)?'#e8b84a':'#7adf7a';
   }
 
   sv('f-nick',    d?d.nickname||'':'');

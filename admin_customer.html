@@ -473,7 +473,7 @@ function renderMembers(){
   if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="ec">データがありません</td></tr>'; return; }
   tb.innerHTML=list.map(function(r){
     var gBadge=r.gender==="男"?'<span class="badge bg-blue">男</span>':r.gender==="女"?'<span class="badge bg-teal">女</span>':'<span class="badge bg-gray">他</span>';
-    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:11px;text-align:center">'+(r.isGuest||!r.authUid?'<span style="background:#3a3a1a;color:#cccc44;padding:1px 5px;border-radius:3px">ゲスト</span>':r.isTemp?'<span style="background:#3a1a3a;color:#cc88cc;padding:1px 5px;border-radius:3px">仮登録</span>':'<span style="background:#1a3a1a;color:#7adf7a;padding:1px 5px;border-radius:3px">本登録</span>')+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
+    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:10px;text-align:center;white-space:nowrap">'+(r.isGuest||!r.authUid?'<span style="background:#3a3a1a;color:#cccc44;padding:1px 4px;border-radius:3px;font-size:10px">ゲスト</span>':r.isTemp?'<span style="background:#3a1a3a;color:#cc88cc;padding:1px 4px;border-radius:3px;font-size:10px">仮登録</span>':'<span style="background:#1a3a1a;color:#7adf7a;padding:1px 4px;border-radius:3px;font-size:10px">本登録</span>')+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
   }).join("");
 }
 
@@ -648,7 +648,7 @@ function openMemberModal(id){
   editId.member=id; g("mt-member").textContent=id?"会員編集":"会員登録";
   var idEl=g("mem-id");
   if(id){
-    sv("mem-id",id); idEl.readOnly=true; idEl.style.background="var(--cream2)";
+    sv("mem-id",id); idEl.readOnly=false; idEl.style.background=""; idEl.style.borderColor="var(--gold)";
     var r=cache.members.find(function(m){return m.id===id;}); setMemberFields(r);
   } else {
     var newId=genMemberId(); sv("mem-id",newId); idEl.readOnly=false; idEl.style.background=""; setMemberFields(null);
@@ -686,6 +686,7 @@ g("btn-save-member").addEventListener("click",async function(){
   var id=gv("mem-id"), name=gv("mem-name");
   if(!id||id.length!==6){ toast("会員番号が不正です","err"); return; }
   if(!name){ toast("会員名は必須です","err"); return; }
+  // 新規登録時の重複チェック
   if(!editId.member && cache.members.some(function(m){return m.id===id;})){
     var suggest=findNextMemberId(id);
     if(suggest && confirm("会員番号「"+id+"」は既に存在します。\n\n代わりに「"+suggest+"」を使いますか？")){
@@ -694,13 +695,11 @@ g("btn-save-member").addEventListener("click",async function(){
   }
   var email=gv("mem-email")||null;
   var noteEl=g("mem-note");
-
-  // 仮想メール変換（メールなし会員は会員ID@tequiladojo.memberで登録）
   var VDOMAIN='@tequiladojo.member';
   var authEmail=email?(email.indexOf('@')>=0?email:email+VDOMAIN):null;
   var realEmail=(email&&email.indexOf('@')>=0)?email:null;
 
-  db.collection("members").doc(id).set({
+  var saveData={
     memberId:id, email:realEmail, authEmail:authEmail,
     name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
     gender:gv("mem-gender")||"男", grade:parseInt(gv("mem-grade"))||0,
@@ -717,8 +716,24 @@ g("btn-save-member").addEventListener("click",async function(){
     rank:gv("mem-rank")||null,
     lang:parseInt(gv("mem-lang"))||0,
     note:noteEl?noteEl.value||null:null
-  },{merge:true})
-  .then(function(){ toast(editId.member?"会員を更新しました":"会員を登録しました"); closeM("m-member"); loadMembers(); })
+  };
+
+  // 編集時にIDが変わった場合は古いドキュメントを削除して新しいIDで作成
+  var oldId=editId.member;
+  var savePromise;
+  if(oldId && oldId!==id){
+    var batch=db.batch();
+    batch.set(db.collection("members").doc(id), saveData);
+    batch.delete(db.collection("members").doc(oldId));
+    savePromise=batch.commit();
+  } else {
+    savePromise=db.collection("members").doc(id).set(saveData,{merge:true});
+  }
+  savePromise
+  .then(function(){
+    var msg=editId.member?(oldId!==id?"会員番号を "+oldId+" → "+id+" に変更しました":"会員を更新しました"):"会員を登録しました";
+    toast(msg); closeM("m-member"); loadMembers();
+  })
   .catch(function(e){ toast("保存失敗: "+e.message,"err"); });
 });
 
