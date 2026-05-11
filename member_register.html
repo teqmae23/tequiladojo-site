@@ -189,29 +189,110 @@ select.fi{cursor:pointer;}
 
       <!-- 新規登録タブ -->
       <div class="tab-panel" id="tab-register">
-        <!-- 仮登録：会員ID -->
-        <label class="fl">会員ID <span class="req">*</span></label>
-        <input type="text" class="fi" id="reg-memberid" placeholder="260001（スタッフにご確認ください）" maxlength="6">
 
-        <!-- メール登録チェックボックス -->
-        <label style="display:flex;align-items:center;gap:8px;margin-top:16px;cursor:pointer;font-size:13px;color:var(--ink2)">
-          <input type="checkbox" id="reg-use-email" onchange="toggleRegEmail()" style="width:16px;height:16px">
-          メールアドレスを登録する（推奨・パスワードリセット可）
-        </label>
-
-        <!-- メール入力欄（チェック時のみ表示） -->
-        <div id="reg-email-area" style="display:none;margin-top:10px">
-          <label class="fl">メールアドレス <span class="req">*</span></label>
-          <input type="email" class="fi" id="reg-email" placeholder="member@example.com" autocomplete="email">
+        <!-- 会員番号（自動採番・変更不可） -->
+        <div style="background:var(--cream2);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:var(--ink3);letter-spacing:.06em;">会員番号（自動採番）</span>
+          <span class="mono" id="reg-memberid-disp" style="font-size:18px;font-weight:500;color:var(--gold-d);letter-spacing:.1em;">採番中...</span>
+          <input type="hidden" id="reg-memberid">
         </div>
 
+        <!-- 基本情報（必須） -->
+        <label class="fl">ニックネーム <span class="req">*</span></label>
+        <input type="text" class="fi" id="reg-nick" placeholder="タロ" oninput="checkRegReady()">
+
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div style="flex:1">
+            <label class="fl">会員名</label>
+            <input type="text" class="fi" id="reg-name" placeholder="田中 太郎" oninput="checkRegReady()">
+          </div>
+          <div style="flex:1">
+            <label class="fl">会員名（カタカナ）</label>
+            <input type="text" class="fi" id="reg-kana" placeholder="タナカ タロウ" oninput="checkRegReady()">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div style="flex:1">
+            <label class="fl">性別 <span class="req">*</span></label>
+            <select class="fi" id="reg-gender" onchange="checkRegReady()">
+              <option value="">選択...</option>
+              <option value="男">男性</option>
+              <option value="女">女性</option>
+              <option value="他">その他</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label class="fl">誕生日 <span class="req">*</span></label>
+            <input type="date" class="fi" id="reg-birth" onchange="checkRegReady()">
+          </div>
+        </div>
+
+        <!-- パスワード -->
         <label class="fl" style="margin-top:14px">パスワード <span class="req">*</span></label>
-        <input type="password" class="fi" id="reg-pass" placeholder="8文字以上" autocomplete="new-password">
+        <input type="password" class="fi" id="reg-pass" placeholder="8文字以上" autocomplete="new-password" oninput="checkRegReady()">
         <label class="fl">パスワード（確認） <span class="req">*</span></label>
-        <input type="password" class="fi" id="reg-pass2" placeholder="パスワードを再入力" autocomplete="new-password">
+        <input type="password" class="fi" id="reg-pass2" placeholder="パスワードを再入力" autocomplete="new-password" oninput="checkRegReady()">
+
+        <!-- メールアドレス（任意） -->
+        <label class="fl" style="margin-top:14px">メールアドレス（推奨）</label>
+        <input type="email" class="fi" id="reg-email" placeholder="member@example.com" autocomplete="email" oninput="checkRegReady()">
+        <div style="font-size:11px;color:var(--ink3);margin-top:4px">登録するとパスワードリセットが利用できます</div>
+
         <div class="err-msg" id="reg-err"></div>
-        <button class="btn-primary" id="btn-register" onclick="doRegister()">アカウントを作成</button>
-        <p class="info-msg" style="margin-top:8px" id="reg-info-msg">仮登録で作成されます。後からメールを追加して本登録に昇格できます。</p>
+
+        <!-- 会員登録ボタン①（上） -->
+        <button class="btn-primary" id="btn-register" onclick="doRegister()" disabled style="opacity:.5;margin-top:16px">会員登録</button>
+
+        <!-- 以下任意項目 -->
+        <div style="margin:24px 0 8px;font-size:11px;color:var(--ink3);text-align:center;border-top:1px solid var(--border);padding-top:16px;letter-spacing:.06em;">
+          以下の項目はあとで編集可能です
+        </div>
+
+        <label class="fl">電話番号</label>
+        <input type="tel" class="fi" id="reg-tel" placeholder="090-0000-0000">
+
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div style="max-width:140px">
+            <label class="fl">郵便番号</label>
+            <input type="text" class="fi" id="reg-zip" placeholder="150-0041" maxlength="8">
+          </div>
+          <div style="flex:1">
+            <label class="fl">都道府県</label>
+            <select class="fi" id="reg-pref">
+              <option value="">選択...</option>
+              <option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option><option>秋田県</option><option>山形県</option><option>福島県</option>
+              <option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option>
+              <option>新潟県</option><option>富山県</option><option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option>
+              <option>岐阜県</option><option>静岡県</option><option>愛知県</option><option>三重県</option>
+              <option>滋賀県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option><option>奈良県</option><option>和歌山県</option>
+              <option>鳥取県</option><option>島根県</option><option>岡山県</option><option>広島県</option><option>山口県</option>
+              <option>徳島県</option><option>香川県</option><option>愛媛県</option><option>高知県</option>
+              <option>福岡県</option><option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option><option>宮崎県</option><option>鹿児島県</option><option>沖縄県</option>
+            </select>
+          </div>
+        </div>
+        <label class="fl">住所</label>
+        <input type="text" class="fi" id="reg-addr" placeholder="渋谷区道玄坂1-1-1">
+        <label class="fl">建物・部屋番号</label>
+        <input type="text" class="fi" id="reg-addr2" placeholder="テキーラビル201">
+
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div style="flex:1">
+            <label class="fl">Twitter / X ID</label>
+            <input type="text" class="fi" id="reg-tw" placeholder="@username">
+          </div>
+          <div style="flex:1">
+            <label class="fl">Instagram ID</label>
+            <input type="text" class="fi" id="reg-ig" placeholder="@username">
+          </div>
+        </div>
+        <label class="fl">Facebook ID</label>
+        <input type="text" class="fi" id="reg-fb" placeholder="username">
+
+        <!-- 会員登録ボタン②（下） -->
+        <button class="btn-primary" id="btn-register2" onclick="doRegister()" disabled style="opacity:.5;margin-top:20px">会員登録</button>
+        <p class="info-msg" style="margin-top:8px" id="reg-info-msg"></p>
       </div>
     </div>
   </div>
@@ -239,32 +320,6 @@ select.fi{cursor:pointer;}
   <div id="loading-overlay" style="text-align:center;padding:60px;color:var(--ink3);">読み込み中...</div>
 
   <div class="form-container" id="form-area" style="display:none">
-
-    <!-- アイコン・顔写真 -->
-    <div class="section">
-      <div class="section-title">プロフィール画像</div>
-      <div class="frow" style="justify-content:center;gap:32px">
-        <div style="text-align:center">
-          <div class="img-upload-area" style="width:120px;margin:0 auto" id="icon-drop">
-            <img id="icon-preview" class="img-preview">
-            <input type="file" id="icon-file" accept="image/*,.gif" onchange="previewImg('icon')">
-            <div class="img-label">アイコン画像</div>
-          </div>
-          <button class="img-clear" id="icon-clear" style="display:none" onclick="clearImg('icon')">削除</button>
-          <div style="font-size:10px;color:var(--ink3);margin-top:4px">※200×200pxに自動圧縮</div>
-        </div>
-        <div style="text-align:center">
-          <div class="img-upload-area" style="width:160px;margin:0 auto" id="photo-drop">
-            <img id="photo-preview" class="img-preview-rect">
-            <input type="file" id="photo-file" accept="image/*,.gif" onchange="previewImg('photo')">
-            <div class="img-label">顔写真</div>
-          </div>
-          <button class="img-clear" id="photo-clear" style="display:none" onclick="clearImg('photo')">削除</button>
-          <div style="font-size:10px;color:var(--ink3);margin-top:4px">※大きな画像は自動圧縮されます</div>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--ink3);text-align:center;margin-top:8px">画像はクリック・ドラッグ&ドロップ・ペースト（Ctrl+V）で登録できます</div>
-    </div>
 
     <!-- 基本情報 -->
     <div class="section">
@@ -423,15 +478,40 @@ function toast(msg,type){
 
 var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'];
 
-// ── メール登録チェックボックス切替 ──────────────────────────────
-function toggleRegEmail(){
-  var chk=document.getElementById('reg-use-email');
-  var area=document.getElementById('reg-email-area');
-  var msg=document.getElementById('reg-info-msg');
-  area.style.display=chk.checked?'block':'none';
-  msg.textContent=chk.checked
-    ?'本登録で作成されます。登録後メール内のリンクをクリックして認証を完了してください。'
-    :'仮登録で作成されます。後からメールを追加して本登録に昇格できます。';
+// ── 会員番号自動採番 ──────────────────────────────────────────
+async function fetchNextMemberId(){
+  var year=String(new Date().getFullYear()).slice(2); // 西暦下2桁
+  try{
+    var snap=await db.collection('members')
+      .orderBy('memberId','desc').limit(10).get();
+    var maxNum=0;
+    snap.forEach(function(doc){
+      var mid=doc.data().memberId||'';
+      if(mid.slice(0,2)===year){
+        var num=parseInt(mid.slice(2))||0;
+        if(num>maxNum) maxNum=num;
+      }
+    });
+    var nextId=year+String(maxNum+1).padStart(4,'0');
+    document.getElementById('reg-memberid').value=nextId;
+    document.getElementById('reg-memberid-disp').textContent=nextId;
+  }catch(e){
+    document.getElementById('reg-memberid-disp').textContent='取得失敗';
+  }
+}
+
+// ── 会員登録ボタンのアクティブ/非アクティブ切替 ────────────────
+function checkRegReady(){
+  var nick=document.getElementById('reg-nick').value.trim();
+  var gender=document.getElementById('reg-gender').value;
+  var birth=document.getElementById('reg-birth').value;
+  var pass=document.getElementById('reg-pass').value;
+  var pass2=document.getElementById('reg-pass2').value;
+  var ready=nick&&gender&&birth&&pass&&pass2&&pass===pass2&&pass.length>=8;
+  var btn=document.getElementById('btn-register');
+  var btn2=document.getElementById('btn-register2');
+  if(btn){ btn.disabled=!ready; btn.style.opacity=ready?'1':'.5'; }
+  if(btn2){ btn2.disabled=!ready; btn2.style.opacity=ready?'1':'.5'; }
 }
 
 // ── タブ切替 ──────────────────────────────────────────────────
@@ -442,6 +522,8 @@ function switchLoginTab(tab){
   document.querySelectorAll('.tab-panel').forEach(function(p,i){
     p.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register'));
   });
+  // 登録タブを開いたら会員番号を採番
+  if(tab==='register') fetchNextMemberId();
 }
 
 // ── ユーティリティ: 仮想メール変換 ────────────────────────────────
@@ -486,58 +568,98 @@ function doLogin(){
     });
 }
 
-function doRegister(){
-  var memberId=gv('reg-memberid');
-  var useEmail=document.getElementById('reg-use-email').checked;
-  var emailInput=useEmail?gv('reg-email'):'';
-  var pass=gv('reg-pass'), pass2=gv('reg-pass2');
-  g('reg-err').textContent='';
+async function doRegister(){
+  var memberId=document.getElementById('reg-memberid').value.trim();
+  var nick=document.getElementById('reg-nick').value.trim();
+  var name=document.getElementById('reg-name').value.trim();
+  var kana=document.getElementById('reg-kana').value.trim();
+  var gender=document.getElementById('reg-gender').value;
+  var birth=document.getElementById('reg-birth').value;
+  var pass=document.getElementById('reg-pass').value;
+  var pass2=document.getElementById('reg-pass2').value;
+  var emailInput=document.getElementById('reg-email').value.trim();
+  var errEl=g('reg-err');
+  errEl.textContent='';
 
-  if(!memberId||memberId.length<4){ g('reg-err').textContent='会員IDを入力してください（スタッフに確認）'; return; }
-  if(useEmail && !emailInput){ g('reg-err').textContent='メールアドレスを入力してください'; return; }
-  if(!pass){ g('reg-err').textContent='パスワードを入力してください'; return; }
-  if(pass.length<8){ g('reg-err').textContent='パスワードは8文字以上にしてください'; return; }
-  if(pass!==pass2){ g('reg-err').textContent='パスワードが一致しません'; return; }
+  if(!nick||!gender||!birth||!pass){ errEl.textContent='必須項目を入力してください'; return; }
+  if(pass.length<8){ errEl.textContent='パスワードは8文字以上にしてください'; return; }
+  if(pass!==pass2){ errEl.textContent='パスワードが一致しません'; return; }
 
-  // authEmail: メールあり→そのメール、なし→仮想メール
-  var authEmail = useEmail ? emailInput : (memberId + VIRTUAL_DOMAIN);
-  var realEmail = useEmail ? emailInput : null;
-  var btn=g('btn-register'); btn.disabled=true; btn.textContent='登録中...';
+  // メールなしの場合は確認ダイアログ
+  if(!emailInput){
+    if(!confirm('メールアドレスを登録しない場合、仮登録状態となりメンバーポータル機能が利用できませんが、よろしいですか？')){
+      return;
+    }
+  }
 
-  auth.createUserWithEmailAndPassword(authEmail, pass)
-    .then(function(cred){
-      // 本登録の場合は認証メールを送信
-      if(useEmail){
-        cred.user.sendEmailVerification().catch(function(){});
-      }
-      return db.collection('members').doc(cred.user.uid).set({
-        authUid: cred.user.uid,
-        email: realEmail,
-        authEmail: authEmail,
-        isVerified: false,
-        isTemp: !useEmail,  // 仮登録フラグ
-        grade: 0,
-        visibility: 0,
-        visitCount: 0,
-        totalTequila: 0,
-        totalAmount: 0,
-        lang: 0,
-        registeredAt: new Date().toISOString().slice(0,10).replace(/-/g,''),
-      },{merge:true});
-    })
-    .then(function(){
-      if(useEmail){
-        toast('認証メールを送信しました。メール内のリンクをクリックして登録を完了してください。','inf');
-      } else {
-        toast('仮登録が完了しました。');
-      }
-    })
-    .catch(function(e){
-      g('reg-err').textContent=
-        e.code==='auth/email-already-in-use'?'このIDまたはメールアドレスは既に登録されています':
-        '登録失敗: '+e.message;
-      btn.disabled=false; btn.textContent='アカウントを作成';
+  // メールアドレス重複チェック
+  if(emailInput){
+    var dup=await db.collection('members').where('email','==',emailInput).limit(1).get();
+    if(!dup.empty){ errEl.textContent='このメールアドレスは既に登録されています'; return; }
+  }
+
+  var authEmail = emailInput ? emailInput : (memberId + VIRTUAL_DOMAIN);
+  var realEmail = emailInput || null;
+  var isTemp = !emailInput;
+
+  var btn=g('btn-register'), btn2=g('btn-register2');
+  if(btn){ btn.disabled=true; btn.textContent='登録中...'; }
+  if(btn2){ btn2.disabled=true; btn2.textContent='登録中...'; }
+
+  try{
+    var cred=await auth.createUserWithEmailAndPassword(authEmail, pass);
+    var uid=cred.user.uid;
+
+    // 本登録の場合は認証メール送信
+    if(!isTemp){
+      await cred.user.sendEmailVerification().catch(function(){});
+    }
+
+    // Firestoreに保存
+    await db.collection('members').doc(uid).set({
+      authUid: uid,
+      memberId: memberId,
+      email: realEmail,
+      authEmail: authEmail,
+      isTemp: isTemp,
+      isVerified: false,
+      name: name||null,
+      nameKana: kana||null,
+      nickname: nick,
+      gender: gender,
+      birthday: birth?birth.replace(/-/g,''):null,
+      phone: document.getElementById('reg-tel').value.trim()||null,
+      zipCode: document.getElementById('reg-zip').value.trim()||null,
+      prefecture: document.getElementById('reg-pref').value||null,
+      address: document.getElementById('reg-addr').value.trim()||null,
+      address2: document.getElementById('reg-addr2').value.trim()||null,
+      twitterId: document.getElementById('reg-tw').value.trim()||null,
+      instagramId: document.getElementById('reg-ig').value.trim()||null,
+      facebookId: document.getElementById('reg-fb').value.trim()||null,
+      grade: 0,
+      visibility: 0,
+      visitCount: 0,
+      totalTequila: 0,
+      totalAmount: 0,
+      lang: 0,
+      registeredAt: new Date().toISOString().slice(0,10).replace(/-/g,''),
     });
+
+    var msg=g('reg-info-msg');
+    if(isTemp){
+      if(msg) msg.textContent='仮登録完了しました。会員番号: '+memberId;
+      toast('仮登録完了しました。会員番号: '+memberId);
+    } else {
+      if(msg) msg.textContent='認証メールを送信しました。リンクをクリックして本登録を完了してください。';
+      toast('認証メールを送信しました。メールをご確認ください。','inf');
+    }
+  }catch(e){
+    errEl.textContent=
+      e.code==='auth/email-already-in-use'?'このメールアドレスは既に登録されています':
+      '登録失敗: '+e.message;
+    if(btn){ btn.disabled=false; btn.textContent='会員登録'; }
+    if(btn2){ btn2.disabled=false; btn2.textContent='会員登録'; }
+  }
 }
 
 function doLogout(){
