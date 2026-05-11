@@ -527,17 +527,24 @@ async function syncEmailToFirestore(user){
     var docId=memberDoc&&memberDoc.memberId?memberDoc.memberId:user.uid;
     var storedEmail=memberDoc?memberDoc.email:null;
 
-    // Firebase Authのemailと異なる場合のみFirestoreを更新
-    if(storedEmail!==user.email){
-      await db.collection('members').doc(docId).update({
+    // Firebase AuthのemailまたはemailVerifiedが異なる場合はFirestoreを更新
+    var storedVerified=memberDoc?memberDoc.emailVerified:null;
+    if(storedEmail!==user.email || storedVerified!==user.emailVerified){
+      var updateData={
         email: user.email,
-        isTemp: false
-      });
-      if(memberDoc){ memberDoc.email=user.email; memberDoc.isTemp=false; }
+        isTemp: false,
+        emailVerified: user.emailVerified
+      };
+      await db.collection('members').doc(docId).update(updateData);
+      if(memberDoc){
+        memberDoc.email=user.email;
+        memberDoc.isTemp=false;
+        memberDoc.emailVerified=user.emailVerified;
+      }
       // メール表示を更新
       var ped=g('profile-email-disp');
       if(ped){ ped.textContent=user.email; ped.style.color='rgba(255,255,255,.7)'; }
-      console.log('email同期完了:', user.email);
+      console.log('email同期完了:', user.email, 'verified:', user.emailVerified);
     }
   }catch(e){
     console.error('syncEmailToFirestore:', e);
@@ -1111,6 +1118,17 @@ async function doEmailChange(){
 
     toast('確認メールを '+newEmail+' に送信しました。メール内のリンクをクリックして変更を完了してください。','inf');
     closeEmailChange();
+    // リンククリック後に自動反映されるよう3秒ごとにreloadして確認
+    var reloadTimer=setInterval(async function(){
+      await currentUser.reload();
+      if(currentUser.email===newEmail){
+        clearInterval(reloadTimer);
+        await loadProfile();
+        toast('メールアドレスが変更されました','inf');
+      }
+    }, 3000);
+    // 5分後にタイマーを止める
+    setTimeout(function(){ clearInterval(reloadTimer); }, 300000);
   }catch(e){
     if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'){
       errEl.textContent='パスワードが正しくありません';
