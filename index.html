@@ -126,6 +126,8 @@ body::before{
   margin-top:16px;
 }
 </style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -510,8 +512,6 @@ function tick(){
 tick();
 setInterval(tick, 1000);
 </script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" onload="idxBuildSchedule()">
 // ── メンバーログインモーダル ──────────────────────────────────
 var VDOMAIN_IDX = '@tequiladojo.member';
