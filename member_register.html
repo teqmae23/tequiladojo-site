@@ -190,16 +190,12 @@ select.fi{cursor:pointer;}
       <!-- 新規登録タブ -->
       <div class="tab-panel" id="tab-register">
 
-        <!-- 会員番号（自動採番・変更不可） -->
-        <div style="background:var(--cream2);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:11px;color:var(--ink3);letter-spacing:.06em;">会員番号（自動採番）</span>
-          <span class="mono" id="reg-memberid-disp" style="font-size:18px;font-weight:500;color:var(--gold-d);letter-spacing:.1em;">採番中...</span>
-          <input type="hidden" id="reg-memberid">
-        </div>
+        <input type="hidden" id="reg-memberid">
 
         <!-- 基本情報（必須） -->
         <label class="fl">ニックネーム <span class="req">*</span></label>
         <input type="text" class="fi" id="reg-nick" placeholder="タロ" oninput="checkRegReady()">
+        <div style="font-size:11px;color:var(--ink3);margin-top:3px">全角8文字／半角16文字以内</div>
 
         <div style="display:flex;gap:10px;margin-top:10px">
           <div style="flex:1">
@@ -481,31 +477,20 @@ var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'
 // ── 会員番号自動採番 ──────────────────────────────────────────
 async function fetchNextMemberId(){
   var year=String(new Date().getFullYear()).slice(2);
-  var dispEl=document.getElementById('reg-memberid-disp');
-  var hidEl=document.getElementById('reg-memberid');
-  if(!dispEl||!hidEl) return;
   try{
-    // memberIdフィールドがある全ドキュメントから最大番号を取得
-    // ※未ログイン状態でもpublicReadが許可されている前提
     var snap=await firebase.firestore().collection('members').get();
     var maxNum=0;
     snap.forEach(function(doc){
       var mid=doc.data().memberId||'';
-      // 今年度のIDのみ対象
       if(typeof mid==='string'&&mid.slice(0,2)===year){
         var num=parseInt(mid.slice(2))||0;
         if(num>maxNum) maxNum=num;
       }
     });
-    var nextId=year+String(maxNum+1).padStart(4,'0');
-    hidEl.value=nextId;
-    dispEl.textContent=nextId;
+    return year+String(maxNum+1).padStart(4,'0');
   }catch(e){
     console.error('fetchNextMemberId:', e);
-    // Firestoreにアクセスできない場合は年+0001をデフォルトに
-    var fallback=year+'0001';
-    hidEl.value=fallback;
-    dispEl.textContent=fallback+'（仮）';
+    return null;
   }
 }
 
@@ -531,8 +516,7 @@ function switchLoginTab(tab){
   document.querySelectorAll('.tab-panel').forEach(function(p,i){
     p.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register'));
   });
-  // 登録タブを開いたら会員番号を採番
-  if(tab==='register') fetchNextMemberId();
+
 }
 
 // ── ユーティリティ: 仮想メール変換 ────────────────────────────────
@@ -582,8 +566,16 @@ function doLogin(){
     });
 }
 
+// ニックネームの文字数チェック（全角1文字=2バイト換算）
+function nickByteLen(str){
+  var len=0;
+  for(var i=0;i<str.length;i++){
+    len+=str.charCodeAt(i)>255?2:1;
+  }
+  return len;
+}
+
 async function doRegister(){
-  var memberId=document.getElementById('reg-memberid').value.trim();
   var nick=document.getElementById('reg-nick').value.trim();
   var name=document.getElementById('reg-name').value.trim();
   var kana=document.getElementById('reg-kana').value.trim();
@@ -596,8 +588,14 @@ async function doRegister(){
   errEl.textContent='';
 
   if(!nick||!gender||!birth||!pass){ errEl.textContent='必須項目を入力してください'; return; }
+  if(nickByteLen(nick)>16){ errEl.textContent='ニックネームは全角8文字（半角16文字）以内にしてください'; return; }
   if(pass.length<8){ errEl.textContent='パスワードは8文字以上にしてください'; return; }
   if(pass!==pass2){ errEl.textContent='パスワードが一致しません'; return; }
+
+  // 会員番号を採番
+  var memberId=await fetchNextMemberId();
+  if(!memberId){ errEl.textContent='会員番号の採番に失敗しました。もう一度お試しください'; return; }
+  document.getElementById('reg-memberid').value=memberId;
 
   // メールなしの場合は確認ダイアログ
   if(!emailInput){
