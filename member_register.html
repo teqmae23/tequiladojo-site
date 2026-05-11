@@ -136,6 +136,25 @@ button,input,select,textarea{font-family:var(--sans)}
 
 /* 都道府県 */
 select.fi{cursor:pointer;}
+
+/* 未認証バナー */
+.verify-banner{
+  background:#3a2a0a;border:1px solid var(--gold-d);border-radius:var(--r);
+  padding:12px 16px;margin:16px 16px 0;font-size:13px;color:#e8b84a;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.verify-banner button{
+  padding:6px 14px;border:1px solid var(--gold-d);border-radius:6px;
+  background:none;color:#e8b84a;font-size:12px;cursor:pointer;white-space:nowrap;
+}
+.verify-banner button:hover{background:rgba(200,146,30,.2);}
+
+/* 仮登録バナー */
+.temp-banner{
+  background:#2a1a2a;border:1px solid #6a3a6a;border-radius:var(--r);
+  padding:12px 16px;margin:16px 16px 0;font-size:13px;color:#cc88cc;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
 </style>
 </head>
 <body>
@@ -170,15 +189,29 @@ select.fi{cursor:pointer;}
 
       <!-- 新規登録タブ -->
       <div class="tab-panel" id="tab-register">
-        <label class="fl">メールアドレス <span class="req">*</span></label>
-        <input type="email" class="fi" id="reg-email" placeholder="member@example.com" autocomplete="email">
-        <label class="fl">パスワード <span class="req">*</span></label>
+        <!-- 仮登録：会員ID -->
+        <label class="fl">会員ID <span class="req">*</span></label>
+        <input type="text" class="fi" id="reg-memberid" placeholder="260001（スタッフにご確認ください）" maxlength="6">
+
+        <!-- メール登録チェックボックス -->
+        <label style="display:flex;align-items:center;gap:8px;margin-top:16px;cursor:pointer;font-size:13px;color:var(--ink2)">
+          <input type="checkbox" id="reg-use-email" onchange="toggleRegEmail()" style="width:16px;height:16px">
+          メールアドレスを登録する（推奨・パスワードリセット可）
+        </label>
+
+        <!-- メール入力欄（チェック時のみ表示） -->
+        <div id="reg-email-area" style="display:none;margin-top:10px">
+          <label class="fl">メールアドレス <span class="req">*</span></label>
+          <input type="email" class="fi" id="reg-email" placeholder="member@example.com" autocomplete="email">
+        </div>
+
+        <label class="fl" style="margin-top:14px">パスワード <span class="req">*</span></label>
         <input type="password" class="fi" id="reg-pass" placeholder="8文字以上" autocomplete="new-password">
         <label class="fl">パスワード（確認） <span class="req">*</span></label>
         <input type="password" class="fi" id="reg-pass2" placeholder="パスワードを再入力" autocomplete="new-password">
         <div class="err-msg" id="reg-err"></div>
         <button class="btn-primary" id="btn-register" onclick="doRegister()">アカウントを作成</button>
-        <p class="info-msg" style="margin-top:12px">登録後、プロフィールを設定してください。</p>
+        <p class="info-msg" style="margin-top:8px" id="reg-info-msg">仮登録で作成されます。後からメールを追加して本登録に昇格できます。</p>
       </div>
     </div>
   </div>
@@ -192,6 +225,15 @@ select.fi{cursor:pointer;}
       <span class="user-chip" id="header-email"></span>
       <button class="btn-logout" onclick="doLogout()">ログアウト</button>
     </div>
+  </div>
+
+  <!-- 未認証・仮登録バナー -->
+  <div id="verify-banner" class="verify-banner" style="display:none">
+    <span>📧 メールアドレスの確認が完了していません。認証メールをご確認ください。</span>
+    <button onclick="resendVerifyEmail()">認証メールを再送</button>
+  </div>
+  <div id="temp-banner" class="temp-banner" style="display:none">
+    <span>⚠️ 仮登録状態です。メールアドレスを登録すると本登録になりパスワードリセットが利用できます。</span>
   </div>
 
   <div id="loading-overlay" style="text-align:center;padding:60px;color:var(--ink3);">読み込み中...</div>
@@ -381,6 +423,17 @@ function toast(msg,type){
 
 var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'];
 
+// ── メール登録チェックボックス切替 ──────────────────────────────
+function toggleRegEmail(){
+  var chk=document.getElementById('reg-use-email');
+  var area=document.getElementById('reg-email-area');
+  var msg=document.getElementById('reg-info-msg');
+  area.style.display=chk.checked?'block':'none';
+  msg.textContent=chk.checked
+    ?'本登録で作成されます。登録後メール内のリンクをクリックして認証を完了してください。'
+    :'仮登録で作成されます。後からメールを追加して本登録に昇格できます。';
+}
+
 // ── タブ切替 ──────────────────────────────────────────────────
 function switchLoginTab(tab){
   document.querySelectorAll('.ltab').forEach(function(b,i){
@@ -406,12 +459,14 @@ auth.onAuthStateChanged(function(user){
     currentUser=user;
     g('login-screen').style.display='none';
     g('app').style.display='block';
-    g('header-email').textContent=user.email;
+    g('header-email').textContent=user.email||'仮登録会員';
     loadProfile();
   } else {
     currentUser=null;
     g('login-screen').style.display='flex';
     g('app').style.display='none';
+    g('verify-banner').style.display='none';
+    g('temp-banner').style.display='none';
   }
 });
 
@@ -432,20 +487,35 @@ function doLogin(){
 }
 
 function doRegister(){
-  var emailInput=gv('reg-email'), pass=gv('reg-pass'), pass2=gv('reg-pass2');
+  var memberId=gv('reg-memberid');
+  var useEmail=document.getElementById('reg-use-email').checked;
+  var emailInput=useEmail?gv('reg-email'):'';
+  var pass=gv('reg-pass'), pass2=gv('reg-pass2');
   g('reg-err').textContent='';
-  if(!emailInput||!pass){ g('reg-err').textContent='必須項目を入力してください'; return; }
+
+  if(!memberId||memberId.length<4){ g('reg-err').textContent='会員IDを入力してください（スタッフに確認）'; return; }
+  if(useEmail && !emailInput){ g('reg-err').textContent='メールアドレスを入力してください'; return; }
+  if(!pass){ g('reg-err').textContent='パスワードを入力してください'; return; }
   if(pass.length<8){ g('reg-err').textContent='パスワードは8文字以上にしてください'; return; }
   if(pass!==pass2){ g('reg-err').textContent='パスワードが一致しません'; return; }
-  var authEmail=toAuthEmail(emailInput);
-  var realEmail=emailInput.indexOf('@')>=0?emailInput:null; // 本物のメールか会員IDか
+
+  // authEmail: メールあり→そのメール、なし→仮想メール
+  var authEmail = useEmail ? emailInput : (memberId + VIRTUAL_DOMAIN);
+  var realEmail = useEmail ? emailInput : null;
   var btn=g('btn-register'); btn.disabled=true; btn.textContent='登録中...';
-  auth.createUserWithEmailAndPassword(authEmail,pass)
+
+  auth.createUserWithEmailAndPassword(authEmail, pass)
     .then(function(cred){
+      // 本登録の場合は認証メールを送信
+      if(useEmail){
+        cred.user.sendEmailVerification().catch(function(){});
+      }
       return db.collection('members').doc(cred.user.uid).set({
         authUid: cred.user.uid,
         email: realEmail,
         authEmail: authEmail,
+        isVerified: false,
+        isTemp: !useEmail,  // 仮登録フラグ
         grade: 0,
         visibility: 0,
         visitCount: 0,
@@ -454,6 +524,13 @@ function doRegister(){
         lang: 0,
         registeredAt: new Date().toISOString().slice(0,10).replace(/-/g,''),
       },{merge:true});
+    })
+    .then(function(){
+      if(useEmail){
+        toast('認証メールを送信しました。メール内のリンクをクリックして登録を完了してください。','inf');
+      } else {
+        toast('仮登録が完了しました。');
+      }
     })
     .catch(function(e){
       g('reg-err').textContent=
@@ -469,13 +546,24 @@ function doLogout(){
 
 function doResetPassword(){
   var input=gv('login-email');
-  if(!input){ g('login-err').textContent='メールアドレスを入力してください'; return; }
+  if(!input){ g('login-err').textContent='メールアドレスまたは会員IDを入力してください'; return; }
+  // 会員ID（@なし）はリセット不可
   if(input.indexOf('@')<0){
-    g('login-err').textContent='パスワードリセットはメールアドレス登録の方のみ可能です。店舗スタッフにお問い合わせください'; return;
+    g('login-err').textContent='仮登録会員はパスワードリセットできません。店舗スタッフにお問い合わせください';
+    return;
+  }
+  // 仮想メールドメインはリセット不可
+  if(input.indexOf(VIRTUAL_DOMAIN)>=0){
+    g('login-err').textContent='仮登録会員はパスワードリセットできません。店舗スタッフにお問い合わせください';
+    return;
   }
   auth.sendPasswordResetEmail(input)
-    .then(function(){ toast('パスワードリセットメールを送信しました'); })
-    .catch(function(e){ toast('送信失敗: '+e.message,'err'); });
+    .then(function(){ toast('パスワードリセットメールを送信しました。メールをご確認ください。'); })
+    .catch(function(e){
+      g('login-err').textContent=
+        e.code==='auth/user-not-found'?'このメールアドレスは登録されていません':
+        '送信失敗: '+e.message;
+    });
 }
 
 // ── プロフィール読み込み ─────────────────────────────────────────
@@ -491,6 +579,15 @@ async function loadProfile(){
     }
     memberDoc=snap.exists?snap.data():null;
     fillForm(memberDoc);
+
+    // バナー表示
+    var isTemp = memberDoc && memberDoc.isTemp;
+    var isVerified = currentUser.emailVerified;
+    var hasRealEmail = currentUser.email && currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
+
+    g('temp-banner').style.display = isTemp ? 'flex' : 'none';
+    g('verify-banner').style.display = (!isTemp && hasRealEmail && !isVerified) ? 'flex' : 'none';
+
   }catch(e){
     toast('プロフィールの読み込みに失敗しました: '+e.message,'err');
   }
@@ -688,6 +785,16 @@ async function saveProfile(){
 }
 
 // ── パスワード変更 ──────────────────────────────────────────────
+// ── 認証メール再送 ─────────────────────────────────────────────
+async function resendVerifyEmail(){
+  try{
+    await currentUser.sendEmailVerification();
+    toast('認証メールを再送しました。メールをご確認ください。','inf');
+  }catch(e){
+    toast('送信失敗: '+e.message,'err');
+  }
+}
+
 async function doChangePassword(){
   var pass=gv('f-new-pass'), pass2=gv('f-new-pass2');
   g('pass-err').textContent='';
