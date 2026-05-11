@@ -805,9 +805,6 @@ async function loadProfile(){
     memberDoc=memberData;
     fillForm(memberDoc);
 
-    // メール変更後にFirestoreのemailフィールドを同期
-    await syncEmailToFirestore(currentUser);
-
     // バナー表示
     var isTemp = memberDoc && memberDoc.isTemp;
     var isGuest = memberDoc && memberDoc.isGuest;
@@ -1123,6 +1120,13 @@ async function doEmailChange(){
       await currentUser.reload();
       if(currentUser.email===newEmail){
         clearInterval(reloadTimer);
+        // リンクがクリックされてメール変更完了 → Firestoreを更新
+        var docId=memberDoc&&memberDoc.memberId?memberDoc.memberId:currentUser.uid;
+        await db.collection('members').doc(docId).update({
+          email: newEmail,
+          emailVerified: true,
+          isTemp: false
+        }).catch(function(){});
         await loadProfile();
         toast('メールアドレスが変更されました','inf');
       }
