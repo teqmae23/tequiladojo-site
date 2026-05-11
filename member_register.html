@@ -604,10 +604,15 @@ async function doRegister(){
     }
   }
 
-  // メールアドレス重複チェック
+  // メールアドレス重複チェック（Firebase Auth経由でセキュアに確認）
   if(emailInput){
-    var dup=await db.collection('members').where('email','==',emailInput).limit(1).get();
-    if(!dup.empty){ errEl.textContent='このメールアドレスは既に登録されています'; return; }
+    try{
+      var methods=await auth.fetchSignInMethodsForEmail(emailInput);
+      if(methods.length>0){ errEl.textContent='このメールアドレスは既に登録されています'; return; }
+    }catch(e){
+      if(e.code==='auth/invalid-email'){ errEl.textContent='メールアドレスの形式が正しくありません'; return; }
+      errEl.textContent='メールアドレスの確認に失敗しました: '+e.message; return;
+    }
   }
 
   var authEmail = emailInput ? emailInput : (memberId + VIRTUAL_DOMAIN);
