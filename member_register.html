@@ -321,14 +321,40 @@ select.fi{cursor:pointer;}
   <div class="form-container" id="form-area" style="display:none">
 
     <!-- 会員IDカード -->
-    <div style="background:var(--ink);border-radius:var(--rl);padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-lg);">
-      <div>
-        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:4px;">会員番号</div>
-        <div id="profile-member-id" style="font-family:var(--mono);font-size:28px;font-weight:500;color:var(--gold-l);letter-spacing:.12em;">—</div>
+    <div style="background:var(--ink);border-radius:var(--rl);padding:20px 24px;margin-bottom:16px;box-shadow:var(--shadow-lg);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:4px;">会員番号</div>
+          <div id="profile-member-id" style="font-family:var(--mono);font-size:28px;font-weight:500;color:var(--gold-l);letter-spacing:.12em;">—</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:4px;">ステータス</div>
+          <div id="profile-status-badge" style="font-size:12px;color:var(--gold-l);">—</div>
+        </div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:4px;">ステータス</div>
-        <div id="profile-status-badge" style="font-size:12px;color:var(--gold-l);">—</div>
+      <div style="border-top:1px solid rgba(255,255,255,.1);padding-top:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:4px;">メールアドレス</div>
+          <div id="profile-email-disp" style="font-size:16px;color:rgba(255,255,255,.7);letter-spacing:.02em;">未登録</div>
+        </div>
+        <button onclick="openEmailChange()" style="padding:7px 16px;border:1px solid rgba(200,146,30,.5);border-radius:6px;background:none;color:#e8b84a;font-size:12px;cursor:pointer;white-space:nowrap;">
+          📧 メールアドレス登録・変更
+        </button>
+      </div>
+    </div>
+
+    <!-- メールアドレス変更モーダル -->
+    <div id="email-change-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;">
+      <div style="background:var(--white);border-radius:var(--rl);padding:28px 24px;width:90%;max-width:400px;box-shadow:var(--shadow-lg);">
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px;">メールアドレス登録・変更</div>
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:12px;">新しいメールアドレスに確認リンクを送信します。リンクをクリックすると変更が完了します。</div>
+        <label class="fl">新しいメールアドレス</label>
+        <input type="email" class="fi" id="new-email-input" placeholder="new@example.com">
+        <div id="email-change-err" style="min-height:16px;font-size:12px;color:var(--red);margin-top:6px;"></div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="closeEmailChange()" style="flex:1;padding:10px;border:1px solid var(--border2);border-radius:var(--r);background:none;font-size:13px;cursor:pointer;">キャンセル</button>
+          <button onclick="doEmailChange()" id="btn-email-change" style="flex:2;padding:10px;background:var(--gold-d);color:var(--cream);border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;">確認メールを送信</button>
+        </div>
       </div>
     </div>
 
@@ -765,6 +791,14 @@ function fillForm(d){
     hmid.textContent='会員番号: '+d.memberId;
     hmid.style.display='block';
   }
+  // メールアドレス表示
+  var ped=g('profile-email-disp');
+  if(ped){
+    var displayEmail=currentUser&&currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0
+      ?currentUser.email:null;
+    ped.textContent=displayEmail||'未登録';
+    ped.style.color=displayEmail?'rgba(255,255,255,.7)':'rgba(255,255,255,.3)';
+  }
   var psb=g('profile-status-badge');
   if(psb){
     if(d&&d.isTemp) psb.textContent='仮登録';
@@ -961,6 +995,71 @@ async function saveProfile(){
 }
 
 // ── パスワード変更 ──────────────────────────────────────────────
+// ── メールアドレス変更 ──────────────────────────────────────────
+function openEmailChange(){
+  g('email-change-modal').style.display='flex';
+  g('new-email-input').value='';
+  g('email-change-err').textContent='';
+  g('new-email-input').focus();
+}
+function closeEmailChange(){
+  g('email-change-modal').style.display='none';
+}
+
+async function doEmailChange(){
+  var newEmail=g('new-email-input').value.trim();
+  var errEl=g('email-change-err');
+  var btn=g('btn-email-change');
+  errEl.textContent='';
+
+  if(!newEmail){ errEl.textContent='メールアドレスを入力してください'; return; }
+
+  // 重複チェック
+  try{
+    var methods=await auth.fetchSignInMethodsForEmail(newEmail);
+    if(methods.length>0){ errEl.textContent='このメールアドレスは既に登録されています'; return; }
+  }catch(e){
+    if(e.code==='auth/invalid-email'){ errEl.textContent='メールアドレスの形式が正しくありません'; return; }
+  }
+
+  btn.disabled=true; btn.textContent='送信中...';
+
+  try{
+    var oldEmail=currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0
+      ?currentUser.email:null;
+
+    // 新しいメールに確認リンク送信
+    await currentUser.verifyBeforeUpdateEmail(newEmail);
+
+    // 古いメールに通知（メールアドレスがある場合）
+    if(oldEmail){
+      // Cloud Functionsで送信する代わりにFirestoreに変更リクエストを記録
+      await db.collection('emailChangeRequests').add({
+        uid: currentUser.uid,
+        oldEmail: oldEmail,
+        newEmail: newEmail,
+        requestedAt: new Date().toISOString(),
+        status: 'pending'
+      });
+    }
+
+    // Firestoreにpendingメール変更を記録
+    await db.collection('members').doc(currentUser.uid).update({
+      pendingEmail: newEmail
+    });
+
+    toast('確認メールを '+newEmail+' に送信しました。メール内のリンクをクリックして変更を完了してください。','inf');
+    closeEmailChange();
+  }catch(e){
+    if(e.code==='auth/requires-recent-login'){
+      errEl.textContent='セキュリティのため、一度ログアウトして再ログイン後に変更してください';
+    } else {
+      errEl.textContent='送信失敗: '+e.message;
+    }
+  }
+  btn.disabled=false; btn.textContent='確認メールを送信';
+}
+
 // ── 認証メール再送 ─────────────────────────────────────────────
 async function resendVerifyEmail(){
   try{
