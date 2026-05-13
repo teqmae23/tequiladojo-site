@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 22:48:04 JST -->
+<!-- UPDATED: 2026-05-13 22:51:28 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -530,8 +530,8 @@ async function syncEmailToFirestore(user){
     var updateData={};
     var needsUpdate=false;
 
-    // 実メールに変更完了 → Firestoreのemailを更新
-    if(!isVirtual && user.email && storedEmail!==user.email){
+    // 実メールに変更完了（emailVerified=trueになった時のみ）
+    if(!isVirtual && user.email && user.emailVerified && storedEmail!==user.email){
       updateData.email=user.email;
       updateData.isTemp=false;
       if(memberDoc){ memberDoc.email=user.email; memberDoc.isTemp=false; }
