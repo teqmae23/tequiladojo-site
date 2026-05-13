@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 22:38:59 JST -->
+<!-- UPDATED: 2026-05-13 22:48:04 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1152,19 +1152,18 @@ async function doEmailChange(){
     // 新しいアドレスに確認リンク送信（クリック後に変更が完了）
     await currentUser.verifyBeforeUpdateEmail(newEmail);
 
-    // 古いメールに通知（メールアドレスがある場合）
-    if(oldEmail){
-      // Cloud Functionsで送信する代わりにFirestoreに変更リクエストを記録
-      await db.collection('emailChangeRequests').add({
-        uid: currentUser.uid,
-        oldEmail: oldEmail,
-        newEmail: newEmail,
-        requestedAt: new Date().toISOString(),
-        status: 'pending'
-      });
-    }
+    // 確認メール送信時点でFirestoreを認証待ち状態に更新
+    var docId2=memberDoc&&memberDoc.memberId?memberDoc.memberId:currentUser.uid;
+    await db.collection('members').doc(docId2).update({
+      isTemp: false,
+      emailVerified: false
+    }).catch(function(){});
+    if(memberDoc){ memberDoc.isTemp=false; memberDoc.emailVerified=false; }
 
-    // メール変更リクエストを記録（古いアドレスへの通知用）
+    // memberIndexにも登録（パスワードリセット用）
+    await db.collection('memberIndex').doc(docId2).set({email: newEmail}).catch(function(){});
+
+    // 古いメールに通知用リクエストを記録
     if(oldEmail){
       db.collection('emailChangeRequests').add({
         uid: currentUser.uid,
