@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 17:05:43 JST -->
+<!-- UPDATED: 2026-05-13 23:06:45 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -248,6 +248,21 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <div class="frow">
         <div class="fg"><label class="fl">メールアドレス</label><input class="fi" id="mem-email" type="email" placeholder="member@example.com"></div>
       <div class="fg"><label class="fl">パスワード（新規登録・変更時のみ入力）</label><input class="fi" id="mem-password" type="password" placeholder="8文字以上" autocomplete="new-password"><div style="font-size:11px;color:var(--ink3);margin-top:3px">入力した場合のみFirebase Authに反映されます</div></div>
+      <div class="frow" style="margin-top:8px;gap:16px;align-items:center;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="mem-email-verified" style="width:14px;height:14px"> emailVerified（認証済み）
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="mem-is-temp" style="width:14px;height:14px"> isTemp（仮登録）
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="mem-is-guest" style="width:14px;height:14px"> isGuest（ゲスト）
+        </label>
+      </div>
+      <div class="frow" style="margin-top:8px;">
+        <div class="fg"><label class="fl">authUid（表示のみ）</label><input class="fi" id="mem-auth-uid" readonly style="background:var(--cream2);font-family:var(--mono);font-size:11px;color:var(--ink3);" placeholder="—"></div>
+        <div class="fg"><label class="fl">stripeCustomerId（表示のみ）</label><input class="fi" id="mem-stripe-id" readonly style="background:var(--cream2);font-family:var(--mono);font-size:11px;color:var(--ink3);" placeholder="—"></div>
+      </div>
       </div>
       <div class="frow c3">
         <div class="fg"><label class="fl">会員番号（6桁）<span class="req">*</span></label><input class="fi mono" id="mem-id" placeholder="250001" maxlength="6" readonly style="background:var(--cream2)"></div>
@@ -635,7 +650,22 @@ function genMemberId(){
 
 function setMemberFields(r){
   sv("mem-email", r?r.email||"":"");
+  // emailがない場合はmemberIndexから取得して表示
+  if(r && r.memberId){
+    if(!r.email){
+      db.collection("memberIndex").doc(r.memberId).get().then(function(snap){
+        if(snap.exists && snap.data().email){
+          sv("mem-email", snap.data().email);
+        }
+      }).catch(function(){});
+    }
+  }
   sv("mem-password", "");
+  var evEl=g("mem-email-verified"); if(evEl) evEl.checked=!!(r&&r.emailVerified);
+  var itEl=g("mem-is-temp"); if(itEl) itEl.checked=!!(r&&r.isTemp);
+  var igEl=g("mem-is-guest"); if(igEl) igEl.checked=!!(r&&r.isGuest);
+  sv("mem-auth-uid", r?r.authUid||"":"");
+  sv("mem-stripe-id", r?r.stripeCustomerId||"":"");
 
   // ステータスバー表示
   var statusBar=g("mem-status-bar");
@@ -755,6 +785,9 @@ g("btn-save-member").addEventListener("click",async function(){
 
   var saveData={
     memberId:id, email:realEmail,
+    emailVerified:!!(g("mem-email-verified")&&g("mem-email-verified").checked),
+    isTemp:!!(g("mem-is-temp")&&g("mem-is-temp").checked),
+    isGuest:!!(g("mem-is-guest")&&g("mem-is-guest").checked),
     name:name, nameKana:gv("mem-kana")||null, nickname:gv("mem-nick")||null,
     gender:gv("mem-gender")||"男", grade:parseInt(gv("mem-grade"))||0,
     registeredAt:gv("mem-reg")||todayDate(), birthday:gv("mem-birth")||null,
