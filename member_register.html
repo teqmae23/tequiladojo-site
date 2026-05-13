@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 14:27:12 JST -->
+<!-- UPDATED: 2026-05-13 16:31:28 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -701,6 +701,7 @@ async function doRegister(){
   if(btn2){ btn2.disabled=true; btn2.textContent='登録中...'; }
 
   try{
+    // 新規登録（ログアウト状態での実行を前提）
     var cred=await auth.createUserWithEmailAndPassword(authEmail, pass);
     var uid=cred.user.uid;
 
@@ -734,7 +735,7 @@ async function doRegister(){
       totalTequila: 0,
       totalAmount: 0,
       lang: 0,
-      registeredAt: new Date().toISOString().slice(0,10).replace(/-/g,''),
+      registeredAt: new Date().toISOString().slice(0,10),
     });
 
     var msg=g('reg-info-msg');
@@ -806,6 +807,9 @@ async function loadProfile(){
     memberDoc=memberData;
     fillForm(memberDoc);
 
+    // Firebase AuthのemailとemailVerifiedをFirestoreに同期
+    await syncEmailToFirestore(currentUser);
+
     // バナー表示
     var isTemp = memberDoc && memberDoc.isTemp;
     var isGuest = memberDoc && memberDoc.isGuest;
@@ -850,11 +854,12 @@ function fillForm(d){
   }
   var psb=g('profile-status-badge');
   if(psb){
+    var isEmailUser = currentUser&&currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
     if(d&&d.isGuest) psb.textContent='ゲスト';
     else if(d&&d.isTemp) psb.textContent='仮登録';
-    else if(currentUser&&!currentUser.emailVerified) psb.textContent='メール未認証';
+    else if(isEmailUser&&currentUser&&!currentUser.emailVerified) psb.textContent='メール未認証';
     else psb.textContent='✓ 本登録';
-    psb.style.color=(d&&d.isGuest)?'#cccc44':(d&&d.isTemp)?'#cc88cc':(!currentUser||!currentUser.emailVerified)?'#e8b84a':'#7adf7a';
+    psb.style.color=(d&&d.isGuest)?'#cccc44':(d&&d.isTemp)?'#cc88cc':(isEmailUser&&!currentUser.emailVerified)?'#e8b84a':'#7adf7a';
   }
 
   sv('f-nick',    d?d.nickname||'':'');
