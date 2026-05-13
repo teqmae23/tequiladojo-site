@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 16:50:15 JST -->
+<!-- UPDATED: 2026-05-13 17:05:43 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -549,6 +549,10 @@ async function syncEmailToFirestore(user){
 
     if(needsUpdate){
       await db.collection('members').doc(docId).update(updateData);
+      // memberIndexも更新
+      if(updateData.email){
+        await db.collection('memberIndex').doc(docId).set({email: updateData.email}).catch(function(){});
+      }
       console.log('Firestore同期完了:', updateData);
     }
   }catch(e){
@@ -737,6 +741,11 @@ async function doRegister(){
       });
     }
 
+    // memberIndexに会員ID→メール対応を保存（パスワードリセット用・公開）
+    if(realEmail){
+      await db.collection('memberIndex').doc(memberId).set({email: realEmail});
+    }
+
     // Firestoreに保存（ドキュメントIDは会員番号）
     await db.collection('members').doc(memberId).set({
       authUid: uid,
@@ -790,19 +799,32 @@ async function doResetPassword(){
   var input=gv('login-email').trim();
   g('login-err').textContent='';
   if(!input){ g('login-err').textContent='会員IDを入力してください'; return; }
-  // 会員IDから実メールアドレスを取得してリセットメール送信
+
   try{
-    var snap=await db.collection('members').doc(input).get();
-    if(!snap.exists||!snap.data().email){
+    var isEmail = input.indexOf('@')>=0;
+    var memberId = isEmail ? null : input;
+    var realEmail = null;
+
+    if(isEmail){
+      // メールアドレスが直接入力された場合
+      realEmail = input;
+      memberId = null;
+    } else {
+      // 会員IDからmemberIndexで実メールを取得（公開コレクション）
+      var idxSnap=await db.collection('memberIndex').doc(input).get();
+      if(idxSnap.exists && idxSnap.data().email){
+        realEmail = idxSnap.data().email;
+      }
+    }
+
+    if(!realEmail){
       g('login-err').textContent='メールアドレスが登録されていません。店舗スタッフにお問い合わせください';
       return;
     }
-    var realEmail=snap.data().email;
-    // 仮想メールのパスワードリセットリンクをAuthから取得して実メールに送信
-    // → 現状はFunctions経由が必要。暫定でFirebase標準リセットを仮想メールに送信
-    await auth.sendPasswordResetEmail(input+VIRTUAL_DOMAIN);
+
+    await auth.sendPasswordResetEmail(realEmail);
     g('login-err').style.color='var(--teal)';
-    g('login-err').textContent='パスワードリセットの手順をメール（'+realEmail+'）に送信しました';
+    g('login-err').textContent='パスワードリセットメールを '+realEmail+' に送信しました';
   }catch(e){
     g('login-err').textContent='送信失敗: '+e.message;
   }
