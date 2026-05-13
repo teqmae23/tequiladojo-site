@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 15:39:05 JST -->
+<!-- UPDATED: 2026-05-13 15:46:03 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -237,7 +237,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
     <div class="mbody">
       <div class="keybox" id="kb-member">—<span class="klabel">会員番号</span></div>
       <!-- ステータスバー -->
-      <div id="mem-status-bar" style="display:none;background:var(--ink);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div id="mem-status-bar" style="display:none;background:var(--ink);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span id="mem-status-badge" style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;"></span>
           <span id="mem-owner-badge" style="display:none;font-size:11px;padding:2px 8px;border-radius:4px;background:#1a3a5a;color:#7ab8df;font-weight:500;">👑 オーナー</span>
@@ -315,6 +315,7 @@ tbody tr:hover{background:rgba(200,146,30,.025)}
       <hr class="fsep">
       <div class="fg"><label class="fl">表示言語</label><select class="fs" id="mem-lang"><option value="0">0: 日本語</option><option value="1">1: 英語</option></select><div style="font-size:11px;color:var(--ink3);margin-top:3px">注文登録画面での商品名表示言語（1=英語名で表示）</div></div>
       <div class="fg"><label class="fl">公開区分</label><select class="fs" id="mem-visibility"><option value="0">0: 非公開</option><option value="1">1: フォロワーのみ公開</option><option value="2">2: 匿名公開</option><option value="3">3: 全公開</option></select></div>
+      <div class="fg"><label class="fl">ロール</label><select class="fs" id="mem-role"><option value="">— 一般会員</option><option value="owner">owner（オーナー）</option></select><div style="font-size:11px;color:var(--ink3);margin-top:3px">管理者権限を付与する場合はownerを選択</div></div>
       <div class="fg"><label class="fl">備考</label><textarea class="fi" id="mem-note" rows="3" style="resize:vertical;font-size:13px" placeholder="自由記入..."></textarea></div>
     </div>
     <div class="mfoot"><button class="btn bg2" data-close="m-member">キャンセル</button><button class="btn bp" id="btn-save-member">保存</button></div>
@@ -635,7 +636,7 @@ function setMemberFields(r){
   var statusBar=g("mem-status-bar");
   if(statusBar){
     if(id){
-      statusBar.style.display="flex";
+      statusBar.style.display="flex"; statusBar.style.alignItems="center"; statusBar.style.justifyContent="space-between";
       // ステータスバッジ
       var badge=g("mem-status-badge");
       if(badge){
@@ -686,12 +687,14 @@ function setMemberFields(r){
   sv("mem-rank",   r?r.rank||"":"");
   sv("mem-lang",   r?String(r.lang||"0"):"0");
   sv("mem-visibility", r?String(r.visibility||"0"):"0");
+  sv("mem-role", r?r.role||"":"");
   var noteEl=g("mem-note"); if(noteEl) noteEl.value=r?r.note||"":"";
 }
 
 g("btn-open-member").addEventListener("click",function(){ openMemberModal(null); });
 
 function openMemberModal(id){
+  console.log("openMemberModal called:", id);
   editId.member=id; g("mt-member").textContent=id?"会員編集":"会員登録";
   var idEl=g("mem-id");
   if(id){
@@ -761,6 +764,7 @@ g("btn-save-member").addEventListener("click",async function(){
     totalAmount:parseInt(gv("mem-total-amount"))||0,
     rank:gv("mem-rank")||null,
     lang:parseInt(gv("mem-lang"))||0,
+    role:gv("mem-role")||null,
     note:noteEl?noteEl.value||null:null
   };
 
