@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 15:48:26 JST -->
+<!-- UPDATED: 2026-05-13 16:12:56 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -485,7 +485,12 @@ function renderMembers(){
   if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="ec">データがありません</td></tr>'; return; }
   tb.innerHTML=list.map(function(r){
     var gBadge=r.gender==="男"?'<span class="badge bg-blue">男</span>':r.gender==="女"?'<span class="badge bg-teal">女</span>':'<span class="badge bg-gray">他</span>';
-    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:10px;text-align:center;white-space:nowrap">'+(r.isGuest||(!r.authUid&&!r.email)?'<span style="background:#3a3a1a;color:#cccc44;padding:1px 4px;border-radius:3px;font-size:10px">ゲスト</span>':r.isTemp?'<span style="background:#3a1a3a;color:#cc88cc;padding:1px 4px;border-radius:3px;font-size:10px">仮登録</span>':'<span style="background:#1a3a1a;color:#7adf7a;padding:1px 4px;border-radius:3px;font-size:10px">本登録</span>')+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
+    var statusLabel;
+    if(!r.authUid){ statusLabel='<span style="background:#3a3a1a;color:#cccc44;padding:1px 4px;border-radius:3px;font-size:10px">ゲスト</span>'; }
+    else if(!r.email){ statusLabel='<span style="background:#3a1a3a;color:#cc88cc;padding:1px 4px;border-radius:3px;font-size:10px">仮登録</span>'; }
+    else if(!r.emailVerified){ statusLabel='<span style="background:#3a2a0a;color:#e8b84a;padding:1px 4px;border-radius:3px;font-size:10px">認証待ち</span>'; }
+    else{ statusLabel='<span style="background:#1a3a1a;color:#7adf7a;padding:1px 4px;border-radius:3px;font-size:10px">'+(r.role==='owner'?'👑 ':'')+'本登録</span>'; }
+    return '<tr><td class="mono">'+r.id+'</td><td>'+(r.name||"—")+'</td><td style="font-size:12px;color:var(--teal)">'+(r.nickname||"—")+'</td><td class="dim" style="font-size:12px">'+(r.nameKana||"—")+'</td><td>'+gBadge+'</td>'+'<td style="font-size:10px;text-align:center;white-space:nowrap">'+statusLabel+'</td>'+'<td class="dim" style="font-size:11px;text-align:center">'+(r.lang===1?'🇬🇧 EN':'🇯🇵 JA')+'</td><td class="dim" style="font-size:11px">'+(r.prefecture||"—")+'</td><td class="mono dim" style="font-size:11px">'+(r.registeredAt||"—")+'</td><td><div class="acts"><button class="btn bs sm" data-edit-member="'+r.id+'">編集</button><button class="btn bs sm" data-copy-member="'+r.id+'">コピー</button><button class="btn bd sm" data-del="members" data-del-id="'+r.id+'" data-del-label="顧客">削除</button></div></td></tr>';
   }).join("");
 }
 
