@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 17:05:43 JST -->
+<!-- UPDATED: 2026-05-13 22:14:41 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -643,32 +643,36 @@ async function doLogin(){
   var btn=g('btn-login'); btn.disabled=true; btn.textContent='ログイン中...';
 
   var isEmail = input.indexOf('@')>=0;
-  var authEmail;
 
   if(isEmail){
-    // メールアドレスそのまま使用
-    authEmail = input;
+    // メールアドレスでそのままログイン
+    auth.signInWithEmailAndPassword(input, pass)
+      .catch(function(e){
+        g('login-err').textContent=
+          e.code==='auth/user-not-found'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'?'メールアドレスまたはパスワードが正しくありません':
+          'ログイン失敗: '+e.message;
+        btn.disabled=false; btn.textContent='ログイン';
+      });
   } else {
-    // 会員IDの場合：まずFirestoreで実メールを検索
+    // 会員IDの場合：まずmemberIndexで実メールを検索
     try{
-      var snap=await db.collection('members').doc(input).get();
-      if(snap.exists && snap.data().email){
-        authEmail = snap.data().email;
-      } else {
-        authEmail = input + VIRTUAL_DOMAIN;
-      }
+      var idxSnap=await db.collection('memberIndex').doc(input).get();
+      var authEmail = (idxSnap.exists && idxSnap.data().email)
+        ? idxSnap.data().email
+        : input+VIRTUAL_DOMAIN;
+      auth.signInWithEmailAndPassword(authEmail, pass)
+        .catch(function(e){
+          g('login-err').textContent='会員IDまたはパスワードが正しくありません';
+          btn.disabled=false; btn.textContent='ログイン';
+        });
     }catch(e){
-      authEmail = input + VIRTUAL_DOMAIN;
+      auth.signInWithEmailAndPassword(input+VIRTUAL_DOMAIN, pass)
+        .catch(function(e){
+          g('login-err').textContent='会員IDまたはパスワードが正しくありません';
+          btn.disabled=false; btn.textContent='ログイン';
+        });
     }
   }
-
-  auth.signInWithEmailAndPassword(authEmail, pass)
-    .catch(function(e){
-      g('login-err').textContent=
-        e.code==='auth/user-not-found'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'?'会員IDまたはパスワードが正しくありません':
-        'ログイン失敗: '+e.message;
-      btn.disabled=false; btn.textContent='ログイン';
-    });
 }
 
 // ニックネームの文字数チェック（全角1文字=2バイト換算）
