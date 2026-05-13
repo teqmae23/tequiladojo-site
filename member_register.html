@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-12 07:56:47 JST -->
+<!-- UPDATED: 2026-05-13 14:27:12 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -709,8 +709,8 @@ async function doRegister(){
       await cred.user.sendEmailVerification().catch(function(){});
     }
 
-    // Firestoreに保存
-    await db.collection('members').doc(uid).set({
+    // Firestoreに保存（ドキュメントIDは会員番号）
+    await db.collection('members').doc(memberId).set({
       authUid: uid,
       memberId: memberId,
       email: realEmail,
