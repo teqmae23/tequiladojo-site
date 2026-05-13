@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 22:25:11 JST -->
+<!-- UPDATED: 2026-05-13 22:38:59 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -908,12 +908,14 @@ function fillForm(d){
   }
   var psb=g('profile-status-badge');
   if(psb){
-    var isEmailUser = currentUser&&currentUser.email&&currentUser.email.indexOf(VIRTUAL_DOMAIN)<0;
-    if(d&&d.isGuest) psb.textContent='ゲスト';
-    else if(d&&d.isTemp) psb.textContent='仮登録';
-    else if(isEmailUser&&currentUser&&!currentUser.emailVerified) psb.textContent='メール未認証';
-    else psb.textContent='✓ 本登録';
-    psb.style.color=(d&&d.isGuest)?'#cccc44':(d&&d.isTemp)?'#cc88cc':(isEmailUser&&!currentUser.emailVerified)?'#e8b84a':'#7adf7a';
+    var isGuest2 = d&&d.isGuest;
+    var isTemp2 = d&&d.isTemp;
+    var hasEmail2 = d&&d.email;
+    var isVerified2 = d&&d.emailVerified;
+    if(isGuest2){ psb.textContent='ゲスト'; psb.style.color='#cccc44'; }
+    else if(isTemp2){ psb.textContent='仮登録'; psb.style.color='#cc88cc'; }
+    else if(hasEmail2&&!isVerified2){ psb.textContent='認証待ち'; psb.style.color='#e8b84a'; }
+    else{ psb.textContent='✓ 本登録'; psb.style.color='#7adf7a'; }
   }
 
   sv('f-nick',    d?d.nickname||'':'');
