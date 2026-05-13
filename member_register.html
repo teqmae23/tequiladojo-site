@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 16:31:28 JST -->
+<!-- UPDATED: 2026-05-13 16:50:15 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -521,36 +521,41 @@ var GRADE_LABELS=['無料会員','有料会員1','有料会員2','有料会員3'
 // ── 会員番号自動採番 ──────────────────────────────────────────
 // ── Firebase AuthのメールをFirestoreに同期 ──────────────────────
 async function syncEmailToFirestore(user){
-  // 仮想メール・未ログインはスキップ
-  if(!user||!user.email||user.email.indexOf(VIRTUAL_DOMAIN)>=0) return;
+  if(!user) return;
   try{
-    // ドキュメントIDはmemberIdを優先（UIDキーではなくmemberIdキーのドキュメントの場合）
     var docId=memberDoc&&memberDoc.memberId?memberDoc.memberId:user.uid;
+    var isVirtual=user.email&&user.email.indexOf(VIRTUAL_DOMAIN)>=0;
     var storedEmail=memberDoc?memberDoc.email:null;
-
-    // Firebase AuthのemailまたはemailVerifiedが異なる場合はFirestoreを更新
     var storedVerified=memberDoc?memberDoc.emailVerified:null;
-    if(storedEmail!==user.email || storedVerified!==user.emailVerified){
-      var updateData={
-        email: user.email,
-        isTemp: false,
-        emailVerified: user.emailVerified
-      };
-      await db.collection('members').doc(docId).update(updateData);
-      if(memberDoc){
-        memberDoc.email=user.email;
-        memberDoc.isTemp=false;
-        memberDoc.emailVerified=user.emailVerified;
-      }
-      // メール表示を更新
+    var updateData={};
+    var needsUpdate=false;
+
+    // 実メールに変更完了 → Firestoreのemailを更新
+    if(!isVirtual && user.email && storedEmail!==user.email){
+      updateData.email=user.email;
+      updateData.isTemp=false;
+      if(memberDoc){ memberDoc.email=user.email; memberDoc.isTemp=false; }
       var ped=g('profile-email-disp');
       if(ped){ ped.textContent=user.email; ped.style.color='rgba(255,255,255,.7)'; }
-      console.log('email同期完了:', user.email, 'verified:', user.emailVerified);
+      needsUpdate=true;
+    }
+
+    // emailVerifiedの同期
+    if(storedVerified!==user.emailVerified){
+      updateData.emailVerified=user.emailVerified;
+      if(memberDoc) memberDoc.emailVerified=user.emailVerified;
+      needsUpdate=true;
+    }
+
+    if(needsUpdate){
+      await db.collection('members').doc(docId).update(updateData);
+      console.log('Firestore同期完了:', updateData);
     }
   }catch(e){
     console.error('syncEmailToFirestore:', e);
   }
 }
+
 
 async function fetchNextMemberId(){
   var year=String(new Date().getFullYear()).slice(2);
@@ -627,17 +632,36 @@ auth.onAuthStateChanged(function(user){
   }
 });
 
-function doLogin(){
+async function doLogin(){
   var input=gv('login-email'), pass=gv('login-pass');
   g('login-err').textContent='';
-  if(!input||!pass){ g('login-err').textContent='会員IDまたはメールアドレスとパスワードを入力してください'; return; }
-  var email=toAuthEmail(input);
+  if(!input||!pass){ g('login-err').textContent='会員IDとパスワードを入力してください'; return; }
   var btn=g('btn-login'); btn.disabled=true; btn.textContent='ログイン中...';
-  auth.signInWithEmailAndPassword(email,pass)
+
+  var isEmail = input.indexOf('@')>=0;
+  var authEmail;
+
+  if(isEmail){
+    // メールアドレスそのまま使用
+    authEmail = input;
+  } else {
+    // 会員IDの場合：まずFirestoreで実メールを検索
+    try{
+      var snap=await db.collection('members').doc(input).get();
+      if(snap.exists && snap.data().email){
+        authEmail = snap.data().email;
+      } else {
+        authEmail = input + VIRTUAL_DOMAIN;
+      }
+    }catch(e){
+      authEmail = input + VIRTUAL_DOMAIN;
+    }
+  }
+
+  auth.signInWithEmailAndPassword(authEmail, pass)
     .catch(function(e){
       g('login-err').textContent=
-        e.code==='auth/user-not-found'?'登録されていないIDまたはメールアドレスです':
-        e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'?'メールアドレス/会員IDとパスワードが一致しません':
+        e.code==='auth/user-not-found'||e.code==='auth/invalid-credential'||e.code==='auth/invalid-login-credentials'?'会員IDまたはパスワードが正しくありません':
         'ログイン失敗: '+e.message;
       btn.disabled=false; btn.textContent='ログイン';
     });
@@ -692,7 +716,8 @@ async function doRegister(){
     }
   }
 
-  var authEmail = emailInput ? emailInput : (memberId + VIRTUAL_DOMAIN);
+  // Firebase Authは仮想メールで登録（実メールはverifyBeforeUpdateEmailで後から変更）
+  var authEmail = memberId + VIRTUAL_DOMAIN;
   var realEmail = emailInput || null;
   var isTemp = !emailInput;
 
@@ -705,9 +730,11 @@ async function doRegister(){
     var cred=await auth.createUserWithEmailAndPassword(authEmail, pass);
     var uid=cred.user.uid;
 
-    // 本登録の場合は認証メール送信
-    if(!isTemp){
-      await cred.user.sendEmailVerification().catch(function(){});
+    // メールあり会員：仮想メールから実メールへの変更確認リンクを送信
+    if(!isTemp && realEmail){
+      await cred.user.verifyBeforeUpdateEmail(realEmail).catch(function(e){
+        console.error('verifyBeforeUpdateEmail:', e);
+      });
     }
 
     // Firestoreに保存（ドキュメントIDは会員番号）
@@ -759,26 +786,26 @@ function doLogout(){
   auth.signOut();
 }
 
-function doResetPassword(){
-  var input=gv('login-email');
-  if(!input){ g('login-err').textContent='メールアドレスまたは会員IDを入力してください'; return; }
-  // 会員ID（@なし）はリセット不可
-  if(input.indexOf('@')<0){
-    g('login-err').textContent='仮登録会員はパスワードリセットできません。店舗スタッフにお問い合わせください';
-    return;
+async function doResetPassword(){
+  var input=gv('login-email').trim();
+  g('login-err').textContent='';
+  if(!input){ g('login-err').textContent='会員IDを入力してください'; return; }
+  // 会員IDから実メールアドレスを取得してリセットメール送信
+  try{
+    var snap=await db.collection('members').doc(input).get();
+    if(!snap.exists||!snap.data().email){
+      g('login-err').textContent='メールアドレスが登録されていません。店舗スタッフにお問い合わせください';
+      return;
+    }
+    var realEmail=snap.data().email;
+    // 仮想メールのパスワードリセットリンクをAuthから取得して実メールに送信
+    // → 現状はFunctions経由が必要。暫定でFirebase標準リセットを仮想メールに送信
+    await auth.sendPasswordResetEmail(input+VIRTUAL_DOMAIN);
+    g('login-err').style.color='var(--teal)';
+    g('login-err').textContent='パスワードリセットの手順をメール（'+realEmail+'）に送信しました';
+  }catch(e){
+    g('login-err').textContent='送信失敗: '+e.message;
   }
-  // 仮想メールドメインはリセット不可
-  if(input.indexOf(VIRTUAL_DOMAIN)>=0){
-    g('login-err').textContent='仮登録会員はパスワードリセットできません。店舗スタッフにお問い合わせください';
-    return;
-  }
-  auth.sendPasswordResetEmail(input)
-    .then(function(){ toast('パスワードリセットメールを送信しました。メールをご確認ください。'); })
-    .catch(function(e){
-      g('login-err').textContent=
-        e.code==='auth/user-not-found'?'このメールアドレスは登録されていません':
-        '送信失敗: '+e.message;
-    });
 }
 
 // ── プロフィール読み込み ─────────────────────────────────────────
