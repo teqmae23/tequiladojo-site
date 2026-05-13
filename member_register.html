@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-13 22:14:41 JST -->
+<!-- UPDATED: 2026-05-13 22:25:11 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -660,6 +660,7 @@ async function doLogin(){
       var authEmail = (idxSnap.exists && idxSnap.data().email)
         ? idxSnap.data().email
         : input+VIRTUAL_DOMAIN;
+      console.log('memberIndex:', idxSnap.exists, idxSnap.exists?idxSnap.data():{}, 'authEmail:', authEmail);
       auth.signInWithEmailAndPassword(authEmail, pass)
         .catch(function(e){
           g('login-err').textContent='会員IDまたはパスワードが正しくありません';
