@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-15 17:51:36 JST -->
+<!-- UPDATED: 2026-05-15 17:58:38 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1157,6 +1157,10 @@ function buildReceiptData(){
 
   // 初期化
   lines.push([ESC,0x40]);
+  // 文字コードページ設定（PC932/Shift-JIS）
+  lines.push([ESC,0x74,0x01]);  // コードページ1 = Katakana
+  // 国際文字セット（日本）
+  lines.push([ESC,0x52,0x08]);  // 日本語
   // 中央揃え
   lines.push([ESC,0x61,0x01]);
   // 店名（大文字）
