@@ -1,3 +1,4 @@
+<!-- UPDATED: 2026-05-15 17:23:23 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -340,6 +341,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
         退場も同時に行う
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
+      <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
     </div>
   </div>
 </div>
@@ -1116,6 +1118,124 @@ function bulkCheckoutTime(){
     toast(visitIds.length+'名を退場処理しました（'+fmtHHMM(time)+'）');
     renderVisitorList();
   }).catch(function(e){ toast('退場処理失敗: '+e.message,'err'); });
+}
+
+// ── レシート印刷（ESC/POS Bluetooth） ──────────────────────────
+var receiptDevice = null;
+var receiptCharacteristic = null;
+
+async function printReceipt(){
+  try{
+    // Bluetoothデバイス選択
+    if(!receiptDevice || !receiptDevice.gatt.connected){
+      toast('プリンターを選択してください...','inf');
+      receiptDevice = await navigator.bluetooth.requestDevice({
+        filters:[{services:['000018f0-0000-1000-8000-00805f9b34fb']}],
+        optionalServices:['000018f0-0000-1000-8000-00805f9b34fb']
+      });
+      var server = await receiptDevice.gatt.connect();
+      var service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+      receiptCharacteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+      toast('プリンター接続完了','inf');
+    }
+
+    // レシートデータ生成
+    var data = buildReceiptData();
+    await sendToPrinter(receiptCharacteristic, data);
+    toast('印刷しました');
+  }catch(e){
+    console.error('印刷エラー:', e);
+    toast('印刷失敗: '+e.message,'err');
+    receiptDevice=null; receiptCharacteristic=null;
+  }
+}
+
+function buildReceiptData(){
+  var lines = [];
+  var ESC=0x1B, GS=0x1D;
+
+  // 初期化
+  lines.push([ESC,0x40]);
+  // 中央揃え
+  lines.push([ESC,0x61,0x01]);
+  // 店名（大文字）
+  lines.push([ESC,0x21,0x30]);
+  lines.push(strToBytes('テキーラ道場
+'));
+  lines.push([ESC,0x21,0x00]);
+  lines.push(strToBytes('========================
+'));
+
+  // 日時
+  var now=new Date();
+  var dateStr=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+ now.getDate()+' '+
+    String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  lines.push(strToBytes(dateStr+'
+'));
+  lines.push(strToBytes('========================
+'));
+
+  // 左揃え
+  lines.push([ESC,0x61,0x00]);
+
+  // 来場者と金額
+  var grandTotal = parseInt((document.getElementById('co-grand-total').textContent||'0').replace(/[¥,]/g,''))||0;
+  var visitors = Array.from(document.querySelectorAll('#co-visitors-list .co-visitor-row')||[]);
+  visitors.forEach(function(row){
+    var name = row.querySelector('.co-visitor-name');
+    var amt = row.querySelector('.co-visitor-amount');
+    if(name&&amt){
+      var n=name.textContent.trim().substring(0,10);
+      var a=amt.textContent.trim();
+      lines.push(strToBytes(padRight(n,12)+padLeft(a,8)+'
+'));
+    }
+  });
+
+  lines.push(strToBytes('------------------------
+'));
+
+  // 中央揃え・合計
+  lines.push([ESC,0x61,0x01]);
+  lines.push([ESC,0x21,0x10]);
+  lines.push(strToBytes('合計: ¥'+grandTotal.toLocaleString()+'
+'));
+  lines.push([ESC,0x21,0x00]);
+  lines.push(strToBytes('
+'));
+  lines.push(strToBytes('ありがとうございました
+'));
+  lines.push(strToBytes('
+
+
+'));
+
+  // カット
+  lines.push([GS,0x56,0x41,0x10]);
+
+  // 結合
+  var total=0;
+  lines.forEach(function(l){ total+=l.length; });
+  var buf=new Uint8Array(total);
+  var pos=0;
+  lines.forEach(function(l){ buf.set(l,pos); pos+=l.length; });
+  return buf;
+}
+
+function strToBytes(str){
+  var encoder=new TextEncoder();
+  return encoder.encode(str);
+}
+function padRight(str,len){ return (str+'　　　　　　　　　　　　').substring(0,len); }
+function padLeft(str,len){ return ('          '+str).slice(-len); }
+
+async function sendToPrinter(char, data){
+  var chunkSize=20;
+  for(var i=0;i<data.length;i+=chunkSize){
+    var chunk=data.slice(i,i+chunkSize);
+    await char.writeValue(chunk);
+    await new Promise(function(r){ setTimeout(r,20); });
+  }
 }
 </script>
 </body>
