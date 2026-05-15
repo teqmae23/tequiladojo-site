@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-15 17:23:23 JST -->
+<!-- UPDATED: 2026-05-15 17:42:50 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1160,20 +1160,16 @@ function buildReceiptData(){
   lines.push([ESC,0x61,0x01]);
   // 店名（大文字）
   lines.push([ESC,0x21,0x30]);
-  lines.push(strToBytes('テキーラ道場
-'));
+  lines.push(strToBytes('テキーラ道場\n'));
   lines.push([ESC,0x21,0x00]);
-  lines.push(strToBytes('========================
-'));
+  lines.push(strToBytes('========================\n'));
 
   // 日時
   var now=new Date();
   var dateStr=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+ now.getDate()+' '+
     String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  lines.push(strToBytes(dateStr+'
-'));
-  lines.push(strToBytes('========================
-'));
+  lines.push(strToBytes(dateStr+'\n'));
+  lines.push(strToBytes('========================\n'));
 
   // 左揃え
   lines.push([ESC,0x61,0x00]);
@@ -1187,28 +1183,20 @@ function buildReceiptData(){
     if(name&&amt){
       var n=name.textContent.trim().substring(0,10);
       var a=amt.textContent.trim();
-      lines.push(strToBytes(padRight(n,12)+padLeft(a,8)+'
-'));
+      lines.push(strToBytes(padRight(n,12)+padLeft(a,8)+'\n'));
     }
   });
 
-  lines.push(strToBytes('------------------------
-'));
+  lines.push(strToBytes('------------------------\n'));
 
   // 中央揃え・合計
   lines.push([ESC,0x61,0x01]);
   lines.push([ESC,0x21,0x10]);
-  lines.push(strToBytes('合計: ¥'+grandTotal.toLocaleString()+'
-'));
+  lines.push(strToBytes('合計: ¥'+grandTotal.toLocaleString()+'\n'));
   lines.push([ESC,0x21,0x00]);
-  lines.push(strToBytes('
-'));
-  lines.push(strToBytes('ありがとうございました
-'));
-  lines.push(strToBytes('
-
-
-'));
+  lines.push(strToBytes('\n'));
+  lines.push(strToBytes('ありがとうございました\n'));
+  lines.push(strToBytes('\n\n\n'));
 
   // カット
   lines.push([GS,0x56,0x41,0x10]);
