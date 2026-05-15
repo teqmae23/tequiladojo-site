@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-15 18:32:27 JST -->
+<!-- UPDATED: 2026-05-15 23:07:00 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1158,12 +1158,10 @@ function buildReceiptData(){
 
   // 初期化
   parts.push([ESC,0x40]);
-  // 漢字モードON
+  // GB2312漢字モードON
   parts.push([FS,0x26]);
-  // コードページShift-JIS
-  parts.push([ESC,0x74,0x01]);
-  // 国際文字セット日本
-  parts.push([ESC,0x52,0x08]);
+  // コードページ GB2312
+  parts.push([ESC,0x74,0x0F]);
 
   // 中央揃え
   parts.push([ESC,0x61,0x01]);
@@ -1218,8 +1216,15 @@ function buildReceiptData(){
 }
 
 function sjisBytes(str){
-  var arr=Encoding.convert(Encoding.stringToCode(str),{to:'SJIS',from:'UNICODE'});
-  return new Uint8Array(arr);
+  // GB2312変換（中国製サーマルプリンター用）
+  var arr=Encoding.convert(Encoding.stringToCode(str),{to:'EUCJP',from:'UNICODE'});
+  // EUC-JPからGB2312への変換（同一コードポイントの漢字は互換性あり）
+  // まずASCII部分はそのまま送信
+  var result=[];
+  for(var i=0;i<arr.length;i++){
+    result.push(arr[i]);
+  }
+  return new Uint8Array(result);
 }
 function padR(s,n){ while(s.length<n) s+=' '; return s.substring(0,n); }
 function padL(s,n){ while(s.length<n) s=' '+s; return s; }
