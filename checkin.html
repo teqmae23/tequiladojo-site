@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-15 17:42:50 JST -->
+<!-- UPDATED: 2026-05-15 17:51:36 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -8,6 +8,7 @@
 <title>テキーラ道場 — 来場者一覧</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.1.0/encoding.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -1211,8 +1212,12 @@ function buildReceiptData(){
 }
 
 function strToBytes(str){
-  var encoder=new TextEncoder();
-  return encoder.encode(str);
+  // Shift-JIS変換（ESC/POSプリンター用）
+  var sjisArray = Encoding.convert(Encoding.stringToCode(str), {
+    to: 'SJIS',
+    from: 'UNICODE'
+  });
+  return new Uint8Array(sjisArray);
 }
 function padRight(str,len){ return (str+'　　　　　　　　　　　　').substring(0,len); }
 function padLeft(str,len){ return ('          '+str).slice(-len); }
