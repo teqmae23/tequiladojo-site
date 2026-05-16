@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 23:36:38 JST -->
+<!-- UPDATED: 2026-05-16 23:42:50 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:36</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:42</span>
     </div>
   </div>
 </div>
@@ -1138,14 +1138,28 @@ async function printReceipt(){
   }
 
   try{
-    // Bluetoothデバイス選択
+    // Bluetooth接続（前回のデバイスがあれば自動再接続）
     if(!receiptDevice || !receiptDevice.gatt.connected){
-      toast('プリンターを選択してください...','inf');
-      receiptDevice = await navigator.bluetooth.requestDevice({
-        filters:[{services:['000018f0-0000-1000-8000-00805f9b34fb']}],
-        optionalServices:['000018f0-0000-1000-8000-00805f9b34fb']
-      });
-      var server = await receiptDevice.gatt.connect();
+      // getDevicesで許可済みデバイスを取得
+      var knownDevices=[];
+      try{ knownDevices=await navigator.bluetooth.getDevices(); }catch(e){}
+      var printer=knownDevices.find(function(d){ return d.name&&d.name.indexOf('Printer')>=0||d.name&&d.name.indexOf('RPP')>=0||d.name&&d.name.indexOf('Tenz')>=0; });
+      if(printer){
+        try{
+          toast('プリンターに接続中...','inf');
+          receiptDevice=printer;
+          await receiptDevice.gatt.connect();
+        }catch(e){ printer=null; }
+      }
+      if(!printer){
+        toast('プリンターを選択してください...','inf');
+        receiptDevice = await navigator.bluetooth.requestDevice({
+          filters:[{services:['000018f0-0000-1000-8000-00805f9b34fb']}],
+          optionalServices:['000018f0-0000-1000-8000-00805f9b34fb']
+        });
+        await receiptDevice.gatt.connect();
+      }
+      var server=receiptDevice.gatt;
       var service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
       receiptCharacteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
       toast('プリンター接続完了','inf');
@@ -1236,7 +1250,7 @@ function buildReceiptData(){
   });
   // Font A（通常サイズ）で明細
   parts.push([ESC,0x4D,0x00]);
-  var LINE=32; // 58mm幅で約32文字
+  var LINE=28; // 58mm幅で約32文字、全角￥×2=4バイト分引く
   Object.keys(orderSummary).forEach(function(name){
     var item=orderSummary[name];
     var total=Math.round(item.price*item.count);
