@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 22:32:05 JST -->
+<!-- UPDATED: 2026-05-16 22:44:30 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">22:32</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">22:44</span>
     </div>
   </div>
 </div>
@@ -1128,6 +1128,15 @@ var receiptDevice = null;
 var receiptCharacteristic = null;
 
 async function printReceipt(){
+  // bottleDataを取得してキャッシュ
+  if(!window._bottleCache){
+    window._bottleCache={};
+    try{
+      var snap=await db.collection('bottleData').get();
+      snap.forEach(function(doc){ window._bottleCache[doc.id]=doc.data(); });
+    }catch(e){ console.warn('bottleData取得失敗:', e); }
+  }
+
   try{
     // Bluetoothデバイス選択
     if(!receiptDevice || !receiptDevice.gatt.connected){
@@ -1213,7 +1222,9 @@ function buildReceiptData(){
     var orders=cache.orders.filter(function(o){ return (o.visitKey||o.visitId)===visitKey; });
     orders.forEach(function(o){
       var t=o.type||'';
-      var engName=o.productNameEn||o.productName||'Unknown';
+      // bottleDataからEsの名前を取得
+      var bd=window._bottleCache&&(window._bottleCache[o.productCode]||window._bottleCache[o.id]);
+      var engName=bd?(bd.bottleEs||bd.bottleEn||bd.bottleJa||o.productName):(o.productName||'Unknown');
       engName=engName.replace(/[・]/g,'-');
       var unitPrice=parseFloat(o.unitPrice||o.price)||0;
       var qtyMl=parseFloat(o.qty||o.quantity)||0;
@@ -1226,17 +1237,19 @@ function buildReceiptData(){
       orderSummary[engName].count+=count;
     });
   });
+  // Font B（小さめ）で明細
+  parts.push([ESC,0x4D,0x01]);
   Object.keys(orderSummary).forEach(function(name){
     var item=orderSummary[name];
     var total=Math.round(item.price*item.count);
-    // 価格×杯数の形式（1行に収まるよう商品名を切る）
-    var right=Math.round(item.price)+'x'+item.count;
-    var totalStr='  \\'+total.toLocaleString();
-    var maxName=30-right.length-totalStr.length-1;
-    var shortName=item.engName.substring(0,maxName);
-    var line=padR(shortName,maxName)+' '+right+totalStr+'\n';
-    parts.push(sjisBytes(line));
+    // 1行目：商品名（最大30文字で切る）
+    parts.push(sjisBytes(item.engName.substring(0,28)+'\n'));
+    // 2行目：単価(10ml)×杯数　右揃え
+    var right=item.price+'(10ml)x'+item.count;
+    parts.push(sjisBytes(padL(right,28)+'\n'));
   });
+  // Font Aに戻す
+  parts.push([ESC,0x4D,0x00]);
 
   // 中央揃えで区切り線
   parts.push([ESC,0x61,0x01]);
@@ -1245,7 +1258,13 @@ function buildReceiptData(){
   // 合計（右揃え・太字）
   parts.push([ESC,0x61,0x02]);
   parts.push([ESC,0x21,0x10]);
-  parts.push(sjisBytes('TOTAL: \\'+grandTotal.toLocaleString()+'\n'));
+  // TOTAL行：￥を0xA3A4で直接送信
+  var totalStr='TOTAL: '+grandTotal.toLocaleString()+'\n';
+  var totalBytes=sjisBytes(totalStr);
+  // ￥の位置を探してA3A4に置換
+  parts.push(sjisBytes('TOTAL: '));
+  parts.push(new Uint8Array([0xA3,0xA4]));
+  parts.push(sjisBytes(grandTotal.toLocaleString()+'\n'));
   parts.push([ESC,0x21,0x00]);
 
   // フッター（中央揃え）
