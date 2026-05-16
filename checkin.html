@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 21:53:31 JST -->
+<!-- UPDATED: 2026-05-16 22:32:05 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">21:53</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">22:32</span>
     </div>
   </div>
 </div>
@@ -1190,8 +1190,8 @@ function buildReceiptData(){
   parts.push([ESC,0x21,0x30]);
   parts.push(sjisBytes('テキーラ道場\n'));
   parts.push([ESC,0x21,0x00]);
-  // 住所
-  parts.push(sjisBytes('〒260-0854\n'));
+  // 住所（〒行は空行に）
+  parts.push(sjisBytes('\n'));
   parts.push(sjisBytes('千葉市中央区長洲1-24-1-215\n'));
   parts.push(sjisBytes(SEP+'\n'));
 
@@ -1212,19 +1212,29 @@ function buildReceiptData(){
   bulkCheckoutVisitKeys.forEach(function(visitKey){
     var orders=cache.orders.filter(function(o){ return (o.visitKey||o.visitId)===visitKey; });
     orders.forEach(function(o){
-      var name=(o.productName||'不明').replace(/[・]/g,'-');
-      var price=parseFloat(o.unitPrice||o.price)||0;
-      var qty=parseFloat(o.qty||o.quantity)||1;
-      if(!orderSummary[name]) orderSummary[name]={qty:0,price:price};
-      orderSummary[name].qty+=qty;
+      var t=o.type||'';
+      var engName=o.productNameEn||o.productName||'Unknown';
+      engName=engName.replace(/[・]/g,'-');
+      var unitPrice=parseFloat(o.unitPrice||o.price)||0;
+      var qtyMl=parseFloat(o.qty||o.quantity)||0;
+      // テキーラ・スピリッツはml÷10で金額計算、それ以外は数量×単価
+      var isTequila=(t==='tequila'||t==='spirits');
+      var amount=isTequila?Math.round(unitPrice*qtyMl/10):Math.round(unitPrice*qtyMl);
+      var count=isTequila?Math.round(qtyMl/10):Math.round(qtyMl)||1;
+      var price=isTequila?Math.round(unitPrice*10):Math.round(unitPrice);
+      if(!orderSummary[engName]) orderSummary[engName]={count:0,price:price,engName:engName};
+      orderSummary[engName].count+=count;
     });
   });
   Object.keys(orderSummary).forEach(function(name){
     var item=orderSummary[name];
-    var total=Math.round(item.price*item.qty);
-    var shortName=name.substring(0,12);
-    var right=item.qty+'x'+Math.round(item.price)+'='+total;
-    var line=padR(shortName,16)+padL(right,14)+'\n';
+    var total=Math.round(item.price*item.count);
+    // 価格×杯数の形式（1行に収まるよう商品名を切る）
+    var right=Math.round(item.price)+'x'+item.count;
+    var totalStr='  \\'+total.toLocaleString();
+    var maxName=30-right.length-totalStr.length-1;
+    var shortName=item.engName.substring(0,maxName);
+    var line=padR(shortName,maxName)+' '+right+totalStr+'\n';
     parts.push(sjisBytes(line));
   });
 
@@ -1235,7 +1245,7 @@ function buildReceiptData(){
   // 合計（右揃え・太字）
   parts.push([ESC,0x61,0x02]);
   parts.push([ESC,0x21,0x10]);
-  parts.push(sjisBytes('TOTAL: '+grandTotal.toLocaleString()+'\n'));
+  parts.push(sjisBytes('TOTAL: \\'+grandTotal.toLocaleString()+'\n'));
   parts.push([ESC,0x21,0x00]);
 
   // フッター（中央揃え）
