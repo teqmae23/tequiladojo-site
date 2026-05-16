@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-15 23:24:36 JST -->
+<!-- UPDATED: 2026-05-15 23:33:30 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -9,6 +9,9 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.1.0/encoding.min.js"></script>
+<!-- GB18030エンコード用ポリフィル -->
+<script>window.TextEncoder=window.TextDecoder=null;</script>
+<script src="https://cdn.jsdelivr.net/npm/text-encoding-gbk@0.7.3/lib/encoding.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -343,7 +346,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:24</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:33</span>
     </div>
   </div>
 </div>
@@ -1158,10 +1161,8 @@ function buildReceiptData(){
 
   // 初期化
   parts.push([ESC,0x40]);
-  // 漢字モードON (FS &)
+  // GB18030漢字モードON
   parts.push([0x1C,0x26]);
-  // GB2312コードページ
-  parts.push([ESC,0x74,0x0F]);
 
   // 中央揃え
   parts.push([ESC,0x61,0x01]);
@@ -1216,10 +1217,9 @@ function buildReceiptData(){
 }
 
 function sjisBytes(str){
-  // Shift-JIS変換（encoding-japaneseライブラリ使用）
-  var codes = Encoding.stringToCode(str);
-  var sjis = Encoding.convert(codes, { to: 'SJIS', from: 'UNICODE' });
-  return new Uint8Array(sjis);
+  // GB18030エンコード（text-encoding-gbkポリフィル使用）
+  var encoder = new TextEncoder('gb18030', {NONSTANDARD_allowLegacyEncoding: true});
+  return encoder.encode(str);
 }
 function padR(s,n){ while(s.length<n) s+=' '; return s.substring(0,n); }
 function padL(s,n){ while(s.length<n) s=' '+s; return s; }
