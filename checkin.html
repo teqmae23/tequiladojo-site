@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 23:15:18 JST -->
+<!-- UPDATED: 2026-05-16 23:25:32 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:15</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:25</span>
     </div>
   </div>
 </div>
@@ -1221,18 +1221,15 @@ function buildReceiptData(){
   bulkCheckoutVisitKeys.forEach(function(visitKey){
     var orders=cache.orders.filter(function(o){ return (o.visitKey||o.visitId)===visitKey; });
     orders.forEach(function(o){
-      var t=o.type||'';
+      var unitPrice=parseFloat(o.unitPrice)||0;
+      var qtyMl=parseFloat(o.qty)||0;
       // bottleDataからEsの名前を取得
       var bd=window._bottleCache&&(window._bottleCache[o.productCode]||window._bottleCache[o.id]);
       var engName=bd?(bd.bottleEs||bd.bottleEn||bd.bottleJa||o.productName):(o.productName||'Unknown');
       engName=engName.replace(/[・]/g,'-');
-      var unitPrice=parseFloat(o.unitPrice||o.price)||0;
-      var qtyMl=parseFloat(o.qty||o.quantity)||0;
-      // テキーラ・スピリッツはml÷10で金額計算、それ以外は数量×単価
-      var isTequila=(t==='tequila'||t==='spirits');
-      var amount=isTequila?Math.round(unitPrice*qtyMl/10):Math.round(unitPrice*qtyMl);
-      var count=isTequila?Math.round(qtyMl/10):Math.round(qtyMl)||1;
-      var price=isTequila?Math.round(unitPrice*10):Math.round(unitPrice);
+      // qty=ml数、unitPrice=10ml単価
+      var count=Math.round(qtyMl/10)||1; // 杯数
+      var price=Math.round(unitPrice); // 10ml単価
       if(!orderSummary[engName]) orderSummary[engName]={count:0,price:price,engName:engName};
       orderSummary[engName].count+=count;
     });
