@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 16:21:56 JST -->
+<!-- UPDATED: 2026-05-16 16:29:43 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">16:21</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">16:29</span>
     </div>
   </div>
 </div>
@@ -1214,21 +1214,56 @@ function buildReceiptData(){
   return buf;
 }
 
-function sjisBytes(str){
-  // GBKエンコード（encoding-japaneseライブラリ使用）
-  // ASCII文字はそのまま、日本語はUnicodeコードポイントからGBK変換
-  var result = [];
+// GBKエンコードキャッシュ
+var _gbkCache={};
+function gbkEncode(str){
+  var result=[];
   for(var i=0;i<str.length;i++){
     var c=str.charCodeAt(i);
     if(c<0x80){
       result.push(c);
+    } else if(c===0x0A){
+      result.push(0x0A);
     } else {
-      // encoding-japaneseでSJIS変換してバイト列を取得
-      var arr=Encoding.convert([c],{to:'SJIS',from:'UNICODE'});
-      arr.forEach(function(b){ result.push(b); });
+      // Unicodeコードポイント→GBKの変換テーブル（よく使う日本語文字）
+      var gb=unicodeToGbk(c);
+      if(gb){
+        result.push((gb>>8)&0xFF);
+        result.push(gb&0xFF);
+      } else {
+        result.push(0x3F); // '?'
+      }
     }
   }
   return new Uint8Array(result);
+}
+
+// Unicode→GBK変換（TextDecoderを逆用）
+var _gbkMap=null;
+function buildGbkMap(){
+  if(_gbkMap) return;
+  _gbkMap={};
+  var decoder=new TextDecoder('gbk');
+  // GBKの2バイト文字範囲を総当たりでデコードしてマップ構築
+  for(var b1=0xA1;b1<=0xF7;b1++){
+    for(var b2=0xA1;b2<=0xFE;b2++){
+      var bytes=new Uint8Array([b1,b2]);
+      try{
+        var ch=decoder.decode(bytes);
+        if(ch&&ch.length===1&&ch.charCodeAt(0)>0x7F){
+          _gbkMap[ch.charCodeAt(0)]=(b1<<8)|b2;
+        }
+      }catch(e){}
+    }
+  }
+}
+function unicodeToGbk(code){
+  if(!_gbkMap) buildGbkMap();
+  return _gbkMap[code]||0;
+}
+
+function sjisBytes(str){
+  return gbkEncode(str);
 }
 function padR(s,n){ while(s.length<n) s+=' '; return s.substring(0,n); }
 function padL(s,n){ while(s.length<n) s=' '+s; return s; }
