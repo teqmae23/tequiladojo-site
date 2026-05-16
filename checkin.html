@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 16:57:18 JST -->
+<!-- UPDATED: 2026-05-16 17:13:08 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">16:57</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">17:13</span>
     </div>
   </div>
 </div>
@@ -1179,18 +1179,19 @@ function buildReceiptData(){
   parts.push(sjisBytes(dateStr+'\n'));
   parts.push(sjisBytes('========================\n'));
 
-  // 明細（warikan-areaから取得）
-  var grandTotal=parseInt((document.getElementById('co-grand-total').textContent||'0').replace(/[¥,]/g,''))||0;
-  var rows=document.querySelectorAll('#warikan-area > div');
-  rows.forEach(function(row){
-    var spans=row.querySelectorAll('span');
-    var input=row.querySelector('input[type="number"]');
-    var name=spans[0]?spans[0].textContent.trim().substring(0,8):'';
-    var amt=input?parseInt(input.value)||0:0;
-    if(name){
-      var line=padR(name,10)+padL('¥'+amt.toLocaleString(),8)+'\n';
-      parts.push(sjisBytes(line));
-    }
+  // 明細（warikanAmountsから直接取得）
+  var grandTotal=0;
+  bulkCheckoutVisitKeys.forEach(function(visitKey){
+    var v=cache.visits.find(function(x){ return x.id===visitKey; });
+    if(!v) return;
+    var mem=getMemberInfo(v.memberId);
+    var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId||'非会員');
+    name=name.substring(0,8);
+    var el=document.getElementById('wk-'+visitKey);
+    var amt=el?parseInt(el.value)||0:warikanAmounts[visitKey]||0;
+    grandTotal+=amt;
+    var line=padR(name,10)+padL(String(amt.toLocaleString()),8)+'\n';
+    parts.push(sjisBytes(line));
   });
 
   parts.push(sjisBytes('------------------------\n'));
@@ -1198,7 +1199,7 @@ function buildReceiptData(){
   // 合計（中央・太字）
   parts.push([ESC,0x61,0x01]);
   parts.push([ESC,0x21,0x10]);
-  parts.push(sjisBytes('合計: ¥'+grandTotal.toLocaleString()+'\n'));
+  parts.push(sjisBytes('合計: \\'+grandTotal.toLocaleString()+'\n'));
   parts.push([ESC,0x21,0x00]);
   parts.push(sjisBytes('\nありがとうございました\n\n\n'));
 
@@ -1225,8 +1226,8 @@ function gbkEncode(str){
     } else if(c===0x0A){
       result.push(0x0A);
     } else if(c===0xA5||c===0xFFE5){
-      // ¥記号 → GBKでは0xA3A5
-      result.push(0xA3); result.push(0xA5);
+      // ¥記号 → 0x5C（GBK環境では\がYENとして表示される）
+      result.push(0x5C);
     } else {
       // Unicodeコードポイント→GBKの変換テーブル（よく使う日本語文字）
       var gb=unicodeToGbk(c);
