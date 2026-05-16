@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 16:40:38 JST -->
+<!-- UPDATED: 2026-05-16 16:57:18 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">16:40</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">16:57</span>
     </div>
   </div>
 </div>
@@ -1224,6 +1224,9 @@ function gbkEncode(str){
       result.push(c);
     } else if(c===0x0A){
       result.push(0x0A);
+    } else if(c===0xA5||c===0xFFE5){
+      // ¥記号 → GBKでは0xA3A5
+      result.push(0xA3); result.push(0xA5);
     } else {
       // Unicodeコードポイント→GBKの変換テーブル（よく使う日本語文字）
       var gb=unicodeToGbk(c);
