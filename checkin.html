@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 23:29:51 JST -->
+<!-- UPDATED: 2026-05-16 23:36:38 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:29</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:36</span>
     </div>
   </div>
 </div>
@@ -1242,9 +1242,28 @@ function buildReceiptData(){
     var total=Math.round(item.price*item.count);
     // 1行目：商品名（最大32文字で切る）
     parts.push(sjisBytes(item.engName.substring(0,LINE)+'\n'));
-    // 2行目：単価(10ml)×杯数 右揃え + 合計
-    var right='\\'+item.price+'(10ml)x'+item.count+'=\\'+total.toLocaleString();
-    parts.push(sjisBytes(padL(right,LINE)+'\n'));
+    // 2行目：単価(10ml)×杯数 右揃え + 合計（￥は0xA3A4で直接送信）
+    var priceStr=String(item.price)+'(10ml)x'+String(item.count)+'='+String(total.toLocaleString());
+    var padding=LINE-priceStr.length-2; // ￥2バイト分×2
+    var line2=padL(priceStr,LINE-2)+'\n';
+    // 「=」の前に￥を挿入
+    var eqIdx=line2.lastIndexOf('=');
+    var beforeEq=line2.substring(0,eqIdx+1);
+    var afterEq=line2.substring(eqIdx+1);
+    // 先頭の￥
+    var priceLeft=padL(String(item.price),LINE/2-3);
+    var rightPart='(10ml)x'+item.count;
+    var totalPart=total.toLocaleString();
+    var spacer=LINE-rightPart.length-totalPart.length-4; // ￥×2
+    if(spacer<0)spacer=0;
+    // 組み立て：右揃えで [スペース] \価格(10ml)x杯数=\合計
+    var fullStr=String(item.price)+'(10ml)x'+item.count+'=';
+    var spaces=padL('',LINE-fullStr.length-totalPart.length-2);
+    parts.push(sjisBytes(spaces));
+    parts.push(new Uint8Array([0xA3,0xA4])); // ￥
+    parts.push(sjisBytes(String(item.price)+'(10ml)x'+item.count+'='));
+    parts.push(new Uint8Array([0xA3,0xA4])); // ￥
+    parts.push(sjisBytes(totalPart+'\n'));
   });
 
 
