@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 17:31:42 JST -->
+<!-- UPDATED: 2026-05-16 21:53:31 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">17:31</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">21:53</span>
     </div>
   </div>
 </div>
@@ -1153,8 +1153,30 @@ async function printReceipt(){
   }
 }
 
+
+function makeQR(url){
+  var ESC=0x1B, GS=0x1D;
+  var parts=[];
+  var urlBytes=new TextEncoder().encode(url);
+  var len=urlBytes.length;
+  // QRコードモデル設定
+  parts.push([GS,0x28,0x6B,0x04,0x00,0x31,0x41,0x32,0x00]);
+  // QRコードサイズ（8）
+  parts.push([GS,0x28,0x6B,0x03,0x00,0x31,0x43,0x08]);
+  // エラー訂正レベルM
+  parts.push([GS,0x28,0x6B,0x03,0x00,0x31,0x45,0x30]);
+  // データ送信
+  var pL=(len+3)&0xFF, pH=((len+3)>>8)&0xFF;
+  parts.push([GS,0x28,0x6B,pL,pH,0x31,0x50,0x30]);
+  urlBytes.forEach(function(b){ parts.push([b]); });
+  // 印刷
+  parts.push([GS,0x28,0x6B,0x03,0x00,0x31,0x51,0x30]);
+  return parts;
+}
+
 function buildReceiptData(){
   var ESC=0x1B, GS=0x1D, FS=0x1C;
+  var SEP='================================'; // 32文字
   var parts=[];
 
   // 初期化
@@ -1164,51 +1186,69 @@ function buildReceiptData(){
 
   // 中央揃え
   parts.push([ESC,0x61,0x01]);
-  // 大きい文字
+  // 店名（大文字）
   parts.push([ESC,0x21,0x30]);
   parts.push(sjisBytes('テキーラ道場\n'));
   parts.push([ESC,0x21,0x00]);
-  parts.push(sjisBytes('========================\n'));
+  // 住所
+  parts.push(sjisBytes('〒260-0854\n'));
+  parts.push(sjisBytes('千葉市中央区長洲1-24-1-215\n'));
+  parts.push(sjisBytes(SEP+'\n'));
 
-  // 日時（左揃え）
-  parts.push([ESC,0x61,0x00]);
+  // 日時（中央揃えのまま）
   var now=new Date();
   var dateStr=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+
     String(now.getDate()).padStart(2,'0')+' '+
     String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   parts.push(sjisBytes(dateStr+'\n'));
-  parts.push(sjisBytes('========================\n'));
+  parts.push(sjisBytes(SEP+'\n'));
 
-  // 注文明細
+  // 左揃えで明細
+  parts.push([ESC,0x61,0x00]);
+
+  // 注文明細（productName・qty・unitPrice使用）
   var grandTotal=parseInt((document.getElementById('co-grand-total').textContent||'0').replace(/[^0-9]/g,''))||0;
-  // 注文をvisitKeyでグループ化して商品名・数量・金額を集計
   var orderSummary={};
   bulkCheckoutVisitKeys.forEach(function(visitKey){
     var orders=cache.orders.filter(function(o){ return (o.visitKey||o.visitId)===visitKey; });
     orders.forEach(function(o){
-      var name=o.productName||o.itemName||'不明';
-      var price=parseInt(o.price)||0;
-      var qty=parseInt(o.quantity)||1;
+      var name=(o.productName||'不明').replace(/[・]/g,'-');
+      var price=parseFloat(o.unitPrice||o.price)||0;
+      var qty=parseFloat(o.qty||o.quantity)||1;
       if(!orderSummary[name]) orderSummary[name]={qty:0,price:price};
       orderSummary[name].qty+=qty;
     });
   });
   Object.keys(orderSummary).forEach(function(name){
     var item=orderSummary[name];
-    var shortName=name.substring(0,10);
-    var amtStr=String((item.price*item.qty).toLocaleString());
-    var line=padR(shortName,12)+padL(item.qty+'x'+item.price,6)+'\n';
+    var total=Math.round(item.price*item.qty);
+    var shortName=name.substring(0,12);
+    var right=item.qty+'x'+Math.round(item.price)+'='+total;
+    var line=padR(shortName,16)+padL(right,14)+'\n';
     parts.push(sjisBytes(line));
   });
 
-  parts.push(sjisBytes('------------------------\n'));
-
-  // 合計（中央・太字）
+  // 中央揃えで区切り線
   parts.push([ESC,0x61,0x01]);
+  parts.push(sjisBytes(SEP+'\n'));
+
+  // 合計（右揃え・太字）
+  parts.push([ESC,0x61,0x02]);
   parts.push([ESC,0x21,0x10]);
-  parts.push(sjisBytes('￥'+grandTotal.toLocaleString()+'\n'));
+  parts.push(sjisBytes('TOTAL: '+grandTotal.toLocaleString()+'\n'));
   parts.push([ESC,0x21,0x00]);
-  parts.push(sjisBytes('\nありがとうございました\n\n\n'));
+
+  // フッター（中央揃え）
+  parts.push([ESC,0x61,0x01]);
+  parts.push(sjisBytes('\nご来場ありがとうございました！\n\n'));
+
+  // URL
+  parts.push(sjisBytes('https://www.tequiladojo.com\n\n'));
+
+  // QRコード
+  var qrParts=makeQR('https://www.tequiladojo.com');
+  qrParts.forEach(function(p){ parts.push(p); });
+  parts.push(sjisBytes('\n\n\n'));
 
   // カット
   parts.push([GS,0x56,0x41,0x10]);
