@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 17:13:08 JST -->
+<!-- UPDATED: 2026-05-16 17:19:15 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">17:13</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">17:19</span>
     </div>
   </div>
 </div>
@@ -1179,18 +1179,25 @@ function buildReceiptData(){
   parts.push(sjisBytes(dateStr+'\n'));
   parts.push(sjisBytes('========================\n'));
 
-  // 明細（warikanAmountsから直接取得）
-  var grandTotal=0;
+  // 注文明細
+  var grandTotal=parseInt((document.getElementById('co-grand-total').textContent||'0').replace(/[^0-9]/g,''))||0;
+  // 注文をvisitKeyでグループ化して商品名・数量・金額を集計
+  var orderSummary={};
   bulkCheckoutVisitKeys.forEach(function(visitKey){
-    var v=cache.visits.find(function(x){ return x.id===visitKey; });
-    if(!v) return;
-    var mem=getMemberInfo(v.memberId);
-    var name=mem?(mem.nickname||mem.name||v.memberId):(v.memberId||'非会員');
-    name=name.substring(0,8);
-    var el=document.getElementById('wk-'+visitKey);
-    var amt=el?parseInt(el.value)||0:warikanAmounts[visitKey]||0;
-    grandTotal+=amt;
-    var line=padR(name,10)+padL(String(amt.toLocaleString()),8)+'\n';
+    var orders=cache.orders.filter(function(o){ return (o.visitKey||o.visitId)===visitKey; });
+    orders.forEach(function(o){
+      var name=o.productName||o.itemName||'不明';
+      var price=parseInt(o.price)||0;
+      var qty=parseInt(o.quantity)||1;
+      if(!orderSummary[name]) orderSummary[name]={qty:0,price:price};
+      orderSummary[name].qty+=qty;
+    });
+  });
+  Object.keys(orderSummary).forEach(function(name){
+    var item=orderSummary[name];
+    var shortName=name.substring(0,10);
+    var amtStr=String((item.price*item.qty).toLocaleString());
+    var line=padR(shortName,12)+padL(item.qty+'x'+item.price,6)+'\n';
     parts.push(sjisBytes(line));
   });
 
@@ -1199,7 +1206,7 @@ function buildReceiptData(){
   // 合計（中央・太字）
   parts.push([ESC,0x61,0x01]);
   parts.push([ESC,0x21,0x10]);
-  parts.push(sjisBytes('合計: \\'+grandTotal.toLocaleString()+'\n'));
+  parts.push(sjisBytes('\\'+grandTotal.toLocaleString()+'\n'));
   parts.push([ESC,0x21,0x00]);
   parts.push(sjisBytes('\nありがとうございました\n\n\n'));
 
