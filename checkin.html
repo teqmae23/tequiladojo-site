@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 22:44:30 JST -->
+<!-- UPDATED: 2026-05-16 23:15:18 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">22:44</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:15</span>
     </div>
   </div>
 </div>
@@ -1237,8 +1237,8 @@ function buildReceiptData(){
       orderSummary[engName].count+=count;
     });
   });
-  // Font B（小さめ）で明細
-  parts.push([ESC,0x4D,0x01]);
+  // Font A（通常サイズ）で明細
+  parts.push([ESC,0x4D,0x00]);
   Object.keys(orderSummary).forEach(function(name){
     var item=orderSummary[name];
     var total=Math.round(item.price*item.count);
@@ -1248,8 +1248,7 @@ function buildReceiptData(){
     var right=item.price+'(10ml)x'+item.count;
     parts.push(sjisBytes(padL(right,28)+'\n'));
   });
-  // Font Aに戻す
-  parts.push([ESC,0x4D,0x00]);
+
 
   // 中央揃えで区切り線
   parts.push([ESC,0x61,0x01]);
