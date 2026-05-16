@@ -1,4 +1,4 @@
-<!-- UPDATED: 2026-05-16 23:25:32 JST -->
+<!-- UPDATED: 2026-05-16 23:29:51 JST -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -344,7 +344,7 @@ select.fs{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
       </label>
       <button class="btn bp" style="flex:2;min-width:120px" id="m-checkout-save" onclick="doCheckoutSave()">✅ お会計確定</button>
       <button class="btn bs" style="min-width:100px" onclick="printReceipt()">🖨️ レシート</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:25</span>
+      <span style="font-size:10px;color:var(--ink3);margin-left:4px">23:29</span>
     </div>
   </div>
 </div>
@@ -1236,14 +1236,15 @@ function buildReceiptData(){
   });
   // Font A（通常サイズ）で明細
   parts.push([ESC,0x4D,0x00]);
+  var LINE=32; // 58mm幅で約32文字
   Object.keys(orderSummary).forEach(function(name){
     var item=orderSummary[name];
     var total=Math.round(item.price*item.count);
-    // 1行目：商品名（最大30文字で切る）
-    parts.push(sjisBytes(item.engName.substring(0,28)+'\n'));
-    // 2行目：単価(10ml)×杯数　右揃え
-    var right=item.price+'(10ml)x'+item.count;
-    parts.push(sjisBytes(padL(right,28)+'\n'));
+    // 1行目：商品名（最大32文字で切る）
+    parts.push(sjisBytes(item.engName.substring(0,LINE)+'\n'));
+    // 2行目：単価(10ml)×杯数 右揃え + 合計
+    var right='\\'+item.price+'(10ml)x'+item.count+'=\\'+total.toLocaleString();
+    parts.push(sjisBytes(padL(right,LINE)+'\n'));
   });
 
 
@@ -1265,7 +1266,7 @@ function buildReceiptData(){
 
   // フッター（中央揃え）
   parts.push([ESC,0x61,0x01]);
-  parts.push(sjisBytes('\nご来場ありがとうございました！\n\n'));
+  parts.push(sjisBytes('\nご来場ありがとうございました\n\n'));
 
   // URL
   parts.push(sjisBytes('https://www.tequiladojo.com\n\n'));
